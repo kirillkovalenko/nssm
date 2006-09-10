@@ -69,7 +69,6 @@ int install(HWND window) {
   char name[STRING_SIZE];
   char exe[MAX_PATH];
   char flags[STRING_SIZE];
-  char dir[MAX_PATH];
 
   /* Get service name */
   if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {
@@ -92,56 +91,28 @@ int install(HWND window) {
   }
   else ZeroMemory(&flags, sizeof(flags));
 
-  /* Work out directory name */
-  unsigned int len = strlen(exe);
-  unsigned int i;
-  for (i = len; i && exe[i] != '\\' && exe[i] != '/'; i--);
-  memmove(dir, exe, i);
-  dir[i] = '\0';
+  /* See if it works */
+  switch (install_service(name, exe, flags)) {
+    case 2:
+      MessageBox(0, "Can't open service manager!\nPerhaps you need to be an administrator...", NSSM, MB_OK);
+      return 2;
 
-  /* Open service manager */
-  SC_HANDLE services = open_service_manager();
-  if (! services) {
-    MessageBox(0, "Can't open service manager!\nPerhaps you need to be an administrator...", NSSM, MB_OK);
-    return 2;
-  }
-  
-  /* Get path of this program */
-  char path[MAX_PATH];
-  GetModuleFileName(0, path, MAX_PATH);
+    case 3:
+      MessageBox(0, "Path too long!\nThe full path to " NSSM " is too long.\nPlease install " NSSM " somewhere else...\n", NSSM, MB_OK);
+      return 3;
 
-  /* Construct command */
-  char command[MAX_PATH];
-  int runlen = strlen(NSSM_RUN);
-  int pathlen = strlen(path);
-  if (pathlen + runlen + 2 >= MAX_PATH) {
-    MessageBox(0, "Path too long!\nThe full path to " NSSM " is too long.\nPlease install " NSSM " somewhere else...\n", NSSM, MB_OK);
-    return 3;
-  }
-  if (snprintf(command, sizeof(command), "%s %s", path, NSSM_RUN) < 0) {
-     MessageBox(0, "Error constructing ImagePath!\nThis really shouldn't happen.  You could be out of memory\nor the world may be about to end or something equally bad.", NSSM, MB_OK);
-     return 4;
-  }
+    case 4:
+      MessageBox(0, "Error constructing ImagePath!\nThis really shouldn't happen.  You could be out of memory\nor the world may be about to end or something equally bad.", NSSM, MB_OK);
+      return 4;
 
-  /* Create the service */
-  SC_HANDLE service = CreateService(services, name, name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
-  if (! service) {
-    MessageBox(0, "Couldn't create service!\nPerhaps it is already installed...", NSSM, MB_OK);
-    CloseServiceHandle(services);
-    return 5;
-  }
+    case 5:
+      MessageBox(0, "Couldn't create service!\nPerhaps it is already installed...", NSSM, MB_OK);
+      return 5;
 
-  /* Now we need to put the parameters into the registry */
-  if (create_parameters(name, exe, flags, dir)) {
-    MessageBox(0, "Couldn't set startup parameters for the service!\nDeleting the service...", NSSM, MB_OK);
-    DeleteService(service);
-    CloseServiceHandle(services);
-    return 6;
+    case 6:
+      MessageBox(0, "Couldn't set startup parameters for the service!\nDeleting the service...", NSSM, MB_OK);
+      return 6;
   }
-
-  /* Cleanup */
-  CloseServiceHandle(service);
-  CloseServiceHandle(services);
 
   MessageBox(0, "Service successfully installed!", NSSM, MB_OK);
   return 0;
@@ -167,32 +138,20 @@ int remove(HWND window) {
   }
   else if (MessageBox(0, blurb, NSSM, MB_YESNO) != IDYES) return 0;
 
-  /* Open service manager */
-  SC_HANDLE services = open_service_manager();
-  if (! services) {
-    MessageBox(0, "Can't open service manager!\nPerhaps you need to be an administrator...", NSSM, MB_OK);
-    return 2;
-  }
-  
-  /* Try to open the service */
-  SC_HANDLE service = OpenService(services, name, SC_MANAGER_ALL_ACCESS);
-  if (! service) {
-    MessageBox(0, "Can't open service!\nPerhaps it isn't installed...", NSSM, MB_OK);
-    CloseServiceHandle(services);
-    return 3;
-  }
+  /* See if it works */
+  switch (remove_service(name)) {
+    case 2:
+      MessageBox(0, "Can't open service manager!\nPerhaps you need to be an administrator...", NSSM, MB_OK);
+      return 2;
 
-  /* Try to delete the service */
-  if (! DeleteService(service)) {
-    MessageBox(0, "Can't delete service!  Make sure the service is stopped and try again.\nIf this error persists, you may need to set the service NOT to start\nautomatically, reboot your computer and try removing it again.", NSSM, MB_OK);
-    CloseServiceHandle(service);
-    CloseServiceHandle(services);
-    return 4;
-  }
+    case 3:
+      MessageBox(0, "Can't open service!\nPerhaps it isn't installed...", NSSM, MB_OK);
+      return 3;
 
-  /* Cleanup */
-  CloseServiceHandle(service);
-  CloseServiceHandle(services);
+    case 4:
+      MessageBox(0, "Can't delete service!  Make sure the service is stopped and try again.\nIf this error persists, you may need to set the service NOT to start\nautomatically, reboot your computer and try removing it again.", NSSM, MB_OK);
+      return 4;
+  }
 
   MessageBox(0, "Service successfully removed!", NSSM, MB_OK);
   return 0;

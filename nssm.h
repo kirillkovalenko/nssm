@@ -10,9 +10,11 @@
 #include "service.h"
 #include "gui.h"
 
+int str_equiv(const char *, const char *);
+
 #define NSSM "nssm"
-#define NSSM_VERSION "1.0"
-#define NSSM_DATE "2003-05-30"
+#define NSSM_VERSION "2.0"
+#define NSSM_DATE "2006-09-09"
 #define NSSM_RUN "run"
 
 #endif
