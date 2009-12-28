@@ -18,6 +18,6 @@ void centre_window(HWND);
 int install(HWND);
 int remove(HWND);
 void browse(HWND);
-int CALLBACK install_dlg(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK install_dlg(HWND, UINT, WPARAM, LPARAM);
 
 #endif

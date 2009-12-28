@@ -35,7 +35,7 @@ int nssm_gui(int resource, char *name) {
     DispatchMessage(&message);
   }
 
-  return message.wParam;
+  return (int) message.wParam;
 }
 
 void centre_window(HWND window) {
@@ -179,7 +179,7 @@ void browse(HWND window) {
 }
 
 /* Install/remove dialogue callback */
-int CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
+INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
   switch (message) {
     /* Creating the dialogue */
     case WM_INITDIALOG:

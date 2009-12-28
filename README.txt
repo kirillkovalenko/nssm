@@ -1,5 +1,5 @@
 NSSM: The Non-Sucking Service Manager
-Version 2.0, 2006-09-09
+Version 2.1, 2009-12-28 by Benjamin Mayrargue (www.softlion.com)
 
 NSSM is a service helper program similar to srvany and cygrunsrv.  It can 
 start any application as an NT service and will restart the service if it 
@@ -7,8 +7,15 @@ fails for any reason.
 
 NSSM also has a graphical service installer and remover.
 
+Full documentation can be found online at
+
+                           http://iain.cx/src/nssm/
+
 Since version 2.0, the GUI can be bypassed by entering all appropriate 
 options on the command line.
+
+Since version 2.1, NSSM can be compiled for x64 platforms.
+Thanks Benjamin Mayrargue.
 
 
 Usage
@@ -90,8 +97,13 @@ To remove the server:
 
 Building NSSM from source
 -------------------------
-NSSM is known to compile with Visual Studio 6 and Visual Studio 2005.
+NSSM is known to compile with Visual Studio 6, Visual Studio 2005 and Visual
+Studio 2008.
 
+
+Credits
+-------
+Thanks to Benjamin Mayrargue (www.softlion.com) for adding 64-bit support.
 
 Licence
 -------
