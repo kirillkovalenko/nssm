@@ -4,9 +4,13 @@ SERVICE_STATUS service_status;
 SERVICE_STATUS_HANDLE service_handle;
 HANDLE wait_handle;
 HANDLE pid;
+static char service_name[MAX_PATH];
 char exe[MAX_PATH];
 char flags[MAX_PATH];
 char dir[MAX_PATH];
+
+static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY } exit_actions;
+static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", 0 };
 
 /* Connect to the service manager */
 SC_HANDLE open_service_manager() {
@@ -56,8 +60,8 @@ int install_service(char *name, char *exe, char *flags) {
 
   /* Construct command */
   char command[MAX_PATH];
-  int runlen = strlen(NSSM_RUN);
-  int pathlen = strlen(path);
+  size_t runlen = strlen(NSSM_RUN);
+  size_t pathlen = strlen(path);
   if (pathlen + runlen + 2 >= MAX_PATH) {
     fprintf(stderr, "The full path to " NSSM " is too long!\n");
     return 3;
@@ -68,8 +72,8 @@ int install_service(char *name, char *exe, char *flags) {
   }
 
   /* Work out directory name */
-  unsigned int len = strlen(exe);
-  unsigned int i;
+  size_t len = strlen(exe);
+  size_t i;
   for (i = len; i && exe[i] != '\\' && exe[i] != '/'; i--);
   char dir[MAX_PATH];
   memmove(dir, exe, i);
@@ -134,6 +138,11 @@ int remove_service(char *name) {
 
 /* Service initialisation */
 void WINAPI service_main(unsigned long argc, char **argv) {
+  if (_snprintf(service_name, sizeof(service_name), "%s", argv[0]) < 0) {
+    eventprintf(EVENTLOG_ERROR_TYPE, "service_main(): Out of memory for service_name!");
+    return;
+  }
+
   /* Initialise status */
   ZeroMemory(&service_status, sizeof(service_status));
   service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
@@ -161,6 +170,9 @@ void WINAPI service_main(unsigned long argc, char **argv) {
     return;
   }
 
+  /* Try to create the exit action parameters; we don't care if it fails */
+  create_exit_action(argv[0], exit_action_strings[0]);
+
   monitor_service();
 }
 
@@ -168,10 +180,10 @@ int monitor_service() {
   /* Set service status to started */
   int ret = start_service();
   if (ret) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "Can't start service: error code %d", ret);
+    eventprintf(EVENTLOG_ERROR_TYPE, "Can't start service %s: error code %d", service_name, ret);
     return ret;
   }
-  eventprintf(EVENTLOG_INFORMATION_TYPE, "Started process %s %s in %s", exe, flags, dir);
+  eventprintf(EVENTLOG_INFORMATION_TYPE, "Started process %s %s in %s for service %s", exe, flags, dir, service_name);
 
   /* Monitor service service */
   if (! RegisterWaitForSingleObject(&wait_handle, pid, end_service, 0, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
@@ -260,17 +272,41 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   unsigned long ret = 0;
   GetExitCodeProcess(pid, &ret);
 
-  /* Force an error code if none given, so system can restart this service */
-  /*if (! ret) {
-    eventprintf(EVENTLOG_INFORMATION_TYPE, "Process exited with return code 0 - overriding with return code 111 so the service manager will notice the failure");
-    ret = 111;
-  }
-  else */eventprintf(EVENTLOG_INFORMATION_TYPE, "Process %s exited with return code %u", exe, ret);
+  eventprintf(EVENTLOG_INFORMATION_TYPE, "Process %s for service %s exited with return code %u", exe, service_name, ret);
 
-  /* Try to restart the service or return failure code to service manager */
+  /* What action should we take? */
+  int action = NSSM_EXIT_RESTART;
+  unsigned char action_string[ACTION_LEN];
+  if (! get_exit_action(service_name, &ret, action_string)) {
+    for (int i = 0; exit_action_strings[i]; i++) {
+      if (! _strnicmp((const char *) action_string, exit_action_strings[i], ACTION_LEN)) {
+        action = i;
+        break;
+      }
+    }
+  }
+
   pid = 0;
-  while (monitor_service()) {
-    eventprintf(EVENTLOG_INFORMATION_TYPE, "Failed to restart %s - sleeping ", exe, ret);
-    Sleep(30000);
+  switch (action) {
+    /* Try to restart the service or return failure code to service manager */
+    case NSSM_EXIT_RESTART:
+      eventprintf(EVENTLOG_INFORMATION_TYPE, "Action for exit code %lu is %s: Attempting to restart %s for service %s", ret, exit_action_strings[action], exe, service_name);
+      while (monitor_service()) {
+        eventprintf(EVENTLOG_INFORMATION_TYPE, "Failed to restart %s - sleeping ", exe, ret);
+        Sleep(30000);
+      }
+    break;
+
+    /* Do nothing, just like srvany would */
+    case NSSM_EXIT_IGNORE:
+      eventprintf(EVENTLOG_INFORMATION_TYPE, "Action for exit code %lu is %s: Not attempting to restart %s for service %s", ret, exit_action_strings[action], exe, service_name);
+      Sleep(INFINITE);
+    break;
+
+    /* Tell the service manager we are finished */
+    case NSSM_EXIT_REALLY:
+      eventprintf(EVENTLOG_INFORMATION_TYPE, "Action for exit code %lu is %s: Stopping service %s", ret, exit_action_strings[action], service_name);
+      stop_service(ret);
+    break;
   }
 }

@@ -1,6 +1,8 @@
 #ifndef SERVICE_H
 #define SERVICE_H
 
+#define ACTION_LEN 16
+
 void WINAPI service_main(unsigned long, char **);
 unsigned long WINAPI service_control_handler(unsigned long, unsigned long, void *, void *);
 
