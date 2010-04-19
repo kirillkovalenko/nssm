@@ -58,7 +58,7 @@ void centre_window(HWND window) {
   /* Centre window */
   x = (desktop_size.right - size.right) / 2;
   y = (desktop_size.bottom - size.bottom) / 2;
-  MoveWindow(window, x, y, size.right, size.bottom, 0);
+  MoveWindow(window, x, y, size.right - size.left, size.bottom - size.top, 0);
 }
 
 /* Install the service */
