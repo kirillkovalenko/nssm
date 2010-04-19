@@ -16,7 +16,7 @@ static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", 0 };
 SC_HANDLE open_service_manager() {
   SC_HANDLE ret = OpenSCManager(0, SERVICES_ACTIVE_DATABASE, SC_MANAGER_ALL_ACCESS);
   if (! ret) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "Unable to connect to service manager!\nPerhaps you need to be an administrator...");
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Unable to connect to service manager!\nPerhaps you need to be an administrator...");
     return 0;
   }
 
@@ -139,7 +139,7 @@ int remove_service(char *name) {
 /* Service initialisation */
 void WINAPI service_main(unsigned long argc, char **argv) {
   if (_snprintf(service_name, sizeof(service_name), "%s", argv[0]) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "service_main(): Out of memory for service_name!");
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "service_main(): Out of memory for service_name!");
     return;
   }
 
@@ -159,14 +159,14 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   /* Get startup parameters */
   int ret = get_parameters(argv[0], exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir));
   if (ret) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "service_main(): Can't get startup parameters: error %d", ret);
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "service_main(): Can't get startup parameters: error %d", ret);
     return;
   }
 
   /* Register control handler */
   service_handle = RegisterServiceCtrlHandlerEx(NSSM, service_control_handler, 0);
   if (! service_handle) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "service_main(): RegisterServiceCtrlHandlerEx() failed: %s", error_string(GetLastError()));
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "service_main(): RegisterServiceCtrlHandlerEx() failed: %s", error_string(GetLastError()));
     return;
   }
 
@@ -180,14 +180,14 @@ int monitor_service() {
   /* Set service status to started */
   int ret = start_service();
   if (ret) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "Can't start service %s: error code %d", service_name, ret);
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't start service %s: error code %d", service_name, ret);
     return ret;
   }
-  eventprintf(EVENTLOG_INFORMATION_TYPE, "Started process %s %s in %s for service %s", exe, flags, dir, service_name);
+  eventprintf(EVENTLOG_INFORMATION_TYPE, NSSM_MESSAGE_DEFAULT, "Started process %s %s in %s for service %s", exe, flags, dir, service_name);
 
   /* Monitor service service */
   if (! RegisterWaitForSingleObject(&wait_handle, pid, end_service, 0, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
-    eventprintf(EVENTLOG_WARNING_TYPE, "RegisterWaitForSingleObject() returned %s - service may claim to be still running when %s exits ", error_string(GetLastError()), exe);
+    eventprintf(EVENTLOG_WARNING_TYPE, NSSM_MESSAGE_DEFAULT, "RegisterWaitForSingleObject() returned %s - service may claim to be still running when %s exits ", error_string(GetLastError()), exe);
   }
 
   return 0;
@@ -222,11 +222,11 @@ int start_service() {
   /* Launch executable with arguments */
   char cmd[MAX_PATH];
   if (_snprintf(cmd, sizeof(cmd), "%s %s", exe, flags) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "Error constructing command line");
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Error constructing command line");
     return stop_service(2);
   }
   if (! CreateProcess(0, cmd, 0, 0, 0, 0, 0, dir, &si, &pi)) {
-    eventprintf(EVENTLOG_ERROR_TYPE, "Can't launch %s.  CreateProcess() returned %s", exe, error_string(GetLastError()));
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't launch %s.  CreateProcess() returned %s", exe, error_string(GetLastError()));
     return stop_service(3);
   }
   pid = pi.hProcess;
@@ -272,7 +272,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   unsigned long ret = 0;
   GetExitCodeProcess(pid, &ret);
 
-  eventprintf(EVENTLOG_INFORMATION_TYPE, "Process %s for service %s exited with return code %u", exe, service_name, ret);
+  eventprintf(EVENTLOG_INFORMATION_TYPE, NSSM_MESSAGE_DEFAULT, "Process %s for service %s exited with return code %u", exe, service_name, ret);
 
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
@@ -290,22 +290,22 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   switch (action) {
     /* Try to restart the service or return failure code to service manager */
     case NSSM_EXIT_RESTART:
-      eventprintf(EVENTLOG_INFORMATION_TYPE, "Action for exit code %lu is %s: Attempting to restart %s for service %s", ret, exit_action_strings[action], exe, service_name);
+      eventprintf(EVENTLOG_INFORMATION_TYPE, NSSM_MESSAGE_DEFAULT, "Action for exit code %lu is %s: Attempting to restart %s for service %s", ret, exit_action_strings[action], exe, service_name);
       while (monitor_service()) {
-        eventprintf(EVENTLOG_INFORMATION_TYPE, "Failed to restart %s - sleeping ", exe, ret);
+        eventprintf(EVENTLOG_INFORMATION_TYPE, NSSM_MESSAGE_DEFAULT, "Failed to restart %s - sleeping ", exe, ret);
         Sleep(30000);
       }
     break;
 
     /* Do nothing, just like srvany would */
     case NSSM_EXIT_IGNORE:
-      eventprintf(EVENTLOG_INFORMATION_TYPE, "Action for exit code %lu is %s: Not attempting to restart %s for service %s", ret, exit_action_strings[action], exe, service_name);
+      eventprintf(EVENTLOG_INFORMATION_TYPE, NSSM_MESSAGE_DEFAULT, "Action for exit code %lu is %s: Not attempting to restart %s for service %s", ret, exit_action_strings[action], exe, service_name);
       Sleep(INFINITE);
     break;
 
     /* Tell the service manager we are finished */
     case NSSM_EXIT_REALLY:
-      eventprintf(EVENTLOG_INFORMATION_TYPE, "Action for exit code %lu is %s: Stopping service %s", ret, exit_action_strings[action], service_name);
+      eventprintf(EVENTLOG_INFORMATION_TYPE, NSSM_MESSAGE_DEFAULT, "Action for exit code %lu is %s: Stopping service %s", ret, exit_action_strings[action], service_name);
       stop_service(ret);
     break;
   }

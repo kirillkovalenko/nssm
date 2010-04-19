@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -27,21 +27,19 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE 
 BEGIN
-    "#include ""afxres.h""\r\n"
-    "\0"
+    "#include ""afxres.h""\r\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE 
 BEGIN
-    "\r\n"
-    "\0"
+    "#include ""messages.rc\0"
 END
 
 #endif    // APSTUDIO_INVOKED
@@ -54,15 +52,15 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_NSSM                ICON    DISCARDABLE     "nssm.ico"
+IDI_NSSM                ICON                    "nssm.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-IDD_INSTALL DIALOG DISCARDABLE  0, 0, 220, 90
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_INSTALL DIALOG  0, 0, 220, 90
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NSSM service installer"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -77,8 +75,8 @@ BEGIN
     LTEXT           "Application:",IDC_STATIC,7,9,38,8
 END
 
-IDD_REMOVE DIALOG DISCARDABLE  0, 0, 223, 28
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_REMOVE DIALOG  0, 0, 223, 28
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "NSSM service remover"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -94,7 +92,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO 
 BEGIN
     IDD_INSTALL, DIALOG
     BEGIN
@@ -118,8 +116,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
-
+#include "messages.rc"
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

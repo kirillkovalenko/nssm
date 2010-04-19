@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include "event.h"
+#include "messages.h"
 #include "registry.h"
 #include "service.h"
 #include "gui.h"

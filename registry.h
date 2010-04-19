@@ -7,6 +7,7 @@
 #define NSSM_REG_DIR "AppDirectory"
 #define NSSM_REG_EXIT "AppExit"
 
+int create_messages();
 int create_parameters(char *, char *, char *, char *);
 int create_exit_action(char *, const char *);
 int get_parameters(char *, char *, int, char *, int, char *, int);

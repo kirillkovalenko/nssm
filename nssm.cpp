@@ -39,11 +39,14 @@ int main(int argc, char **argv) {
   /* Undocumented: "run" is used to actually do service stuff */
   if (! str_equiv(argv[1], NSSM_RUN)) exit(usage(2));
 
+  /* Register messages */
+  create_messages();
+
   /* Start service magic */
   SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
   if (! StartServiceCtrlDispatcher(table)) {
     char *message = error_string(GetLastError());
-    eventprintf(EVENTLOG_ERROR_TYPE, "StartServiceCtrlDispatcher() failed: %s", message);
+    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "StartServiceCtrlDispatcher() failed: %s", message);
     if (message) LocalFree(message);
     return 100;
   }
