@@ -5,12 +5,12 @@ int create_messages() {
 
   char registry[MAX_PATH];
   if (_snprintf(registry, sizeof(registry), "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\%s", NSSM) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Out of memory for eventlog registry()!");
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "eventlog registry", "create_messages()", 0);
     return 1;
   }
 
   if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, 0) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't open eventlog registry!", NSSM_REGISTRY);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
     return 2;
   }
 
@@ -30,32 +30,32 @@ int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
   /* Get registry */
   char registry[MAX_PATH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY, service_name) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Out of memory for NSSM_REGISTRY in create_parameters()!");
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REGISTRY", "create_parameters()", 0);
     return 1;
   }
 
   /* Try to open the registry */
   HKEY key;
   if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, 0) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't open service registry settings!", NSSM_REGISTRY);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
     return 2;
   }
 
   /* Try to create the parameters */
   if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_SZ, (const unsigned char *) exe, strlen(exe) + 1) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't add registry value %s: %s", NSSM_REG_EXE, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXE, GetLastError(), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 3;
   }
   if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_SZ, (const unsigned char *) flags, strlen(flags) + 1) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't add registry value %s: %s", NSSM_REG_FLAGS, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_FLAGS, GetLastError(), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 4;
   }
   if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_SZ, (const unsigned char *) dir, strlen(dir) + 1) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't add registry value %s: %s", NSSM_REG_DIR, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_DIR, GetLastError(), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 5;
@@ -71,7 +71,7 @@ int create_exit_action(char *service_name, const char *action_string) {
   /* Get registry */
   char registry[MAX_PATH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY "\\%s", service_name, NSSM_REG_EXIT) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Out of memory for NSSM_REG_EXIT in create_exit_action()!");
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REG_EXIT", "create_exit_action()", 0);
     return 1;
   }
 
@@ -79,7 +79,7 @@ int create_exit_action(char *service_name, const char *action_string) {
   HKEY key;
   unsigned long disposition;
   if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, &disposition) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't open service exit action registry settings!");
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
     return 2;
   }
 
@@ -91,7 +91,7 @@ int create_exit_action(char *service_name, const char *action_string) {
 
   /* Create the default value */
   if (RegSetValueEx(key, 0, 0, REG_SZ, (const unsigned char *) action_string, strlen(action_string) + 1) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't add default registry value %s: %s", NSSM_REG_EXIT, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXIT, GetLastError(), 0);
     RegCloseKey(key);
     return 3;
   }
@@ -106,14 +106,14 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
   /* Get registry */
   char registry[MAX_PATH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY, service_name) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Out of memory for NSSM_REGISTRY in get_parameters()!");
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REGISTRY", "get_parameters()", 0);
     return 1;
   }
 
   /* Try to open the registry */
   HKEY key;
   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, KEY_READ, &key) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't open service registry settings!", NSSM_REGISTRY);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
     return 2;
   }
 
@@ -121,21 +121,21 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
 
   /* Try to get executable file - MUST succeed */
   if (RegQueryValueEx(key, NSSM_REG_EXE, 0, &type, (unsigned char *) exe, (unsigned long *) &exelen) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't get application path (registry value %s): %s", NSSM_REG_EXE, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_EXE, GetLastError(), 0);
     RegCloseKey(key);
     return 3;
   }
 
   /* Try to get flags - may fail */
   if (RegQueryValueEx(key, NSSM_REG_FLAGS, 0, &type, (unsigned char *) flags, (unsigned long *) &flagslen) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_WARNING_TYPE, NSSM_MESSAGE_DEFAULT, "Can't get application flags (registry value %s): %s", NSSM_REG_FLAGS, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_FLAGS, GetLastError(), 0);
     RegCloseKey(key);
     return 4;
   }
 
   /* Try to get startup directory - may fail */
   if (RegQueryValueEx(key, NSSM_REG_DIR, 0, &type, (unsigned char *) dir, (unsigned long *) &dirlen) != ERROR_SUCCESS) {
-    eventprintf(EVENTLOG_WARNING_TYPE, NSSM_MESSAGE_DEFAULT, "Can't get application startup directory (registry value %s): %s", NSSM_REG_DIR, error_string(GetLastError()));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_DIR, GetLastError(), 0);
     RegCloseKey(key);
     return 5;
   }
@@ -150,7 +150,7 @@ int get_exit_action(char *service_name, unsigned long *ret, unsigned char *actio
   /* Get registry */
   char registry[MAX_PATH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY "\\%s", service_name, NSSM_REG_EXIT) < 0) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Out of memory for NSSM_REG_EXIT in get_exit_action()!");
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REG_EXIT", "get_exit_action()", 0);
     return 1;
   }
 
@@ -158,7 +158,7 @@ int get_exit_action(char *service_name, unsigned long *ret, unsigned char *actio
   HKEY key;
   long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, KEY_READ, &key);
   if (error != ERROR_SUCCESS && error != ERROR_FILE_NOT_FOUND) {
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "Can't open registry %s!", registry);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
     return 2;
   }
 

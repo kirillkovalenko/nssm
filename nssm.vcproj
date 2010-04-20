@@ -33,9 +33,9 @@
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
-				Description="Compiling messages"
-				CommandLine="mc -A &quot;$(InputDir)\$(InputName).mc&quot; -r &quot;$(InputDir)&quot; -h &quot;$(InputDir)&quot;"
-				Outputs="$(InputDir)\$(InputName).rc;$(InputDir)\$(InputName).h"
+				Description=""
+				CommandLine=""
+				Outputs=""
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -125,9 +125,9 @@
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
-				Description="Compiling messages"
-				CommandLine="mc -A &quot;$(InputDir)\$(InputName).mc&quot; -r &quot;$(InputDir)&quot; -h &quot;$(InputDir)&quot;"
-				Outputs="$(InputDir)\$(InputName).rc;$(InputDir)\$(InputName).h"
+				Description=""
+				CommandLine=""
+				Outputs=""
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -654,8 +654,8 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputPath) -r $(InputDir) -h $(InputDir)"
-					Outputs="$(InputFileName).rc;$(InputFileName).h"
+					CommandLine="mc -A $(InputDir)/$(InputName).mc -r $(InputDir) -h $(InputDir)&#x0D;&#x0A;"
+					Outputs="$(InputName).rc;$(InputName).h"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -664,8 +664,8 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputPath) -r $(InputDir) -h $(InputDir)"
-					Outputs="$(InputFileName).rc;$(InputFileName).h"
+					CommandLine="mc -A $(InputDir)\$(InputName).mc -r $(InputDir) -h $(InputDir)&#x0D;&#x0A;"
+					Outputs="$(InputName).rc;$(InputName).h"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -674,9 +674,9 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputPath) -r $(InputDir) -h $(InputDir)"
+					CommandLine="mc -A $(InputDir)/$(InputName).mc -r $(InputDir) -h $(InputDir)&#x0D;&#x0A;"
 					AdditionalDependencies=""
-					Outputs="$(InputFileName).rc;$(InputFileName).h"
+					Outputs="$(InputName).rc;$(InputName).h"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -685,9 +685,9 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputPath) -r $(InputDir) -h $(InputDir)"
+					CommandLine="mc -A $(InputDir)/$(InputName).mc -r $(InputDir) -h $(InputDir)&#x0D;&#x0A;"
 					AdditionalDependencies=""
-					Outputs="$(InputFileName).rc;$(InputFileName).h"
+					Outputs="$(InputName).rc;$(InputName).h"
 				/>
 			</FileConfiguration>
 		</File>

@@ -45,9 +45,7 @@ int main(int argc, char **argv) {
   /* Start service magic */
   SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
   if (! StartServiceCtrlDispatcher(table)) {
-    char *message = error_string(GetLastError());
-    eventprintf(EVENTLOG_ERROR_TYPE, NSSM_MESSAGE_DEFAULT, "StartServiceCtrlDispatcher() failed: %s", message);
-    if (message) LocalFree(message);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, GetLastError(), 0);
     return 100;
   }
 
