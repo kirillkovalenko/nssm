@@ -18,4 +18,17 @@ int str_equiv(const char *, const char *);
 #define NSSM_DATE "2010-04-04"
 #define NSSM_RUN "run"
 
+/*
+  MSDN says the commandline in CreateProcess() is limited to 32768 characters
+  and the application name to MAX_PATH.
+  A registry key is limited to 255 characters.
+  A registry value is limited to 16383 characters.
+  Therefore we limit the service name to accommodate the path under HKLM.
+*/
+#define EXE_LENGTH MAX_PATH
+#define CMD_LENGTH 32768
+#define KEY_LENGTH 255
+#define VALUE_LENGTH 16383
+#define SERVICE_NAME_LENGTH KEY_LENGTH - 55
+
 #endif

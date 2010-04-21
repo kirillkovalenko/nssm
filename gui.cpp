@@ -67,7 +67,7 @@ int install(HWND window) {
 
   /* Check parameters in the window */
   char name[STRING_SIZE];
-  char exe[MAX_PATH];
+  char exe[EXE_LENGTH];
   char flags[STRING_SIZE];
 
   /* Get service name */

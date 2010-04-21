@@ -3,7 +3,7 @@
 int create_messages() {
   HKEY key;
 
-  char registry[MAX_PATH];
+  char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\%s", NSSM) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "eventlog registry", "create_messages()", 0);
     return 1;
@@ -28,7 +28,7 @@ int create_messages() {
 
 int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
   /* Get registry */
-  char registry[MAX_PATH];
+  char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY, service_name) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REGISTRY", "create_parameters()", 0);
     return 1;
@@ -69,7 +69,7 @@ int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
 
 int create_exit_action(char *service_name, const char *action_string) {
   /* Get registry */
-  char registry[MAX_PATH];
+  char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY "\\%s", service_name, NSSM_REG_EXIT) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REG_EXIT", "create_exit_action()", 0);
     return 1;
@@ -104,7 +104,7 @@ int create_exit_action(char *service_name, const char *action_string) {
 
 int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen) {
   /* Get registry */
-  char registry[MAX_PATH];
+  char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY, service_name) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REGISTRY", "get_parameters()", 0);
     return 1;
@@ -148,7 +148,7 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
 
 int get_exit_action(char *service_name, unsigned long *ret, unsigned char *action) {
   /* Get registry */
-  char registry[MAX_PATH];
+  char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY "\\%s", service_name, NSSM_REG_EXIT) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REG_EXIT", "get_exit_action()", 0);
     return 1;

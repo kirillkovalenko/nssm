@@ -4,9 +4,9 @@ SERVICE_STATUS service_status;
 SERVICE_STATUS_HANDLE service_handle;
 HANDLE wait_handle;
 HANDLE pid;
-static char service_name[MAX_PATH];
-char exe[MAX_PATH];
-char flags[MAX_PATH];
+static char service_name[SERVICE_NAME_LENGTH];
+char exe[EXE_LENGTH];
+char flags[CMD_LENGTH];
 char dir[MAX_PATH];
 
 static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY } exit_actions;
@@ -59,10 +59,10 @@ int install_service(char *name, char *exe, char *flags) {
   GetModuleFileName(0, path, MAX_PATH);
 
   /* Construct command */
-  char command[MAX_PATH];
+  char command[CMD_LENGTH];
   size_t runlen = strlen(NSSM_RUN);
   size_t pathlen = strlen(path);
-  if (pathlen + runlen + 2 >= MAX_PATH) {
+  if (pathlen + runlen + 2 >= VALUE_LENGTH) {
     fprintf(stderr, "The full path to " NSSM " is too long!\n");
     return 3;
   }
@@ -222,7 +222,7 @@ int start_service() {
   ZeroMemory(&pi, sizeof(pi));
 
   /* Launch executable with arguments */
-  char cmd[MAX_PATH];
+  char cmd[CMD_LENGTH];
   if (_snprintf(cmd, sizeof(cmd), "%s %s", exe, flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
     return stop_service(2);
