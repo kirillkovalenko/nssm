@@ -1,5 +1,5 @@
 NSSM: The Non-Sucking Service Manager
-Version 2.2, 2010-04-04
+Version 2.3, 2010-04-21
 
 NSSM is a service helper program similar to srvany and cygrunsrv.  It can 
 start any application as an NT service and will restart the service if it 
@@ -19,6 +19,8 @@ Thanks Benjamin Mayrargue.
 
 Since version 2.2, NSSM can be configured to take different actions
 based on the exit code of the managed application.
+
+Since version 2.3, NSSM logs to the Windows event log more elegantly.
 
 
 Usage
@@ -111,6 +113,18 @@ To remove a service without confirmation from the GUI, run
 Try not to remove essential system services...
 
 
+Logging
+-------
+NSSM logs to the Windows event log.  It registers itself as an event log source
+and uses unique event IDs for each type of message it logs.  New versions may
+add event types but existing event IDs will never be changed.
+
+Because of the way NSSM registers itself you should be aware that you may not
+be able to replace the NSSM binary if you have the event viewer open and that
+running multiple instances of NSSM from different locations may be confusing if
+they are not all the same version.
+
+
 Example usage
 -------------
 To install an Unreal Tournament server:
@@ -131,6 +145,7 @@ Studio 2008.
 Credits
 -------
 Thanks to Benjamin Mayrargue (www.softlion.com) for adding 64-bit support.
+Thanks to Joel Reingold for spotting a command line truncation bug.
 
 Licence
 -------
