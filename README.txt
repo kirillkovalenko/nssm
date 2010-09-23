@@ -1,5 +1,5 @@
 NSSM: The Non-Sucking Service Manager
-Version 2.3, 2010-04-21
+Version 2.4, 2010-09-23
 
 NSSM is a service helper program similar to srvany and cygrunsrv.  It can 
 start any application as an NT service and will restart the service if it 
@@ -88,10 +88,16 @@ but will continue running itself.  This emulates the (usually undesirable)
 behaviour of srvany.  The Windows Services console would show the service
 as still running even though the application has exited.
 
-If the value data is "Exit" NSSM will exit.  The Windows Services console
-would show the service as stopped.  If you wish to provide finer-grained
-control over service recovery you should use this code and edit the failure
-action manually.
+If the value data is "Exit" NSSM will exit gracefully.  The Windows Services
+console would show the service as stopped.  If you wish to provide
+finer-grained control over service recovery you should use this code and
+edit the failure action manually.  Please note that Windows versions prior
+to Vista will not consider such an exit to be a failure.  On older versions
+of Windows you should use "Suicide" instead.
+
+If the value data is "Suicide" NSSM will simulate a crash and exit without
+informing the service manager.  This option should only be used for
+pre-Vista systems where you wish to apply a service recovery action.
 
 
 Removing services using the GUI
@@ -144,6 +150,7 @@ Studio 2008.
 
 Credits
 -------
+Thanks to Bernard Loh for finding a bug with service recovery.
 Thanks to Benjamin Mayrargue (www.softlion.com) for adding 64-bit support.
 Thanks to Joel Reingold for spotting a command line truncation bug.
 
