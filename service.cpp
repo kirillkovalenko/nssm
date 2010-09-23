@@ -9,8 +9,8 @@ char exe[EXE_LENGTH];
 char flags[CMD_LENGTH];
 char dir[MAX_PATH];
 
-static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY } exit_actions;
-static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", 0 };
+static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
+static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
 
 /* Connect to the service manager */
 SC_HANDLE open_service_manager() {
@@ -173,7 +173,26 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   /* Try to create the exit action parameters; we don't care if it fails */
   create_exit_action(argv[0], exit_action_strings[0]);
 
+  set_service_recovery(service_name);
+
   monitor_service();
+}
+
+/* Make sure service recovery actions are taken where necessary */
+void set_service_recovery(char *service_name) {
+  SC_HANDLE services = open_service_manager();
+  if (! services) return;
+
+  SC_HANDLE service = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
+  if (! service) return;
+  return;
+
+  SERVICE_FAILURE_ACTIONS_FLAG flag;
+  ZeroMemory(&flag, sizeof(flag));
+  flag.fFailureActionsOnNonCrashFailures = true;
+
+  /* This functionality was added in Vista so the call may fail */
+  ChangeServiceConfig2(service, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, &flag);
 }
 
 int monitor_service() {
@@ -200,7 +219,7 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
   switch (control) {
     case SERVICE_CONTROL_SHUTDOWN:
     case SERVICE_CONTROL_STOP:
-      stop_service(0);
+      stop_service(0, true);
       return NO_ERROR;
   }
 
@@ -225,11 +244,11 @@ int start_service() {
   char cmd[CMD_LENGTH];
   if (_snprintf(cmd, sizeof(cmd), "%s %s", exe, flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
-    return stop_service(2);
+    return stop_service(2, true);
   }
   if (! CreateProcess(0, cmd, 0, 0, 0, 0, 0, dir, &si, &pi)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, GetLastError(), 0);
-    return stop_service(3);
+    return stop_service(3, true);
   }
   pid = pi.hProcess;
 
@@ -241,10 +260,12 @@ int start_service() {
 }
 
 /* Stop the service */
-int stop_service(unsigned long exitcode) {
+int stop_service(unsigned long exitcode, bool graceful) {
   /* Signal we are stopping */
-  service_status.dwCurrentState = SERVICE_STOP_PENDING;
-  SetServiceStatus(service_handle, &service_status);
+  if (graceful) {
+    service_status.dwCurrentState = SERVICE_STOP_PENDING;
+    SetServiceStatus(service_handle, &service_status);
+  }
 
   /* Nothing to do if server isn't running */
   if (pid) {
@@ -256,16 +277,18 @@ int stop_service(unsigned long exitcode) {
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);
 
   /* Signal we stopped */
-  service_status.dwCurrentState = SERVICE_STOPPED;
-  if (exitcode) {
-    service_status.dwWin32ExitCode = ERROR_SERVICE_SPECIFIC_ERROR;
-    service_status.dwServiceSpecificExitCode = exitcode;
+  if (graceful) {
+    service_status.dwCurrentState = SERVICE_STOPPED;
+    if (exitcode) {
+      service_status.dwWin32ExitCode = ERROR_SERVICE_SPECIFIC_ERROR;
+      service_status.dwServiceSpecificExitCode = exitcode;
+    }
+    else {
+      service_status.dwWin32ExitCode = NO_ERROR;
+      service_status.dwServiceSpecificExitCode = 0;
+    }
+    SetServiceStatus(service_handle, &service_status);
   }
-  else {
-    service_status.dwWin32ExitCode = NO_ERROR;
-    service_status.dwServiceSpecificExitCode = 0;
-  }
-  SetServiceStatus(service_handle, &service_status);
 
   return exitcode;
 }
@@ -312,7 +335,13 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     /* Tell the service manager we are finished */
     case NSSM_EXIT_REALLY:
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_REALLY, service_name, code, exit_action_strings[action], 0);
-      stop_service(ret);
+      stop_service(ret, true);
+    break;
+
+    /* Fake a crash so pre-Vista service managers will run recovery actions. */
+    case NSSM_EXIT_UNCLEAN:
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service_name, code, exit_action_strings[action], 0);
+      exit(stop_service(ret, false));
     break;
   }
 }

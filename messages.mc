@@ -147,3 +147,11 @@ Language = English
 Failed to write registry value %1:
 %2
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_EXIT_UNCLEAN
+Severity = Informational
+Language = English
+Service %1 action for exit code %2 is %3.
+Exiting.
+.
