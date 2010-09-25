@@ -71,7 +71,7 @@ successfully started or you send it a stop signal.
 
 NSSM will look in the registry under
 HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppExit for
-string (REG_SZ) values corresponding to the exit code of the application.
+string (REG_EXPAND_SZ) values corresponding to the exit code of the application.
 If the application exited with code 1, for instance, NSSM will look for a
 string value under AppExit called "1" or, if it does not find it, will
 fall back to the AppExit (Default) value.  You can find out the exit code

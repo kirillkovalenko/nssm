@@ -165,3 +165,11 @@ Honouring the %4 action would result in the service being flagged as failed and 
 The service will instead be stopped gracefully.  To suppress this message, explicitly configure the exit action for exit code 0 to either %5 or %6.
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED
+Severity = Error
+Language = English
+Failed to expand registry value %1:
+%2
+.
+

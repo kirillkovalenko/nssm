@@ -42,19 +42,19 @@ int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
   }
 
   /* Try to create the parameters */
-  if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_SZ, (const unsigned char *) exe, strlen(exe) + 1) != ERROR_SUCCESS) {
+  if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_EXPAND_SZ, (const unsigned char *) exe, strlen(exe) + 1) != ERROR_SUCCESS) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXE, GetLastError(), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 3;
   }
-  if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_SZ, (const unsigned char *) flags, strlen(flags) + 1) != ERROR_SUCCESS) {
+  if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_EXPAND_SZ, (const unsigned char *) flags, strlen(flags) + 1) != ERROR_SUCCESS) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_FLAGS, GetLastError(), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 4;
   }
-  if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_SZ, (const unsigned char *) dir, strlen(dir) + 1) != ERROR_SUCCESS) {
+  if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_EXPAND_SZ, (const unsigned char *) dir, strlen(dir) + 1) != ERROR_SUCCESS) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_DIR, GetLastError(), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
@@ -102,6 +102,42 @@ int create_exit_action(char *service_name, const char *action_string) {
   return 0;
 }
 
+int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
+  unsigned char *buffer = (unsigned char *) HeapAlloc(GetProcessHeap(), 0, datalen);
+  if (! buffer) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, "expand_parameter()", 0);
+    return 1;
+  }
+
+  unsigned long type = REG_EXPAND_SZ;
+  unsigned long buflen = datalen;
+
+  if (RegQueryValueEx(key, value, 0, &type, buffer, &buflen) != ERROR_SUCCESS) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, GetLastError(), 0);
+    HeapFree(GetProcessHeap(), 0, buffer);
+    return 2;
+  }
+
+  ZeroMemory(data, datalen);
+
+  /* Technically we shouldn't expand environment strings from REG_SZ values */
+  if (type != REG_EXPAND_SZ) {
+    memmove(data, buffer, buflen);
+    return 0;
+  }
+
+  unsigned long ret = ExpandEnvironmentStrings((char *) buffer, data, datalen);
+  if (! ret || ret > datalen) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, value, buffer, GetLastError(), 0);
+    HeapFree(GetProcessHeap(), 0, buffer);
+    return 3;
+  }
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, buffer, data, GetLastError(), 0);
+
+  HeapFree(GetProcessHeap(), 0, buffer);
+  return 0;
+}
+
 int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen) {
   /* Get registry */
   char registry[KEY_LENGTH];
@@ -117,25 +153,20 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
     return 2;
   }
 
-  unsigned long type = REG_SZ;
-
   /* Try to get executable file - MUST succeed */
-  if (RegQueryValueEx(key, NSSM_REG_EXE, 0, &type, (unsigned char *) exe, (unsigned long *) &exelen) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_EXE, GetLastError(), 0);
+  if (expand_parameter(key, NSSM_REG_EXE, exe, exelen)) {
     RegCloseKey(key);
     return 3;
   }
 
   /* Try to get flags - may fail */
-  if (RegQueryValueEx(key, NSSM_REG_FLAGS, 0, &type, (unsigned char *) flags, (unsigned long *) &flagslen) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_FLAGS, GetLastError(), 0);
+  if (expand_parameter(key, NSSM_REG_FLAGS, flags, flagslen)) {
     RegCloseKey(key);
     return 4;
   }
 
   /* Try to get startup directory - may fail */
-  if (RegQueryValueEx(key, NSSM_REG_DIR, 0, &type, (unsigned char *) dir, (unsigned long *) &dirlen) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_DIR, GetLastError(), 0);
+  if (expand_parameter(key, NSSM_REG_DIR, dir, dirlen)) {
     RegCloseKey(key);
     return 5;
   }
