@@ -11,6 +11,6 @@ int create_messages();
 int create_parameters(char *, char *, char *, char *);
 int create_exit_action(char *, const char *);
 int get_parameters(char *, char *, int, char *, int, char *, int);
-int get_exit_action(char *, unsigned long *, unsigned char *);
+int get_exit_action(char *, unsigned long *, unsigned char *, bool *);
 
 #endif

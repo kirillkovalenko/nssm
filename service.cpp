@@ -225,7 +225,7 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
   switch (control) {
     case SERVICE_CONTROL_SHUTDOWN:
     case SERVICE_CONTROL_STOP:
-      stop_service(0, true);
+      stop_service(0, true, true);
       return NO_ERROR;
   }
 
@@ -250,11 +250,11 @@ int start_service() {
   char cmd[CMD_LENGTH];
   if (_snprintf(cmd, sizeof(cmd), "%s %s", exe, flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
-    return stop_service(2, true);
+    return stop_service(2, true, true);
   }
   if (! CreateProcess(0, cmd, 0, 0, 0, 0, 0, dir, &si, &pi)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, GetLastError(), 0);
-    return stop_service(3, true);
+    return stop_service(3, true, true);
   }
   pid = pi.hProcess;
 
@@ -266,7 +266,12 @@ int start_service() {
 }
 
 /* Stop the service */
-int stop_service(unsigned long exitcode, bool graceful) {
+int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
+  if (default_action && ! exitcode && ! graceful) {
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_GRACEFUL_SUICIDE, service_name, exe, exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_REALLY] ,0);
+    graceful = true;
+  }
+
   /* Signal we are stopping */
   if (graceful) {
     service_status.dwCurrentState = SERVICE_STOP_PENDING;
@@ -312,7 +317,8 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
   unsigned char action_string[ACTION_LEN];
-  if (! get_exit_action(service_name, &ret, action_string)) {
+  bool default_action;
+  if (! get_exit_action(service_name, &ret, action_string, &default_action)) {
     for (int i = 0; exit_action_strings[i]; i++) {
       if (! _strnicmp((const char *) action_string, exit_action_strings[i], ACTION_LEN)) {
         action = i;
@@ -341,13 +347,13 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     /* Tell the service manager we are finished */
     case NSSM_EXIT_REALLY:
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_REALLY, service_name, code, exit_action_strings[action], 0);
-      stop_service(ret, true);
+      stop_service(ret, true, default_action);
     break;
 
     /* Fake a crash so pre-Vista service managers will run recovery actions. */
     case NSSM_EXIT_UNCLEAN:
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service_name, code, exit_action_strings[action], 0);
-      exit(stop_service(ret, false));
+      exit(stop_service(ret, false, default_action));
     break;
   }
 }

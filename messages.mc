@@ -155,3 +155,13 @@ Language = English
 Service %1 action for exit code %2 is %3.
 Exiting.
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_GRACEFUL_SUICIDE
+Severity = Informational
+Language = English
+Service %1 application %2 exited with exit code 0 but the default exit action is %3.
+Honouring the %4 action would result in the service being flagged as failed and subject to recovery actions.
+The service will instead be stopped gracefully.  To suppress this message, explicitly configure the exit action for exit code 0 to either %5 or %6.
+.
+

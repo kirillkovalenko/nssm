@@ -14,7 +14,7 @@ int remove_service(char *);
 void set_service_recovery(char *);
 int monitor_service();
 int start_service();
-int stop_service(unsigned long, bool);
+int stop_service(unsigned long, bool, bool);
 void CALLBACK end_service(void *, unsigned char);
 
 #endif

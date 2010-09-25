@@ -146,7 +146,10 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
   return 0;
 }
 
-int get_exit_action(char *service_name, unsigned long *ret, unsigned char *action) {
+int get_exit_action(char *service_name, unsigned long *ret, unsigned char *action, bool *default_action) {
+  /* Are we returning the default action or a status-specific one? */
+  *default_action = ! ret;
+
   /* Get registry */
   char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY "\\%s", service_name, NSSM_REG_EXIT) < 0) {
@@ -169,12 +172,12 @@ int get_exit_action(char *service_name, unsigned long *ret, unsigned char *actio
   if (! ret) code[0] = '\0';
   else if (_snprintf(code, sizeof(code), "%lu", *ret) < 0) {
     RegCloseKey(key);
-    return get_exit_action(service_name, 0, action);
+    return get_exit_action(service_name, 0, action, default_action);
   }
   if (RegQueryValueEx(key, code, 0, &type, action, &action_len) != ERROR_SUCCESS) {
     RegCloseKey(key);
     /* Try again with * as the key if an exit code was defined */
-    if (ret) return get_exit_action(service_name, 0, action);
+    if (ret) return get_exit_action(service_name, 0, action, default_action);
     return 0;
   }
 

@@ -97,7 +97,10 @@ of Windows you should use "Suicide" instead.
 
 If the value data is "Suicide" NSSM will simulate a crash and exit without
 informing the service manager.  This option should only be used for
-pre-Vista systems where you wish to apply a service recovery action.
+pre-Vista systems where you wish to apply a service recovery action.  Note
+that if the monitored application exits with code 0, NSSM will only honour a
+request to suicide if you explicitly configure a registry key for exit code 0.
+If only the default action is set to Suicide NSSM will instead exit gracefully.
 
 
 Removing services using the GUI
