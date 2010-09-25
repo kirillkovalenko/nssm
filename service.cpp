@@ -146,7 +146,6 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   /* Initialise status */
   ZeroMemory(&service_status, sizeof(service_status));
   service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
-  service_status.dwCurrentState = SERVICE_RUNNING;
   service_status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP;
   service_status.dwWin32ExitCode = NO_ERROR;
   service_status.dwServiceSpecificExitCode = 0;
@@ -156,19 +155,26 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   /* Signal we AREN'T running the server */
   pid = 0;
 
-  /* Get startup parameters */
-  int ret = get_parameters(argv[0], exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir));
-  if (ret) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, argv[0], 0);
-    return;
-  }
-
   /* Register control handler */
   service_handle = RegisterServiceCtrlHandlerEx(NSSM, service_control_handler, 0);
   if (! service_handle) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_REGISTERSERVICECTRLHANDER_FAILED, GetLastError(), 0);
     return;
   }
+
+  /* Get startup parameters */
+  int ret = get_parameters(argv[0], exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir));
+  if (ret) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, argv[0], 0);
+    service_status.dwCurrentState = SERVICE_STOPPED;
+    /* An accurate, if not particularly helpful, status */
+    service_status.dwWin32ExitCode = ERROR_SERVICE_NOT_ACTIVE;
+    SetServiceStatus(service_handle, &service_status);
+    return;
+  }
+
+  service_status.dwCurrentState = SERVICE_START_PENDING;
+  SetServiceStatus(service_handle, &service_status);
 
   /* Try to create the exit action parameters; we don't care if it fails */
   create_exit_action(argv[0], exit_action_strings[0]);
