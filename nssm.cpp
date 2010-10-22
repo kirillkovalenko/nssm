@@ -32,6 +32,21 @@ int str_number(const TCHAR *string, unsigned long *number, TCHAR **bogus) {
   return 0;
 }
 
+/* User requested us to print our version. */
+static bool is_version(const TCHAR *s) {
+  if (! s || ! *s) return false;
+  /* /version */
+  if (*s == '/') s++;
+  else if (*s == '-') {
+    /* -v, -V, -version, --version */
+    s++;
+    if (*s == '-') s++;
+    else if (str_equiv(s, _T("v"))) return true;
+  }
+  if (str_equiv(s, _T("version"))) return true;
+  return false;
+}
+
 int str_number(const TCHAR *string, unsigned long *number) {
   TCHAR *bogus;
   return str_number(string, number, &bogus);
@@ -245,7 +260,12 @@ int _tmain(int argc, TCHAR **argv) {
     /*
       Valid commands are:
       start, stop, pause, continue, install, edit, get, set, reset, unset, remove
+      status, statuscode, rotate, list, processes, version
     */
+    if (is_version(argv[1])) {
+      _tprintf(_T("%s %s %s %s\n"), NSSM, NSSM_VERSION, NSSM_CONFIGURATION, NSSM_DATE);
+      nssm_exit(0);
+    }
     if (str_equiv(argv[1], _T("start"))) nssm_exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("stop"))) nssm_exit(control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("restart"))) {
