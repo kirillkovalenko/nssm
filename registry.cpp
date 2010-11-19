@@ -132,7 +132,6 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
     HeapFree(GetProcessHeap(), 0, buffer);
     return 3;
   }
-  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, buffer, data, GetLastError(), 0);
 
   HeapFree(GetProcessHeap(), 0, buffer);
   return 0;
