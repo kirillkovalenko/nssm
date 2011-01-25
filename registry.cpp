@@ -112,8 +112,9 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
   unsigned long type = REG_EXPAND_SZ;
   unsigned long buflen = datalen;
 
-  if (RegQueryValueEx(key, value, 0, &type, buffer, &buflen) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, GetLastError(), 0);
+  unsigned long ret = RegQueryValueEx(key, value, 0, &type, buffer, &buflen);
+  if (ret != ERROR_SUCCESS) {
+    if (ret != ERROR_FILE_NOT_FOUND) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, GetLastError(), 0);
     HeapFree(GetProcessHeap(), 0, buffer);
     return 2;
   }
@@ -126,7 +127,7 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
     return 0;
   }
 
-  unsigned long ret = ExpandEnvironmentStrings((char *) buffer, data, datalen);
+  ret = ExpandEnvironmentStrings((char *) buffer, data, datalen);
   if (! ret || ret > datalen) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, value, buffer, GetLastError(), 0);
     HeapFree(GetProcessHeap(), 0, buffer);
@@ -158,16 +159,31 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
     return 3;
   }
 
-  /* Try to get flags - may fail */
+  /* Try to get flags - may fail and we don't care */
   if (expand_parameter(key, NSSM_REG_FLAGS, flags, flagslen)) {
-    RegCloseKey(key);
-    return 4;
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_FLAGS, NSSM_REG_FLAGS, service_name, exe, 0);
+    ZeroMemory(flags, flagslen);
   }
 
-  /* Try to get startup directory - may fail */
-  if (expand_parameter(key, NSSM_REG_DIR, dir, dirlen)) {
-    RegCloseKey(key);
-    return 5;
+  /* Try to get startup directory - may fail and we fall back to a default */
+  if (expand_parameter(key, NSSM_REG_DIR, dir, dirlen) || ! dir[0]) {
+    /* Our buffers are defined to be long enough for this to be safe */
+    size_t i;
+    for (i = strlen(exe); i && exe[i] != '\\' && exe[i] != '/'; i--);
+    if (i) {
+      memmove(dir, exe, i);
+      dir[i] = '\0';
+    }
+    else {
+      /* Help! */
+      unsigned long ret = ExpandEnvironmentStrings("%SYSTEMROOT%", dir, dirlen);
+      if (! ret || ret > dirlen) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_NO_DIR_AND_NO_FALLBACK, NSSM_REG_DIR, service_name, 0);
+        RegCloseKey(key);
+        return 4;
+      }
+    }
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_DIR, NSSM_REG_DIR, service_name, dir, 0);
   }
 
   /* Close registry */

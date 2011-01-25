@@ -219,3 +219,27 @@ Failed to terminate process with PID %1 for service %2:
 %3
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_NO_FLAGS
+Severity = Warning
+Language = English
+Registry key %1 is unset for service %2.
+No flags will be passed to %3 when it starts.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_NO_DIR
+Severity = Warning
+Language = English
+Registry key %1 is unset for service %2.
+Assuming startup directory %3.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_NO_DIR_AND_NO_FALLBACK
+Severity = Error
+Language = English
+Registry key %1 is unset for service %2.
+Additionally, ExpandEnvironmentStrings("%%SYSTEMROOT%%") failed when trying to choose a fallback startup directory.
+.
+
