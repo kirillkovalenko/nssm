@@ -83,7 +83,7 @@ MessageId = +1
 SymbolicName = NSSM_EVENT_TERMINATEPROCESS
 Severity = Informational
 Language = English
-Requested stop of service %1.  Killing program %2.
+Killing process %2 because service %1 is stopping.
 .
 
 MessageId = +1
@@ -171,5 +171,51 @@ Severity = Error
 Language = English
 Failed to expand registry value %1:
 %2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_KILLING
+Severity = Informational
+Language = English
+kill_process_tree %1 %2 %3
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_FAILED
+Severity = Error
+Language = English
+Failed to create snapshot of running processes when terminating service %1:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_PROCESS_ENUMERATE_FAILED
+Severity = Error
+Language = English
+Failed to enumerate running processes when terminating service %1:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_OPENPROCESS_FAILED
+Severity = Error
+Language = English
+Failed to open process handle for process with PID %1 when terminating service %2:
+%3
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_KILL_PROCESS_TREE
+Severity = Informational
+Language = English
+Killing PID %1 in process tree of PID %2 because service %3 is stopping.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_TERMINATEPROCESS_FAILED
+Severity = Error
+Language = English
+Failed to terminate process with PID %1 for service %2:
+%3
 .
 
