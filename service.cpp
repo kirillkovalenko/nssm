@@ -2,12 +2,14 @@
 
 SERVICE_STATUS service_status;
 SERVICE_STATUS_HANDLE service_handle;
+HANDLE process_handle;
 HANDLE wait_handle;
-HANDLE pid;
+unsigned long pid;
 static char service_name[SERVICE_NAME_LENGTH];
 char exe[EXE_LENGTH];
 char flags[CMD_LENGTH];
 char dir[MAX_PATH];
+bool stopping;
 
 static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
 static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
@@ -153,6 +155,7 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   service_status.dwWaitHint = 1000;
 
   /* Signal we AREN'T running the server */
+  process_handle = 0;
   pid = 0;
 
   /* Register control handler */
@@ -213,7 +216,7 @@ int monitor_service() {
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_STARTED_SERVICE, exe, flags, service_name, dir, 0);
 
   /* Monitor service service */
-  if (! RegisterWaitForSingleObject(&wait_handle, pid, end_service, 0, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
+  if (! RegisterWaitForSingleObject(&wait_handle, process_handle, end_service, (void *) pid, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_REGISTERWAITFORSINGLEOBJECT_FAILED, service_name, exe, GetLastError(), 0);
   }
 
@@ -235,7 +238,9 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
 
 /* Start the service */
 int start_service() {
-  if (pid) return 0;
+  stopping = false;
+
+  if (process_handle) return 0;
 
   /* Allocate a STARTUPINFO structure for a new process */
   STARTUPINFO si;
@@ -252,11 +257,12 @@ int start_service() {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
     return stop_service(2, true, true);
   }
-  if (! CreateProcess(0, cmd, 0, 0, 0, 0, 0, dir, &si, &pi)) {
+  if (! CreateProcess(0, cmd, 0, 0, false, 0, 0, dir, &si, &pi)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, GetLastError(), 0);
     return stop_service(3, true, true);
   }
-  pid = pi.hProcess;
+  process_handle = pi.hProcess;
+  pid = pi.dwProcessId;
 
   /* Signal successful start */
   service_status.dwCurrentState = SERVICE_RUNNING;
@@ -282,10 +288,12 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   if (pid) {
     /* Shut down server */
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service_name, exe, 0);
-    TerminateProcess(pid, 0);
-    pid = 0;
+    TerminateProcess(process_handle, 0);
+    process_handle = 0;
   }
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);
+
+  end_service((void *) pid, true);
 
   /* Signal we stopped */
   if (graceful) {
@@ -306,19 +314,36 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
 
 /* Callback function triggered when the server exits */
 void CALLBACK end_service(void *arg, unsigned char why) {
+  if (stopping) return;
+
+  stopping = true;
+
+  pid = (unsigned long) arg;
+
   /* Check exit code */
-  unsigned long ret = 0;
-  GetExitCodeProcess(pid, &ret);
+  unsigned long exitcode = 0;
+  GetExitCodeProcess(process_handle, &exitcode);
+
+  /* Clean up. */
+  kill_process_tree(service_name, pid, exitcode, pid);
+
+  /*
+    The why argument is true if our wait timed out or false otherwise.
+    Our wait is infinite so why will never be true when called by the system.
+    If it is indeed true, assume we were called from stop_service() because
+    this is a controlled shutdown, and don't take any restart action.
+  */
+  if (why) return;
 
   char code[16];
-  _snprintf(code, sizeof(code), "%d", ret);
+  _snprintf(code, sizeof(code), "%d", exitcode);
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, exe, service_name, code, 0);
 
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
   unsigned char action_string[ACTION_LEN];
   bool default_action;
-  if (! get_exit_action(service_name, &ret, action_string, &default_action)) {
+  if (! get_exit_action(service_name, &exitcode, action_string, &default_action)) {
     for (int i = 0; exit_action_strings[i]; i++) {
       if (! _strnicmp((const char *) action_string, exit_action_strings[i], ACTION_LEN)) {
         action = i;
@@ -327,6 +352,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     }
   }
 
+  process_handle = 0;
   pid = 0;
   switch (action) {
     /* Try to restart the service or return failure code to service manager */
@@ -347,13 +373,13 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     /* Tell the service manager we are finished */
     case NSSM_EXIT_REALLY:
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_REALLY, service_name, code, exit_action_strings[action], 0);
-      stop_service(ret, true, default_action);
+      stop_service(exitcode, true, default_action);
     break;
 
     /* Fake a crash so pre-Vista service managers will run recovery actions. */
     case NSSM_EXIT_UNCLEAN:
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service_name, code, exit_action_strings[action], 0);
-      exit(stop_service(ret, false, default_action));
+      exit(stop_service(exitcode, false, default_action));
     break;
   }
 }

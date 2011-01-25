@@ -7,6 +7,7 @@
 #include <windows.h>
 #include "event.h"
 #include "messages.h"
+#include "process.h"
 #include "registry.h"
 #include "service.h"
 #include "gui.h"
