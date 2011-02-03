@@ -68,8 +68,15 @@ action if/when the application dies.
 
 With no configuration from you, NSSM will try to restart itself if it notices
 that the application died but you didn't send it a stop signal.  NSSM will
-keep trying, pausing 30 seconds between each attempt, until the service is
-successfully started or you send it a stop signal.
+keep trying, pausing between each attempt, until the service is successfully
+started or you send it a stop signal.
+
+NSSM will pause an increasingly longer time between subsequent restart attempts
+if the service fails to start in a timely manner, up to a maximum of 60 seconds.
+This is so it does not consume an excessive amount of CPU time trying to start
+a failed application over and over again.  If you identify the cause of the
+failure and don't want to wait you can use the Windows service console to
+send a continue signal to NSSM and it will retry within a few seconds.
 
 NSSM will look in the registry under
 HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppExit for
@@ -161,6 +168,7 @@ Thanks to Joel Reingold for spotting a command line truncation bug.
 Thanks to Arve Knudsen for spotting that child processes of the monitored
 application could be left running on service shutdown, and that a missing
 registry value for AppDirectory confused NSSM.
+Thanks to Peter Wagemans and Laszlo Kereszt for suggesting throttling restarts.
 
 Licence
 -------

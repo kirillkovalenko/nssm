@@ -259,3 +259,18 @@ Failed to enumerate running threads when terminating service %1:
 %2
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_THROTTLED
+Severity = Warning
+Language = English
+Service %1 ran for less than %2 milliseconds.
+Restart will be delayed by %3 milliseconds.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_RESET_THROTTLE
+Severity = Informational
+Language = English
+Request to resume service %1.  Throttling of restart attempts will be reset.
+.
+

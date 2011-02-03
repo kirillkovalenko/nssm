@@ -16,5 +16,6 @@ int monitor_service();
 int start_service();
 int stop_service(unsigned long, bool, bool);
 void CALLBACK end_service(void *, unsigned char);
+void throttle_restart();
 
 #endif

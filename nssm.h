@@ -33,6 +33,12 @@ int str_equiv(const char *, const char *);
 #define SERVICE_NAME_LENGTH KEY_LENGTH - 55
 
 /*
+  Throttle the restart of the service if it stops before this many
+  milliseconds have elapsed since startup.
+*/
+#define NSSM_RESET_THROTTLE_RESTART 1500
+
+/*
   How many milliseconds to wait for the application to die after posting to
   its windows' message queues.
 */
@@ -42,5 +48,8 @@ int str_equiv(const char *, const char *);
   its threads' message queues.
 */
 #define NSSM_KILL_THREADS_GRACE_PERIOD 1500
+
+/* Margin of error for service status wait hints in milliseconds. */
+#define NSSM_WAITHINT_MARGIN 2000
 
 #endif

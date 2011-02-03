@@ -10,9 +10,19 @@ char exe[EXE_LENGTH];
 char flags[CMD_LENGTH];
 char dir[MAX_PATH];
 bool stopping;
+CRITICAL_SECTION throttle_section;
+CONDITION_VARIABLE throttle_condition;
 
 static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
 static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
+
+static unsigned long throttle;
+
+static inline int throttle_milliseconds() {
+  /* pow() operates on doubles. */
+  int ret = 1; for (unsigned long i = 1; i < throttle; i++) ret *= 2;
+  return ret * 1000;
+}
 
 /* Connect to the service manager */
 SC_HANDLE open_service_manager() {
@@ -148,11 +158,11 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   /* Initialise status */
   ZeroMemory(&service_status, sizeof(service_status));
   service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
-  service_status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP;
+  service_status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE;
   service_status.dwWin32ExitCode = NO_ERROR;
   service_status.dwServiceSpecificExitCode = 0;
   service_status.dwCheckPoint = 0;
-  service_status.dwWaitHint = 1000;
+  service_status.dwWaitHint = NSSM_WAITHINT_MARGIN;
 
   /* Signal we AREN'T running the server */
   process_handle = 0;
@@ -177,12 +187,16 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   }
 
   service_status.dwCurrentState = SERVICE_START_PENDING;
+  service_status.dwWaitHint = NSSM_RESET_THROTTLE_RESTART + NSSM_WAITHINT_MARGIN;
   SetServiceStatus(service_handle, &service_status);
 
   /* Try to create the exit action parameters; we don't care if it fails */
   create_exit_action(argv[0], exit_action_strings[0]);
 
   set_service_recovery(service_name);
+
+  /* Used for signalling a resume if the service pauses when throttled. */
+  InitializeCriticalSection(&throttle_section);
 
   monitor_service();
 }
@@ -230,6 +244,22 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
     case SERVICE_CONTROL_STOP:
       stop_service(0, true, true);
       return NO_ERROR;
+
+    case SERVICE_CONTROL_CONTINUE:
+      throttle = 0;
+      WakeConditionVariable(&throttle_condition);
+      service_status.dwCurrentState = SERVICE_CONTINUE_PENDING;
+      service_status.dwWaitHint = throttle_milliseconds() + NSSM_WAITHINT_MARGIN;
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_RESET_THROTTLE, service_name, 0);
+      SetServiceStatus(service_handle, &service_status);
+      return NO_ERROR;
+
+    case SERVICE_CONTROL_PAUSE:
+      /*
+        We don't accept pause messages but it isn't possible to register
+        only for continue messages so we have to handle this case.
+      */
+      return ERROR_CALL_NOT_IMPLEMENTED;
   }
 
   /* Unknown control */
@@ -257,6 +287,9 @@ int start_service() {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
     return stop_service(2, true, true);
   }
+
+  throttle_restart();
+
   if (! CreateProcess(0, cmd, 0, 0, false, 0, 0, dir, &si, &pi)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, GetLastError(), 0);
     return stop_service(3, true, true);
@@ -267,6 +300,9 @@ int start_service() {
   /* Signal successful start */
   service_status.dwCurrentState = SERVICE_RUNNING;
   SetServiceStatus(service_handle, &service_status);
+
+  /* Wait for a clean startup. */
+  if (WaitForSingleObject(process_handle, NSSM_RESET_THROTTLE_RESTART) == WAIT_TIMEOUT) throttle = 0;
 
   return 0;
 }
@@ -281,6 +317,7 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   /* Signal we are stopping */
   if (graceful) {
     service_status.dwCurrentState = SERVICE_STOP_PENDING;
+    service_status.dwWaitHint = NSSM_KILL_WINDOW_GRACE_PERIOD + NSSM_KILL_THREADS_GRACE_PERIOD + NSSM_WAITHINT_MARGIN;
     SetServiceStatus(service_handle, &service_status);
   }
 
@@ -382,4 +419,27 @@ void CALLBACK end_service(void *arg, unsigned char why) {
       exit(stop_service(exitcode, false, default_action));
     break;
   }
+}
+
+void throttle_restart() {
+  /* This can't be a restart if the service is already running. */
+  if (! throttle++) return;
+
+  int ms = throttle_milliseconds();
+
+  if (throttle > 7) throttle = 8;
+
+  char threshold[8], milliseconds[8];
+  _snprintf(threshold, sizeof(threshold), "%d", NSSM_RESET_THROTTLE_RESTART);
+  _snprintf(milliseconds, sizeof(milliseconds), "%d", ms);
+  log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
+
+  EnterCriticalSection(&throttle_section);
+
+  service_status.dwCurrentState = SERVICE_PAUSED;
+  SetServiceStatus(service_handle, &service_status);
+
+  SleepConditionVariableCS(&throttle_condition, &throttle_section, ms);
+
+  LeaveCriticalSection(&throttle_section);
 }
