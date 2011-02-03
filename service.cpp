@@ -288,7 +288,7 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   if (pid) {
     /* Shut down server */
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service_name, exe, 0);
-    TerminateProcess(process_handle, 0);
+    kill_process(service_name, process_handle, pid, 0);
     process_handle = 0;
   }
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);

@@ -181,7 +181,7 @@ kill_process_tree %1 %2 %3
 .
 
 MessageId = +1
-SymbolicName = NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_FAILED
+SymbolicName = NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_PROCESS_FAILED
 Severity = Error
 Language = English
 Failed to create snapshot of running processes when terminating service %1:
@@ -241,5 +241,21 @@ Severity = Error
 Language = English
 Registry key %1 is unset for service %2.
 Additionally, ExpandEnvironmentStrings("%%SYSTEMROOT%%") failed when trying to choose a fallback startup directory.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_THREAD_FAILED
+Severity = Error
+Language = English
+Failed to create snapshot of running threads when terminating service %1:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_THREAD_ENUMERATE_FAILED
+Severity = Error
+Language = English
+Failed to enumerate running threads when terminating service %1:
+%2
 .
 

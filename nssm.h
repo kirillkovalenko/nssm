@@ -32,4 +32,15 @@ int str_equiv(const char *, const char *);
 #define VALUE_LENGTH 16383
 #define SERVICE_NAME_LENGTH KEY_LENGTH - 55
 
+/*
+  How many milliseconds to wait for the application to die after posting to
+  its windows' message queues.
+*/
+#define NSSM_KILL_WINDOW_GRACE_PERIOD 1500
+/*
+  How many milliseconds to wait for the application to die after posting to
+  its threads' message queues.
+*/
+#define NSSM_KILL_THREADS_GRACE_PERIOD 1500
+
 #endif
