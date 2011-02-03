@@ -124,6 +124,7 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
   /* Technically we shouldn't expand environment strings from REG_SZ values */
   if (type != REG_EXPAND_SZ) {
     memmove(data, buffer, buflen);
+    HeapFree(GetProcessHeap(), 0, buffer);
     return 0;
   }
 
