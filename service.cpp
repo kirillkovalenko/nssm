@@ -42,8 +42,31 @@ int pre_install_service(int argc, char **argv) {
 
   /* Arguments are optional */
   char *flags;
-  if (argc == 2) flags = "";
-  else flags = argv[2];
+  size_t flagslen = 0;
+  size_t s = 0;
+  int i;
+  for (i = 2; i < argc; i++) flagslen += strlen(argv[i]) + 1;
+  if (! flagslen) flagslen = 1;
+
+  flags = (char *) HeapAlloc(GetProcessHeap(), 0, flagslen);
+  if (! flags) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "flags", "pre_install_service()", 0);
+    return 2;
+  }
+  ZeroMemory(flags, flagslen);
+
+  /*
+    This probably isn't UTF8-safe and should use std::string or something
+    but it's been broken for the best part of a decade and due for a rewrite
+    anyway so it'll do as a quick-'n'-dirty fix.  Note that we don't free
+    the flags buffer but as the program exits that isn't a big problem.
+  */
+  for (i = 2; i < argc; i++) {
+    size_t len = strlen(argv[i]);
+    memmove(flags + s, argv[i], len);
+    s += len;
+    if (i < argc - 1) flags[s++] = ' ';
+  }
 
   return install_service(argv[0], argv[1], flags);
 }
