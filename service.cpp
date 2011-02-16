@@ -194,7 +194,7 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   /* Register control handler */
   service_handle = RegisterServiceCtrlHandlerEx(NSSM, service_control_handler, 0);
   if (! service_handle) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_REGISTERSERVICECTRLHANDER_FAILED, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_REGISTERSERVICECTRLHANDER_FAILED, error_string(GetLastError()), 0);
     return;
   }
 
@@ -254,7 +254,7 @@ int monitor_service() {
 
   /* Monitor service service */
   if (! RegisterWaitForSingleObject(&wait_handle, process_handle, end_service, (void *) pid, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_REGISTERWAITFORSINGLEOBJECT_FAILED, service_name, exe, GetLastError(), 0);
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_REGISTERWAITFORSINGLEOBJECT_FAILED, service_name, exe, error_string(GetLastError()), 0);
   }
 
   return 0;
@@ -314,7 +314,7 @@ int start_service() {
   throttle_restart();
 
   if (! CreateProcess(0, cmd, 0, 0, false, 0, 0, dir, &si, &pi)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, error_string(GetLastError()), 0);
     return stop_service(3, true, true);
   }
   process_handle = pi.hProcess;

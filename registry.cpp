@@ -10,7 +10,7 @@ int create_messages() {
   }
 
   if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, 0) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
     return 2;
   }
 
@@ -37,25 +37,25 @@ int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
   /* Try to open the registry */
   HKEY key;
   if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, 0) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
     return 2;
   }
 
   /* Try to create the parameters */
   if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_EXPAND_SZ, (const unsigned char *) exe, strlen(exe) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXE, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXE, error_string(GetLastError()), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 3;
   }
   if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_EXPAND_SZ, (const unsigned char *) flags, strlen(flags) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_FLAGS, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_FLAGS, error_string(GetLastError()), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 4;
   }
   if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_EXPAND_SZ, (const unsigned char *) dir, strlen(dir) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_DIR, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_DIR, error_string(GetLastError()), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 5;
@@ -79,7 +79,7 @@ int create_exit_action(char *service_name, const char *action_string) {
   HKEY key;
   unsigned long disposition;
   if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, &disposition) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
     return 2;
   }
 
@@ -91,7 +91,7 @@ int create_exit_action(char *service_name, const char *action_string) {
 
   /* Create the default value */
   if (RegSetValueEx(key, 0, 0, REG_SZ, (const unsigned char *) action_string, strlen(action_string) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXIT, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXIT, error_string(GetLastError()), 0);
     RegCloseKey(key);
     return 3;
   }
@@ -114,7 +114,7 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
 
   unsigned long ret = RegQueryValueEx(key, value, 0, &type, buffer, &buflen);
   if (ret != ERROR_SUCCESS) {
-    if (ret != ERROR_FILE_NOT_FOUND) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, GetLastError(), 0);
+    if (ret != ERROR_FILE_NOT_FOUND) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, buffer);
     return 2;
   }
@@ -133,7 +133,7 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
 
   ret = ExpandEnvironmentStrings((char *) buffer, data, datalen);
   if (! ret || ret > datalen) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, value, buffer, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, value, buffer, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, buffer);
     return 3;
   }
@@ -153,7 +153,7 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
   /* Try to open the registry */
   HKEY key;
   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, KEY_READ, &key) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
     return 2;
   }
 
@@ -211,7 +211,7 @@ int get_exit_action(char *service_name, unsigned long *ret, unsigned char *actio
   HKEY key;
   long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, KEY_READ, &key);
   if (error != ERROR_SUCCESS && error != ERROR_FILE_NOT_FOUND) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
     return 2;
   }
 

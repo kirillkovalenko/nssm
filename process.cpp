@@ -33,7 +33,7 @@ int kill_threads(char *service_name, kill_t *k) {
   /* Get a snapshot of all threads in the system. */
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
   if (! snapshot) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_THREAD_FAILED, service_name, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_THREAD_FAILED, service_name, error_string(GetLastError()), 0);
     return 0;
   }
 
@@ -42,7 +42,7 @@ int kill_threads(char *service_name, kill_t *k) {
   te.dwSize = sizeof(te);
 
   if (! Thread32First(snapshot, &te)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_THREAD_ENUMERATE_FAILED, service_name, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_THREAD_ENUMERATE_FAILED, service_name, error_string(GetLastError()), 0);
     return 0;
   }
 
@@ -56,7 +56,7 @@ int kill_threads(char *service_name, kill_t *k) {
     if (! Thread32Next(snapshot, &te)) {
       unsigned long error = GetLastError();
       if (error == ERROR_NO_MORE_FILES) break;
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_THREAD_ENUMERATE_FAILED, service_name, GetLastError(), 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_THREAD_ENUMERATE_FAILED, service_name, error_string(GetLastError()), 0);
       return ret;
     }
 
@@ -99,15 +99,18 @@ int kill_process(char *service_name, HANDLE process_handle, unsigned long pid, u
 }
 
 void kill_process_tree(char *service_name, unsigned long pid, unsigned long exitcode, unsigned long ppid) {
-  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILLING, service_name, pid, exitcode, 0);
-
-  /* Shouldn't happen. */
+  /* Shouldn't happen unless the service failed to start. */
   if (! pid) return;
+
+  char pid_string[16], code[16];
+  _snprintf(pid_string, sizeof(pid_string), "%d", pid);
+  _snprintf(code, sizeof(code), "%d", exitcode);
+  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILLING, service_name, pid_string, code, 0);
 
   /* Get a snapshot of all processes in the system. */
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (! snapshot) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_PROCESS_FAILED, service_name, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_PROCESS_FAILED, service_name, error_string(GetLastError()), 0);
     return;
   }
 
@@ -116,7 +119,7 @@ void kill_process_tree(char *service_name, unsigned long pid, unsigned long exit
   pe.dwSize = sizeof(pe);
 
   if (! Process32First(snapshot, &pe)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PROCESS_ENUMERATE_FAILED, service_name, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PROCESS_ENUMERATE_FAILED, service_name, error_string(GetLastError()), 0);
     return;
   }
 
@@ -128,7 +131,7 @@ void kill_process_tree(char *service_name, unsigned long pid, unsigned long exit
     if (! Process32Next(snapshot, &pe)) {
       unsigned long ret = GetLastError();
       if (ret == ERROR_NO_MORE_FILES) break;
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PROCESS_ENUMERATE_FAILED, service_name, GetLastError(), 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PROCESS_ENUMERATE_FAILED, service_name, error_string(GetLastError()), 0);
       return;
     }
 
@@ -138,13 +141,15 @@ void kill_process_tree(char *service_name, unsigned long pid, unsigned long exit
   /* We will need a process handle in order to call TerminateProcess() later. */
   HANDLE process_handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_TERMINATE, false, pid);
   if (! process_handle) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENPROCESS_FAILED, pid, service_name, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENPROCESS_FAILED, pid_string, service_name, error_string(GetLastError()), 0);
     return;
   }
 
-  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid, ppid, service_name, 0);
+  char ppid_string[16];
+  _snprintf(ppid_string, sizeof(ppid_string), "%d", ppid);
+  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, service_name, 0);
   if (! kill_process(service_name, process_handle, pid, exitcode)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_TERMINATEPROCESS_FAILED, pid, service_name, GetLastError(), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_TERMINATEPROCESS_FAILED, pid_string, service_name, error_string(GetLastError()), 0);
     return;
   }
 }
