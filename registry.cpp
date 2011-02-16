@@ -102,7 +102,7 @@ int create_exit_action(char *service_name, const char *action_string) {
   return 0;
 }
 
-int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
+int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, bool sanitise) {
   unsigned char *buffer = (unsigned char *) HeapAlloc(GetProcessHeap(), 0, datalen);
   if (! buffer) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, "expand_parameter()", 0);
@@ -118,6 +118,9 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen) {
     HeapFree(GetProcessHeap(), 0, buffer);
     return 2;
   }
+
+  /* Paths aren't allowed to contain quotes. */
+  if (sanitise) PathUnquoteSpaces((LPSTR) buffer);
 
   ZeroMemory(data, datalen);
 
@@ -155,19 +158,19 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
   }
 
   /* Try to get executable file - MUST succeed */
-  if (expand_parameter(key, NSSM_REG_EXE, exe, exelen)) {
+  if (expand_parameter(key, NSSM_REG_EXE, exe, exelen, false)) {
     RegCloseKey(key);
     return 3;
   }
 
   /* Try to get flags - may fail and we don't care */
-  if (expand_parameter(key, NSSM_REG_FLAGS, flags, flagslen)) {
+  if (expand_parameter(key, NSSM_REG_FLAGS, flags, flagslen, false)) {
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_FLAGS, NSSM_REG_FLAGS, service_name, exe, 0);
     ZeroMemory(flags, flagslen);
   }
 
   /* Try to get startup directory - may fail and we fall back to a default */
-  if (expand_parameter(key, NSSM_REG_DIR, dir, dirlen) || ! dir[0]) {
+  if (expand_parameter(key, NSSM_REG_DIR, dir, dirlen, true) || ! dir[0]) {
     /* Our buffers are defined to be long enough for this to be safe */
     size_t i;
     for (i = strlen(exe); i && exe[i] != '\\' && exe[i] != '/'; i--);

@@ -2,6 +2,7 @@
 #define NSSM_H
 
 #define _WIN32_WINNT 0x0500
+#include <shlwapi.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <windows.h>
