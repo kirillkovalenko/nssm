@@ -180,7 +180,7 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
     }
     else {
       /* Help! */
-      unsigned long ret = ExpandEnvironmentStrings("%SYSTEMROOT%", dir, dirlen);
+      unsigned long ret = GetWindowsDirectory(dir, dirlen);
       if (! ret || ret > dirlen) {
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_NO_DIR_AND_NO_FALLBACK, NSSM_REG_DIR, service_name, 0);
         RegCloseKey(key);
