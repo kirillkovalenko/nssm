@@ -198,17 +198,6 @@ void WINAPI service_main(unsigned long argc, char **argv) {
     return;
   }
 
-  /* Get startup parameters */
-  int ret = get_parameters(argv[0], exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir));
-  if (ret) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, argv[0], 0);
-    service_status.dwCurrentState = SERVICE_STOPPED;
-    /* An accurate, if not particularly helpful, status */
-    service_status.dwWin32ExitCode = ERROR_SERVICE_NOT_ACTIVE;
-    SetServiceStatus(service_handle, &service_status);
-    return;
-  }
-
   service_status.dwCurrentState = SERVICE_START_PENDING;
   service_status.dwWaitHint = NSSM_RESET_THROTTLE_RESTART + NSSM_WAITHINT_MARGIN;
   SetServiceStatus(service_handle, &service_status);
@@ -303,6 +292,13 @@ int start_service() {
   /* Allocate a PROCESSINFO structure for the process */
   PROCESS_INFORMATION pi;
   ZeroMemory(&pi, sizeof(pi));
+
+  /* Get startup parameters */
+  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir));
+  if (ret) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
+    return stop_service(2, true, true);
+  }
 
   /* Launch executable with arguments */
   char cmd[CMD_LENGTH];
