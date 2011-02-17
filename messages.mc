@@ -177,7 +177,7 @@ MessageId = +1
 SymbolicName = NSSM_EVENT_KILLING
 Severity = Informational
 Language = English
-kill_process_tree %1 %2 %3
+Killing process tree of process %2 for service %1 with exit code %3
 .
 
 MessageId = +1

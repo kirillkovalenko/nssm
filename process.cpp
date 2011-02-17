@@ -149,7 +149,9 @@ void kill_process_tree(char *service_name, unsigned long pid, unsigned long exit
   _snprintf(ppid_string, sizeof(ppid_string), "%d", ppid);
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, service_name, 0);
   if (! kill_process(service_name, process_handle, pid, exitcode)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_TERMINATEPROCESS_FAILED, pid_string, service_name, error_string(GetLastError()), 0);
+    /* Maybe it already died. */
+    unsigned long ret;
+    if (! GetExitCodeProcess(process_handle, &ret)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_TERMINATEPROCESS_FAILED, pid_string, service_name, error_string(GetLastError()), 0);
     return;
   }
 }
