@@ -1,5 +1,7 @@
 #include "nssm.h"
 
+extern unsigned long tls_index;
+
 /* String function */
 int str_equiv(const char *a, const char *b) {
   int i;
@@ -38,6 +40,9 @@ int main(int argc, char **argv) {
   }
   /* Undocumented: "run" is used to actually do service stuff */
   if (! str_equiv(argv[1], NSSM_RUN)) exit(usage(2));
+
+  /* Thread local storage for error message buffer */
+  tls_index = TlsAlloc();
 
   /* Register messages */
   create_messages();
