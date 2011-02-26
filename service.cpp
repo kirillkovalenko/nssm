@@ -101,7 +101,7 @@ int install_service(char *name, char *exe, char *flags) {
     fprintf(stderr, "The full path to " NSSM " is too long!\n");
     return 3;
   }
-  if (snprintf(command, sizeof(command), "\"%s\" %s", path, NSSM_RUN) < 0) {
+  if (_snprintf(command, sizeof(command), "\"%s\" %s", path, NSSM_RUN) < 0) {
     fprintf(stderr, "Out of memory for ImagePath!\n");
     return 4;
   }
@@ -235,7 +235,7 @@ int monitor_service() {
   int ret = start_service();
   if (ret) {
     char code[16];
-    snprintf(code, sizeof(code), "%d", ret);
+    _snprintf(code, sizeof(code), "%d", ret);
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_START_SERVICE_FAILED, exe, service_name, ret, 0);
     return ret;
   }

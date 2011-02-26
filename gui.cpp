@@ -6,7 +6,7 @@ int nssm_gui(int resource, char *name) {
   /* Create window */
   HWND dlg = CreateDialog(0, MAKEINTRESOURCE(resource), 0, install_dlg);
   if (! dlg) {
-    snprintf(blurb, sizeof(blurb), "CreateDialog() failed with error code %d", GetLastError());
+    _snprintf(blurb, sizeof(blurb), "CreateDialog() failed with error code %d", GetLastError());
     MessageBox(0, blurb, NSSM, MB_OK);
     return 1;
   }
@@ -133,7 +133,7 @@ int remove(HWND window) {
 
   /* Confirm */
   char blurb[MAX_PATH];
-  if (snprintf(blurb, sizeof(blurb), "Remove the \"%s\" service?", name) < 0) {
+  if (_snprintf(blurb, sizeof(blurb), "Remove the \"%s\" service?", name) < 0) {
     if (MessageBox(0, "Remove the service?", NSSM, MB_YESNO) != IDYES) return 0;
   }
   else if (MessageBox(0, blurb, NSSM, MB_YESNO) != IDYES) return 0;
