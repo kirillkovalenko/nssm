@@ -79,6 +79,11 @@ of the failure and don't want to wait you can use the Windows service console
 (where the service will be shown in Paused state) to send a continue signal to
 NSSM and it will retry within a few seconds.
 
+By default, NSSM defines "a timely manner" to be within 1500 milliseconds.
+You can change the threshold for the service by setting the number of
+milliseconds as a REG_DWORD value in the registry at
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppThrottle.
+
 NSSM will look in the registry under
 HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppExit for
 string (REG_EXPAND_SZ) values corresponding to the exit code of the application.

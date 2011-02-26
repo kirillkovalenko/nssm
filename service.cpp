@@ -10,6 +10,7 @@ char exe[EXE_LENGTH];
 char flags[CMD_LENGTH];
 char dir[MAX_PATH];
 bool stopping;
+unsigned long throttle_delay;
 CRITICAL_SECTION throttle_section;
 CONDITION_VARIABLE throttle_condition;
 
@@ -199,7 +200,7 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   }
 
   service_status.dwCurrentState = SERVICE_START_PENDING;
-  service_status.dwWaitHint = NSSM_RESET_THROTTLE_RESTART + NSSM_WAITHINT_MARGIN;
+  service_status.dwWaitHint = throttle_delay + NSSM_WAITHINT_MARGIN;
   SetServiceStatus(service_handle, &service_status);
 
   /* Try to create the exit action parameters; we don't care if it fails */
@@ -294,7 +295,7 @@ int start_service() {
   ZeroMemory(&pi, sizeof(pi));
 
   /* Get startup parameters */
-  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir));
+  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &throttle_delay);
   if (ret) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
     return stop_service(2, true, true);
@@ -321,7 +322,7 @@ int start_service() {
   SetServiceStatus(service_handle, &service_status);
 
   /* Wait for a clean startup. */
-  if (WaitForSingleObject(process_handle, NSSM_RESET_THROTTLE_RESTART) == WAIT_TIMEOUT) throttle = 0;
+  if (WaitForSingleObject(process_handle, throttle_delay) == WAIT_TIMEOUT) throttle = 0;
 
   return 0;
 }
@@ -449,7 +450,7 @@ void throttle_restart() {
   if (throttle > 7) throttle = 8;
 
   char threshold[8], milliseconds[8];
-  _snprintf(threshold, sizeof(threshold), "%d", NSSM_RESET_THROTTLE_RESTART);
+  _snprintf(threshold, sizeof(threshold), "%d", throttle_delay);
   _snprintf(milliseconds, sizeof(milliseconds), "%d", ms);
   log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
 

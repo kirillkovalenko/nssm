@@ -142,7 +142,9 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
   return 0;
 }
 
-int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen) {
+int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, unsigned long *throttle_delay) {
+  unsigned long ret;
+
   /* Get registry */
   char registry[KEY_LENGTH];
   if (_snprintf(registry, sizeof(registry), NSSM_REGISTRY, service_name) < 0) {
@@ -180,7 +182,7 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
     }
     else {
       /* Help! */
-      unsigned long ret = GetWindowsDirectory(dir, dirlen);
+      ret = GetWindowsDirectory(dir, dirlen);
       if (! ret || ret > dirlen) {
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_NO_DIR_AND_NO_FALLBACK, NSSM_REG_DIR, service_name, 0);
         RegCloseKey(key);
@@ -189,6 +191,25 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
     }
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_DIR, NSSM_REG_DIR, service_name, dir, 0);
   }
+
+  /* Try to get throttle restart delay */
+  unsigned long type = REG_DWORD;
+  unsigned long buflen = sizeof(*throttle_delay);
+  bool throttle_ok = false;
+  ret = RegQueryValueEx(key, NSSM_REG_THROTTLE, 0, &type, (unsigned char *) throttle_delay, &buflen);
+  if (ret != ERROR_SUCCESS) {
+    if (ret != ERROR_FILE_NOT_FOUND) {
+      if (type != REG_DWORD) {
+        char milliseconds[16];
+        _snprintf(milliseconds, sizeof(milliseconds), "%lu", NSSM_RESET_THROTTLE_RESTART);
+        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_THROTTLE, service_name, NSSM_REG_THROTTLE, milliseconds, 0);
+      }
+      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_THROTTLE, error_string(GetLastError()), 0);
+    }
+  }
+  else throttle_ok = true;
+
+  if (! throttle_ok) *throttle_delay = NSSM_RESET_THROTTLE_RESTART;
 
   /* Close registry */
   RegCloseKey(key);

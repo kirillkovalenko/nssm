@@ -35,7 +35,7 @@ int str_equiv(const char *, const char *);
 
 /*
   Throttle the restart of the service if it stops before this many
-  milliseconds have elapsed since startup.
+  milliseconds have elapsed since startup.  Override in registry.
 */
 #define NSSM_RESET_THROTTLE_RESTART 1500
 

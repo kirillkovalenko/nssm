@@ -274,3 +274,10 @@ Language = English
 Request to resume service %1.  Throttling of restart attempts will be reset.
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_BOGUS_THROTTLE
+Severity = Warning
+Language = English
+The registry value %2, used to specify the minimum number of milliseconds which must elapse before service %1 is considered to have started successfully, was not of type REG_DWORD.  The default time of %3 milliseconds will be used.
+.
+
