@@ -72,11 +72,12 @@ keep trying, pausing between each attempt, until the service is successfully
 started or you send it a stop signal.
 
 NSSM will pause an increasingly longer time between subsequent restart attempts
-if the service fails to start in a timely manner, up to a maximum of 60 seconds.
-This is so it does not consume an excessive amount of CPU time trying to start
-a failed application over and over again.  If you identify the cause of the
-failure and don't want to wait you can use the Windows service console to
-send a continue signal to NSSM and it will retry within a few seconds.
+if the service fails to start in a timely manner, up to a maximum of four
+minutes.  This is so it does not consume an excessive amount of CPU time trying
+to start a failed application over and over again.  If you identify the cause
+of the failure and don't want to wait you can use the Windows service console
+(where the service will be shown in Paused state) to send a continue signal to
+NSSM and it will retry within a few seconds.
 
 NSSM will look in the registry under
 HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppExit for
