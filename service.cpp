@@ -210,6 +210,9 @@ void WINAPI service_main(unsigned long argc, char **argv) {
 
   /* Used for signalling a resume if the service pauses when throttled. */
   throttle_timer = CreateWaitableTimer(0, 1, 0);
+  if (! throttle_timer) {
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_CREATEWAITABLETIMER_FAILED, service_name, error_string(GetLastError()), 0);
+  }
 
   monitor_service();
 }
@@ -259,6 +262,7 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
       return NO_ERROR;
 
     case SERVICE_CONTROL_CONTINUE:
+      if (! throttle_timer) return ERROR_CALL_NOT_IMPLEMENTED;
       throttle = 0;
       ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
       SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
@@ -455,12 +459,15 @@ void throttle_restart() {
   _snprintf(milliseconds, sizeof(milliseconds), "%d", ms);
   log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
 
-  ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
-  throttle_duetime.QuadPart = 0 - (ms * 10000);
-  SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
+  if (throttle_timer) {
+    ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
+    throttle_duetime.QuadPart = 0 - (ms * 10000LL);
+    SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
+  }
 
   service_status.dwCurrentState = SERVICE_PAUSED;
   SetServiceStatus(service_handle, &service_status);
 
-  WaitForSingleObject(throttle_timer, INFINITE);
+  if (throttle_timer) WaitForSingleObject(throttle_timer, INFINITE);
+  else Sleep(ms);
 }

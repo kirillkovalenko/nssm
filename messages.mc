@@ -281,3 +281,12 @@ Language = English
 The registry value %2, used to specify the minimum number of milliseconds which must elapse before service %1 is considered to have started successfully, was not of type REG_DWORD.  The default time of %3 milliseconds will be used.
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_CREATEWAITABLETIMER_FAILED
+Severity = Warning
+Language = English
+Failed to create waitable timer for service %1:
+%2
+Throttled restarts will not be interruptible.
+.
+
