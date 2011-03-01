@@ -1,0 +1,126 @@
+Changes since 2.8
+-----------------
+  * Fixed failure to run on Windows versions prior to Vista.
+
+Changes since 2.7
+-----------------
+  * Read Application, AppDirectory and AppParameters before each restart so
+    a change to any one doesn't require restarting NSSM itself.
+
+  * Fixed messages not being sent to the event log correctly in some
+    cases.
+
+  * Try to handle (strictly incorrect) quotes in AppDirectory.
+
+    Windows directories aren't allowed to contain quotes so CreateProcess()
+    will fail if the AppDirectory is quoted.  Note that it succeeds even if
+    Application itself is quoted as the application plus parameters are
+    interpreted as a command line.
+
+  * Fixed failed to write full arguments to AppParameters when
+    installing a service.
+
+  * Throttle restarts.
+
+    Back off from restarting the application immediately if it starts
+    successfully but exits too soon.  The default value of "too soon" is
+    1500 milliseconds.  This can be configured by adding a DWORD value
+    AppThrottle to the registry.
+    
+    Handle resume messages from the service console to restart the
+    application immediately even if it is throttled.
+
+  * Try to kill the process tree gracefully.
+
+    Before calling TerminateProcess() on all processes assocatiated with
+    the monitored application, enumerate all windows and threads and
+    post appropriate messages to them.  If the application bothers to
+    listen for such messages it has a chance to shut itself down gracefully.
+
+Changes since 2.6
+-----------------
+  * Handle missing registry values.
+
+    Warn if AppParameters is missing.  Warn if AppDirectory is missing or
+    unset and choose a fallback directory.
+    First try to find the parent directory of the application.  If that
+    fails, eg because the application path is just "notepad" or something,
+    start in the Windows directory.
+
+  * Kill process tree when stopping service.
+
+    Ensure that all child processes of the monitored application are
+    killed when the service stops by recursing through all running
+    processes and terminating those whose parent is the application
+    or one of its descendents.
+
+Changes since 2.5
+-----------------
+  * Removed incorrect ExpandEnvironmentStrings() error.
+
+    A log_event() call was inadvertently left in the code causing an error
+    to be set to the eventlog saying that ExpandEnvironmentStrings() had
+    failed when it had actually succeeded.
+
+Changes since 2.4
+-----------------
+  * Allow use of REG_EXPAND_SZ values in the registry.
+
+  * Don't suicide on exit status 0 by default.
+
+    Suiciding when the application exits 0 will cause recovery actions to be
+    taken.  Usually this is inappropriate.  Only suicide if there is an
+    explicit AppExit value for 0 in the registry.
+    
+    Technically such behaviour could be abused to do something like run a
+    script after successful completion of a service but in most cases a
+    suicide is undesirable when no actual failure occurred.
+
+  * Don't hang if startup parameters couldn't be determined.
+    Instead, signal that the service entered the STOPPED state.
+    Set START_PENDING state prior to actual startup.
+
+Changes since 2.3
+-----------------
+  * Ensure systems recovery actions can happen.
+
+    In Windows versions earlier than Vista the service manager would only
+    consider a service failed (and hence eligible for recovery action) if
+    the service exited without setting its state to SERVICE_STOPPED, even if
+    it signalled an error exit code.
+    In Vista and later the service manager can be configured to treat a
+    graceful shutdown with error code as a failure but this is not the
+    default behaviour.
+
+    Try to configure the service manager to use the new behaviour when
+    starting the service so users who set AppExit to Exit can use recovery
+    actions as expected.
+
+    Also recognise the new AppExit option Suicide for use on pre-Vista
+    systems.  When AppExit is Suicide don't stop the service but exit
+    inelegantly, which should be seen as a failure.
+
+Changes since 2.2
+-----------------
+  * Send properly formatted messages to the event log.
+
+  * Fixed truncation of very long path lengths in the registry.
+
+Changes since 2.1
+-----------------
+ *  Decide how to handle application exit.
+
+    When the service exits with exit code n look in
+    HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppExit\<n>,
+    falling back to the unnamed value if no such code is listed.  Parse the
+    (string) value of this entry as follows:
+
+        Restart: Start the application again (NSSM default).
+        Ignore:  Do nothing (srvany default).
+        Exit:    Stop the service.
+
+Changes since 2.0
+-----------------
+  * Added support for building a 64-bit executable. 
+
+  * Added project files for newer versions of Visual Studio.
