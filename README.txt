@@ -9,7 +9,7 @@ NSSM also has a graphical service installer and remover.
 
 Full documentation can be found online at
 
-                           http://iain.cx/src/nssm/
+                              http://nssm.cc/
 
 Since version 2.0, the GUI can be bypassed by entering all appropriate 
 options on the command line.
