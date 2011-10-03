@@ -178,6 +178,7 @@ Thanks to Arve Knudsen for spotting that child processes of the monitored
 application could be left running on service shutdown, and that a missing
 registry value for AppDirectory confused NSSM.
 Thanks to Peter Wagemans and Laszlo Keresztfalvi for suggesting throttling restarts.
+Thanks to Eugene Lifshitz for finding an edge case in CreateProcess().
 
 Licence
 -------

@@ -1,3 +1,11 @@
+Changes since 2.9
+-----------------
+  * Fixed edge case with CreateProcess().
+
+    Correctly handle the case where the application executable is under
+    a path which contains space and an executable sharing the initial
+    part of that path (up to a space) exists.
+
 Changes since 2.8
 -----------------
   * Fixed failure to run on Windows versions prior to Vista.

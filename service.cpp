@@ -308,7 +308,7 @@ int start_service() {
 
   /* Launch executable with arguments */
   char cmd[CMD_LENGTH];
-  if (_snprintf(cmd, sizeof(cmd), "%s %s", exe, flags) < 0) {
+  if (_snprintf(cmd, sizeof(cmd), "\"%s\" %s", exe, flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
     return stop_service(2, true, true);
   }
