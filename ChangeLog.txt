@@ -1,5 +1,7 @@
 Changes since 2.9
 -----------------
+  * Fixed failure to compile messages.mc in paths containing spaces.
+
   * Fixed edge case with CreateProcess().
 
     Correctly handle the case where the application executable is under
