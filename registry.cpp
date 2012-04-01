@@ -133,7 +133,7 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
 
   ret = ExpandEnvironmentStrings((char *) buffer, data, datalen);
   if (! ret || ret > datalen) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, value, buffer, error_string(GetLastError()), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED, buffer, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, buffer);
     return 3;
   }
