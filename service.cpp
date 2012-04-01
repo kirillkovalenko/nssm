@@ -300,7 +300,8 @@ int start_service() {
   ZeroMemory(&pi, sizeof(pi));
 
   /* Get startup parameters */
-  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &throttle_delay);
+  char *env = 0;
+  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay);
   if (ret) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
     return stop_service(2, true, true);
@@ -315,8 +316,10 @@ int start_service() {
 
   throttle_restart();
 
-  if (! CreateProcess(0, cmd, 0, 0, false, 0, 0, dir, &si, &pi)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, error_string(GetLastError()), 0);
+  if (! CreateProcess(0, cmd, 0, 0, false, 0, env, dir, &si, &pi)) {
+    unsigned long error = GetLastError();
+    if (error == ERROR_INVALID_PARAMETER && env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service_name, exe, NSSM_REG_ENV, 0);
+    else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, error_string(error), 0);
     return stop_service(3, true, true);
   }
   process_handle = pi.hProcess;

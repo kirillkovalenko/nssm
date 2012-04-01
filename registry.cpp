@@ -102,6 +102,45 @@ int create_exit_action(char *service_name, const char *action_string) {
   return 0;
 }
 
+int set_environment(char *service_name, HKEY key, char **env) {
+  unsigned long type = REG_MULTI_SZ;
+  unsigned long envlen = 0;
+
+  /* Dummy test to find buffer size */
+  unsigned long ret = RegQueryValueEx(key, NSSM_REG_ENV, 0, &type, NULL, &envlen);
+  if (ret != ERROR_SUCCESS) {
+    /* The service probably doesn't have any environment configured */
+    if (ret == ERROR_FILE_NOT_FOUND) return 0;
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_ENV, error_string(GetLastError()), 0);
+    return 1;
+  }
+
+  if (type != REG_MULTI_SZ) {
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE, NSSM_REG_ENV, service_name, 0);
+    return 2;
+  }
+
+  /* Probably not possible */
+  if (! envlen) return 0;
+
+  *env = (char *) HeapAlloc(GetProcessHeap(), 0, envlen);
+  if (! *env) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "environment registry", "set_environment()", 0);
+    return 3;
+  }
+
+  /* Actually get the strings */
+  ret = RegQueryValueEx(key, NSSM_REG_ENV, 0, &type, (unsigned char *) *env, &envlen);
+  if (ret != ERROR_SUCCESS) {
+    HeapFree(GetProcessHeap(), 0, *env);
+    *env = 0;
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_ENV, error_string(GetLastError()), 0);
+    return 4;
+  }
+
+  return 0;
+}
+
 int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, bool sanitise) {
   unsigned char *buffer = (unsigned char *) HeapAlloc(GetProcessHeap(), 0, datalen);
   if (! buffer) {
@@ -142,7 +181,7 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
   return 0;
 }
 
-int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, unsigned long *throttle_delay) {
+int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, char **env, unsigned long *throttle_delay) {
   unsigned long ret;
 
   /* Get registry */
@@ -191,6 +230,9 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
     }
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_DIR, NSSM_REG_DIR, service_name, dir, 0);
   }
+
+  /* Try to get environment variables - may fail */
+  set_environment(service_name, key, env);
 
   /* Try to get throttle restart delay */
   unsigned long type = REG_DWORD;

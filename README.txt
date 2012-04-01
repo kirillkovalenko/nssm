@@ -180,6 +180,8 @@ registry value for AppDirectory confused NSSM.
 Thanks to Peter Wagemans and Laszlo Keresztfalvi for suggesting throttling restarts.
 Thanks to Eugene Lifshitz for finding an edge case in CreateProcess() and for
 advising how to build messages.mc correctly in paths containing spaces.
+Thanks to Rob Sharp for pointing out that NSSM did not respect the
+AppEnvironment registry value used by srvany.
 
 Licence
 -------

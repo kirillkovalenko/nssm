@@ -290,3 +290,18 @@ Failed to create waitable timer for service %1:
 Throttled restarts will not be interruptible.
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT
+Severity = Error
+Language = English
+Failed to start service %1.  Program %2 couldn't be launched.
+CreateProcess() failed with ERROR_INVALID_PARAMETER and a process environment was set in the %3 registry value.  It is likely that the environment was incorrectly specified.  %3 should be a REG_MULTI_SZ value comprising strings of the form KEY=VALUE.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE
+Severity = Warning
+Language = English
+Environment declaration %1 for service %2 is not of type REG_MULTI_SZ and will be ignored.
+.
+
