@@ -47,23 +47,20 @@ int check_admin(char *action) {
 }
 
 int main(int argc, char **argv) {
-  /* Require an argument since users may try to run nssm directly */
-  if (argc == 1) exit(usage(1));
-
   /* Elevate */
-  if (str_equiv(argv[1], "install") || str_equiv(argv[1], "remove")) {
-    if (check_admin(argv[1])) exit(100);
-  }
+  if (argc > 1) {
+    if (str_equiv(argv[1], "install") || str_equiv(argv[1], "remove")) {
+      if (check_admin(argv[1])) exit(100);
+    }
 
-  /* Valid commands are install or remove */
-  if (str_equiv(argv[1], "install")) {
-    exit(pre_install_service(argc - 2, argv + 2));
+    /* Valid commands are install or remove */
+    if (str_equiv(argv[1], "install")) {
+      exit(pre_install_service(argc - 2, argv + 2));
+    }
+    if (str_equiv(argv[1], "remove")) {
+      exit(pre_remove_service(argc - 2, argv + 2));
+    }
   }
-  if (str_equiv(argv[1], "remove")) {
-    exit(pre_remove_service(argc - 2, argv + 2));
-  }
-  /* Undocumented: "run" is used to actually do service stuff */
-  if (! str_equiv(argv[1], NSSM_RUN)) exit(usage(2));
 
   /* Thread local storage for error message buffer */
   tls_index = TlsAlloc();
@@ -74,10 +71,13 @@ int main(int argc, char **argv) {
   /* Start service magic */
   SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
   if (! StartServiceCtrlDispatcher(table)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(GetLastError()), 0);
-    return 100;
+    unsigned long error = GetLastError();
+    /* User probably ran nssm with no argument */
+    if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) exit(usage(1));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(error), 0);
+    exit(100);
   }
 
   /* And nothing more to do */
-  return 0;
+  exit(0);
 }

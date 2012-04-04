@@ -96,13 +96,12 @@ int install_service(char *name, char *exe, char *flags) {
 
   /* Construct command */
   char command[CMD_LENGTH];
-  size_t runlen = strlen(NSSM_RUN);
   size_t pathlen = strlen(path);
-  if (pathlen + runlen + 2 >= VALUE_LENGTH) {
+  if (pathlen + 1 >= VALUE_LENGTH) {
     fprintf(stderr, "The full path to " NSSM " is too long!\n");
     return 3;
   }
-  if (_snprintf(command, sizeof(command), "\"%s\" %s", path, NSSM_RUN) < 0) {
+  if (_snprintf(command, sizeof(command), "\"%s\"", path) < 0) {
     fprintf(stderr, "Out of memory for ImagePath!\n");
     return 4;
   }
