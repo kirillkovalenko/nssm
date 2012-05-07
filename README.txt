@@ -170,6 +170,9 @@ Building NSSM from source
 NSSM is known to compile with Visual Studio 6, Visual Studio 2005 and Visual
 Studio 2008.
 
+NSSM will also compile with Visual Studio 2010 but the resulting executable
+will not run on versions of Windows older than XP SP2.
+
 
 Credits
 -------
@@ -184,6 +187,7 @@ Thanks to Eugene Lifshitz for finding an edge case in CreateProcess() and for
 advising how to build messages.mc correctly in paths containing spaces.
 Thanks to Rob Sharp for pointing out that NSSM did not respect the
 AppEnvironment registry value used by srvany.
+Thanks to Szymon Nowak for help with Windows 2000 compatibility.
 
 Licence
 -------
