@@ -109,6 +109,54 @@ END
 #endif    // English (U.K.) resources
 /////////////////////////////////////////////////////////////////////////////
 
+/////////////////////////////////////////////////////////////////////////////
+// French resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_FRA)
+#ifdef _WIN32
+LANGUAGE LANG_FRENCH, SUBLANG_FRENCH
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_INSTALL DIALOG  0, 0, 220, 90
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Installation d'un service NSSM"
+LANGUAGE LANG_FRENCH, SUBLANG_FRENCH
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Installer le service",IDC_OK,49,69,75,14
+    PUSHBUTTON      "Annuler",IDC_CANCEL,131,69,50,14
+    EDITTEXT        IDC_PATH,48,7,110,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Parcourir",IDC_BROWSE,163,7,50,14
+    EDITTEXT        IDC_FLAGS,48,28,165,14,ES_AUTOHSCROLL
+    LTEXT           "Options:",IDC_STATIC,7,31,27,8
+    LTEXT           "Nom du\nservice:",IDC_STATIC,7,49,41,18
+    EDITTEXT        IDC_NAME,48,49,77,14,ES_AUTOHSCROLL
+    LTEXT           "Application:",IDC_STATIC,7,9,38,8
+END
+
+IDD_REMOVE DIALOG  0, 0, 223, 28
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Suppression d'un service NSSM"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Supprimer le service",IDC_REMOVE,140,7,76,14
+    LTEXT           "Nom du\nservice:",IDC_STATIC,8,6,46,16
+    EDITTEXT        IDC_NAME,43,7,90,14,ES_AUTOHSCROLL
+END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#endif    // French resources
+/////////////////////////////////////////////////////////////////////////////
 
 
 #ifndef APSTUDIO_INVOKED
