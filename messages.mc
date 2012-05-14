@@ -465,3 +465,33 @@ Language = French
 La déclaration de l'environnement %1 pour le service %2 n'est pas du type REG_MULTI_SZ.  Cette déclaration sera ignorée.
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_SERVICE_CONTROL_HANDLED
+Severity = Informational
+Language = English
+Service %1 received %2 control, which will be handled.
+.
+Language = French
+Le service %1 a reçu le code de contrôle %2, qui sera pris en compte.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_SERVICE_CONTROL_NOT_HANDLED
+Severity = Informational
+Language = English
+Service %1 received unsupported %2 control, which will not be handled.
+.
+Language = French
+Le service %1 a reçu le code de contrôle %2, qui n'est pas géré.  Aucune action ne sera entreprise en réponse à cette demande.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_SERVICE_CONTROL_UNKNOWN
+Severity = Informational
+Language = English
+Service %1 received unknown service control message %2, which will be ignored.
+.
+Language = French
+Le service %1 a reçu le code de contrôle inconnu %2, qui sera donc ignoré.
+.
+

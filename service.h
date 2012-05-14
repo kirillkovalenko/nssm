@@ -4,6 +4,8 @@
 #define ACTION_LEN 16
 
 void WINAPI service_main(unsigned long, char **);
+char *service_control_text(unsigned long);
+void log_service_control(char *, unsigned long, bool);
 unsigned long WINAPI service_control_handler(unsigned long, unsigned long, void *, void *);
 
 SC_HANDLE open_service_manager();

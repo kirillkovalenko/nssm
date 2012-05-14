@@ -198,6 +198,8 @@ void WINAPI service_main(unsigned long argc, char **argv) {
     return;
   }
 
+  log_service_control(service_name, 0, true);
+
   service_status.dwCurrentState = SERVICE_START_PENDING;
   service_status.dwWaitHint = throttle_delay + NSSM_WAITHINT_MARGIN;
   SetServiceStatus(service_handle, &service_status);
@@ -252,15 +254,59 @@ int monitor_service() {
   return 0;
 }
 
+char *service_control_text(unsigned long control) {
+  switch (control) {
+    /* HACK: there is no SERVICE_CONTROL_START constant */
+    case 0: return "START";
+    case SERVICE_CONTROL_STOP: return "STOP";
+    case SERVICE_CONTROL_SHUTDOWN: return "SHUTDOWN";
+    case SERVICE_CONTROL_PAUSE: return "PAUSE";
+    case SERVICE_CONTROL_CONTINUE: return "CONTINUE";
+    case SERVICE_CONTROL_INTERROGATE: return "INTERROGATE";
+    default: return 0;
+  }
+}
+
+void log_service_control(char *service_name, unsigned long control, bool handled) {
+  char *text = service_control_text(control);
+  unsigned long event;
+
+  if (! text) {
+    /* "0x" + 8 x hex + NULL */
+    text = (char *) HeapAlloc(GetProcessHeap(), 0, 11);
+    if (! text) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control", 0);
+      return;
+    }
+    if (_snprintf(text, 11, "0x%08x", control) < 0) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control", 0);
+      HeapFree(GetProcessHeap(), 0, text);
+      return;
+    }
+
+    event = NSSM_EVENT_SERVICE_CONTROL_UNKNOWN;
+  }
+  else if (handled) event = NSSM_EVENT_SERVICE_CONTROL_HANDLED;
+  else event = NSSM_EVENT_SERVICE_CONTROL_NOT_HANDLED;
+
+  log_event(EVENTLOG_INFORMATION_TYPE, event, service_name, text, 0);
+
+  if (event == NSSM_EVENT_SERVICE_CONTROL_UNKNOWN) {
+    HeapFree(GetProcessHeap(), 0, text);
+  }
+}
+
 /* Service control handler */
 unsigned long WINAPI service_control_handler(unsigned long control, unsigned long event, void *data, void *context) {
   switch (control) {
     case SERVICE_CONTROL_SHUTDOWN:
     case SERVICE_CONTROL_STOP:
+      log_service_control(service_name, control, true);
       stop_service(0, true, true);
       return NO_ERROR;
 
     case SERVICE_CONTROL_CONTINUE:
+      log_service_control(service_name, control, true);
       if (! throttle_timer) return ERROR_CALL_NOT_IMPLEMENTED;
       throttle = 0;
       ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
@@ -276,10 +322,12 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
         We don't accept pause messages but it isn't possible to register
         only for continue messages so we have to handle this case.
       */
+      log_service_control(service_name, control, false);
       return ERROR_CALL_NOT_IMPLEMENTED;
   }
 
   /* Unknown control */
+  log_service_control(service_name, control, false);
   return ERROR_CALL_NOT_IMPLEMENTED;
 }
 
