@@ -495,3 +495,16 @@ Language = French
 Le service %1 a reçu le code de contrôle inconnu %2, qui sera donc ignoré.
 .
 
+MessageId = +1
+SymbolicName = NSSM_EVENT_CHANGESERVICECONFIG2_FAILED
+Severity = Informational
+Language = English
+Error configuring service failure actions for service %1.  The service will not be subject to recovery actions if it exits gracefully with a non-zero exit code.
+ChangeServiceConfig2() failed:
+%2
+.
+Language = French
+Erreur lors de la configuration des actions en cas d'échec du service %1.  Le service ne déclenchera aucune action de récupération s'il se termine normalement avec un code retour non nul.
+ChangeServiceConfig2() a échoué:
+.
+

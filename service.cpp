@@ -225,14 +225,19 @@ void set_service_recovery(char *service_name) {
 
   SC_HANDLE service = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
   if (! service) return;
-  return;
 
   SERVICE_FAILURE_ACTIONS_FLAG flag;
   ZeroMemory(&flag, sizeof(flag));
   flag.fFailureActionsOnNonCrashFailures = true;
 
   /* This functionality was added in Vista so the call may fail */
-  ChangeServiceConfig2(service, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, &flag);
+  if (! ChangeServiceConfig2(service, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, &flag)) {
+    unsigned long error = GetLastError();
+    /* Pre-Vista we expect to fail with ERROR_INVALID_LEVEL */
+    if (error != ERROR_INVALID_LEVEL) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CHANGESERVICECONFIG2_FAILED, service_name, error_string(error), 0);
+    }
+  }
 }
 
 int monitor_service() {
