@@ -1,6 +1,7 @@
 #include "nssm.h"
 
 extern unsigned long tls_index;
+extern bool is_admin;
 
 /* String function */
 int str_equiv(const char *a, const char *b) {
@@ -27,30 +28,28 @@ int usage(int ret) {
   return(ret);
 }
 
-int check_admin(char *action) {
+void check_admin() {
+  is_admin = false;
+
   /* Lifted from MSDN examples */
   PSID AdministratorsGroup;
   SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
-  BOOL ok = AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &AdministratorsGroup);
-  if (ok) {
-    if (! CheckTokenMembership(0, AdministratorsGroup, &ok)) ok = 0;
-    FreeSid(AdministratorsGroup);
-
-    if (ok) return 0;
-
-    fprintf(stderr, "Administator access is needed to %s a service.\n", action);
-    return 1;
-  }
-
-  /* Can't tell if we are admin or not; later operations may fail */
-  return 0;
+  if (! AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &AdministratorsGroup)) return;
+  CheckTokenMembership(0, AdministratorsGroup, /*XXX*/(PBOOL) &is_admin);
+  FreeSid(AdministratorsGroup);
 }
 
 int main(int argc, char **argv) {
+  /* Remember if we are admin */
+  check_admin();
+
   /* Elevate */
   if (argc > 1) {
     if (str_equiv(argv[1], "install") || str_equiv(argv[1], "remove")) {
-      if (check_admin(argv[1])) exit(100);
+      if (! is_admin) {
+        fprintf(stderr, "Administrator access is needed to %s a service.\n", argv[1]);
+        exit(100);
+      }
     }
 
     /* Valid commands are install or remove */
@@ -66,7 +65,7 @@ int main(int argc, char **argv) {
   tls_index = TlsAlloc();
 
   /* Register messages */
-  create_messages();
+  if (is_admin) create_messages();
 
   /* Start service magic */
   SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };

@@ -1,5 +1,6 @@
 #include "nssm.h"
 
+bool is_admin;
 SERVICE_STATUS service_status;
 SERVICE_STATUS_HANDLE service_handle;
 HANDLE process_handle;
@@ -29,7 +30,7 @@ static inline int throttle_milliseconds() {
 SC_HANDLE open_service_manager() {
   SC_HANDLE ret = OpenSCManager(0, SERVICES_ACTIVE_DATABASE, SC_MANAGER_ALL_ACCESS);
   if (! ret) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENSCMANAGER_FAILED, 0);
+    if (is_admin) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENSCMANAGER_FAILED, 0);
     return 0;
   }
 
@@ -130,6 +131,8 @@ int install_service(char *name, char *exe, char *flags) {
     return 6;
   }
 
+  set_service_recovery(service, name);
+
   /* Cleanup */
   CloseServiceHandle(service);
   CloseServiceHandle(services);
@@ -204,10 +207,12 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   service_status.dwWaitHint = throttle_delay + NSSM_WAITHINT_MARGIN;
   SetServiceStatus(service_handle, &service_status);
 
-  /* Try to create the exit action parameters; we don't care if it fails */
-  create_exit_action(argv[0], exit_action_strings[0]);
+  if (is_admin) {
+    /* Try to create the exit action parameters; we don't care if it fails */
+    create_exit_action(argv[0], exit_action_strings[0]);
 
-  set_service_recovery(service_name);
+    set_service_recovery(0, service_name);
+  }
 
   /* Used for signalling a resume if the service pauses when throttled. */
   throttle_timer = CreateWaitableTimer(0, 1, 0);
@@ -219,12 +224,16 @@ void WINAPI service_main(unsigned long argc, char **argv) {
 }
 
 /* Make sure service recovery actions are taken where necessary */
-void set_service_recovery(char *service_name) {
-  SC_HANDLE services = open_service_manager();
-  if (! services) return;
+void set_service_recovery(SC_HANDLE service, char *service_name) {
+  SC_HANDLE services = 0;
 
-  SC_HANDLE service = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
-  if (! service) return;
+  if (! service) {
+    services = open_service_manager();
+    if (! services) return;
+
+    service = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
+    if (! service) return;
+  }
 
   SERVICE_FAILURE_ACTIONS_FLAG flag;
   ZeroMemory(&flag, sizeof(flag));
@@ -237,6 +246,11 @@ void set_service_recovery(char *service_name) {
     if (error != ERROR_INVALID_LEVEL) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CHANGESERVICECONFIG2_FAILED, service_name, error_string(error), 0);
     }
+  }
+
+  if (services) {
+    CloseServiceHandle(service);
+    CloseServiceHandle(services);
   }
 }
 
