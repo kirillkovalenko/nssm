@@ -27,7 +27,6 @@ Perhaps you need to be an administrator...
 Language = French
 Connexion impossible au gestionnaire de services!
 Il vous manque peut-être des droits d'administrateur.
-Ou votre antivirus est peut-être trop lent à analyser le nouveau service. Essayez de relancer ce service.
 .
 
 MessageId = +1
