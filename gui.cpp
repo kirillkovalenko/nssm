@@ -1,13 +1,10 @@
 #include "nssm.h"
 
 int nssm_gui(int resource, char *name) {
-  char blurb[256];
-
   /* Create window */
   HWND dlg = CreateDialog(0, MAKEINTRESOURCE(resource), 0, install_dlg);
   if (! dlg) {
-    _snprintf(blurb, sizeof(blurb), "CreateDialog() failed with error code %d", GetLastError());
-    MessageBox(0, blurb, NSSM, MB_OK);
+    popup_message(MB_OK, NSSM_GUI_CREATEDIALOG_FAILED, error_string(GetLastError()));
     return 1;
   }
 
@@ -72,20 +69,20 @@ int install(HWND window) {
 
   /* Get service name */
   if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {
-    MessageBox(0, "No valid service name was specified!", NSSM, MB_OK);
+    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
     return 2;
   }
 
   /* Get executable name */
   if (! GetDlgItemText(window, IDC_PATH, exe, sizeof(exe))) {
-    MessageBox(0, "No valid executable path was specified!", NSSM, MB_OK);
+    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
     return 3;
   }
 
   /* Get flags */
   if (SendMessage(GetDlgItem(window, IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
     if (! GetDlgItemText(window, IDC_FLAGS, flags, sizeof(flags))) {
-      MessageBox(0, "No valid options were specified!", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
       return 4;
     }
   }
@@ -94,27 +91,27 @@ int install(HWND window) {
   /* See if it works */
   switch (install_service(name, exe, flags)) {
     case 2:
-      MessageBox(0, "Can't open service manager!\nPerhaps you need to be an administrator...", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
       return 2;
 
     case 3:
-      MessageBox(0, "Path too long!\nThe full path to " NSSM " is too long.\nPlease install " NSSM " somewhere else...\n", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
       return 3;
 
     case 4:
-      MessageBox(0, "Error constructing ImagePath!\nThis really shouldn't happen.  You could be out of memory\nor the world may be about to end or something equally bad.", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
       return 4;
 
     case 5:
-      MessageBox(0, "Couldn't create service!\nPerhaps it is already installed...", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INSTALL_SERVICE_FAILED);
       return 5;
 
     case 6:
-      MessageBox(0, "Couldn't set startup parameters for the service!\nDeleting the service...", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_CREATE_PARAMETERS_FAILED);
       return 6;
   }
 
-  MessageBox(0, "Service successfully installed!", NSSM, MB_OK);
+  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_INSTALLED, name);
   return 0;
 }
 
@@ -127,53 +124,70 @@ int remove(HWND window) {
 
   /* Get service name */
   if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {
-    MessageBox(0, "No valid service name was specified!", NSSM, MB_OK);
+    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
     return 2;
   }
 
   /* Confirm */
-  char blurb[MAX_PATH];
-  if (_snprintf(blurb, sizeof(blurb), "Remove the \"%s\" service?", name) < 0) {
-    if (MessageBox(0, "Remove the service?", NSSM, MB_YESNO) != IDYES) return 0;
-  }
-  else if (MessageBox(0, blurb, NSSM, MB_YESNO) != IDYES) return 0;
+  if (popup_message(MB_YESNO, NSSM_GUI_ASK_REMOVE_SERVICE, name) != IDYES) return 0;
 
   /* See if it works */
   switch (remove_service(name)) {
     case 2:
-      MessageBox(0, "Can't open service manager!\nPerhaps you need to be an administrator...", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
       return 2;
 
     case 3:
-      MessageBox(0, "Can't open service!\nPerhaps it isn't installed...", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_SERVICE_NOT_INSTALLED);
       return 3;
 
     case 4:
-      MessageBox(0, "Can't delete service!  Make sure the service is stopped and try again.\nIf this error persists, you may need to set the service NOT to start\nautomatically, reboot your computer and try removing it again.", NSSM, MB_OK);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_REMOVE_SERVICE_FAILED);
       return 4;
   }
 
-  MessageBox(0, "Service successfully removed!", NSSM, MB_OK);
+  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_REMOVED, name);
   return 0;
 }
 
-/* Browse for game */
+/* Browse for application */
 void browse(HWND window) {
   if (! window) return;
 
+  unsigned long bufsize = 256;
+  unsigned long len = bufsize;
   OPENFILENAME ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
-  ofn.lpstrFilter = "Applications\0*.exe\0All files\0*.*\0\0";
+  ofn.lpstrFilter = (char *) HeapAlloc(GetProcessHeap(), 0, bufsize);
+  /* XXX: Escaping nulls with FormatMessage is tricky */
+  if (ofn.lpstrFilter) {
+    ZeroMemory((void *) ofn.lpstrFilter, bufsize);
+    char *localised = message_string(NSSM_GUI_BROWSE_FILTER_APPLICATIONS);
+    _snprintf((char *) ofn.lpstrFilter, bufsize, localised);
+    /* "Applications" + NULL + "*.exe" + NULL */
+    len = strlen(localised) + 1;
+    LocalFree(localised);
+    _snprintf((char *) ofn.lpstrFilter + len, bufsize - len, "*.exe");
+    /* "All files" + NULL + "*.*" + NULL */
+    len += 6;
+    localised = message_string(NSSM_GUI_BROWSE_FILTER_ALL_FILES);
+    _snprintf((char *) ofn.lpstrFilter + len, bufsize - len, localised);
+    len += strlen(localised) + 1;
+    LocalFree(localised);
+    _snprintf((char *) ofn.lpstrFilter + len, bufsize - len, "*.*");
+    /* Remainder of the buffer is already zeroed */
+  }
   ofn.lpstrFile = new char[MAX_PATH];
   ofn.lpstrFile[0] = '\0';
-  ofn.lpstrTitle = "Locate application file";
+  ofn.lpstrTitle = message_string(NSSM_GUI_BROWSE_TITLE);
   ofn.nMaxFile = MAX_PATH;
   ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
 
   if (GetOpenFileName(&ofn)) {
     SendMessage(window, WM_SETTEXT, 0, (LPARAM) ofn.lpstrFile);
   }
+  if (ofn.lpstrFilter) HeapFree(GetProcessHeap(), 0, (void *) ofn.lpstrFilter);
 
   delete[] ofn.lpstrFile;
 }

@@ -14,17 +14,7 @@ int str_equiv(const char *a, const char *b) {
 
 /* How to use me correctly */
 int usage(int ret) {
-  fprintf(stderr, "NSSM: The non-sucking service manager\n");
-  fprintf(stderr, "Version %s, %s\n", NSSM_VERSION, NSSM_DATE);
-  fprintf(stderr, "Usage: nssm <option> [args]\n\n");
-  fprintf(stderr, "To show service installation GUI:\n\n");
-  fprintf(stderr, "        nssm install [<servicename>]\n\n");
-  fprintf(stderr, "To install a service without confirmation:\n\n");
-  fprintf(stderr, "        nssm install <servicename> <app> [<args>]\n\n");
-  fprintf(stderr, "To show service removal GUI:\n\n");
-  fprintf(stderr, "        nssm remove [<servicename>]\n\n");
-  fprintf(stderr, "To remove a service without confirmation:\n\n");
-  fprintf(stderr, "        nssm remove <servicename> confirm\n");
+  print_message(stderr, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
   return(ret);
 }
 
@@ -45,18 +35,19 @@ int main(int argc, char **argv) {
 
   /* Elevate */
   if (argc > 1) {
-    if (str_equiv(argv[1], "install") || str_equiv(argv[1], "remove")) {
-      if (! is_admin) {
-        fprintf(stderr, "Administrator access is needed to %s a service.\n", argv[1]);
-        exit(100);
-      }
-    }
-
     /* Valid commands are install or remove */
     if (str_equiv(argv[1], "install")) {
+      if (! is_admin) {
+        print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL);
+        exit(100);
+      }
       exit(pre_install_service(argc - 2, argv + 2));
     }
     if (str_equiv(argv[1], "remove")) {
+      if (! is_admin) {
+        print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE);
+        exit(100);
+      }
       exit(pre_remove_service(argc - 2, argv + 2));
     }
   }

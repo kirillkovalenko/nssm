@@ -4,6 +4,326 @@ English=0x0409:MSG00409
 French=0x40C:MSG0040C
 )
 
+MessageId = 501
+SymbolicName = NSSM_MESSAGE_USAGE
+Severity = Informational
+Language = English
+NSSM: The non-sucking service manager
+Version %s, %s
+Usage: nssm <option> [args]
+
+To show service installation GUI:
+
+        nssm install [<servicename>]
+
+To install a service without confirmation:
+
+        nssm install <servicename> <app> [<args>]
+
+To show service removal GUI:
+
+        nssm remove [<servicename>]
+
+To remove a service without confirmation:
+
+        nssm remove <servicename> confirm
+.
+Language = French
+NSSM: Le gestionnaire de services Windows pour les professionnels!
+Version %s, %s
+Syntaxe: nssm <option> [arguments]
+
+Pour afficher l'écran d'installation du service:
+
+        nssm install [<nom_du_service>]
+
+Pour installer un service sans confirmation:
+
+        nssm install <nom_du_service> <application> [<arguments>]
+
+Pour afficher l'écran de désinstallation du service:
+
+        nssm remove [<nom_du_service>]
+
+Pour désinstaller un service sans confirmation:
+
+        nssm remove <nom_du_service> confirm
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL
+Severity = Informational
+Language = English
+Administrator access is needed to install a service.
+.
+Language = French
+Les droits d'administrateur sont requis pour installer un service.
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE
+Severity = Informational
+Language = English
+Administrator access is needed to remove a service.
+.
+Language = French
+Les droits d'administrateur sont requis pour désinstaller un service.
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_PRE_REMOVE_SERVICE
+Severity = Informational
+Language = English
+To remove a service without confirmation: nssm remove <servicename> confirm
+.
+Language = French
+Pour désinstaller un service sans confirmation: nssm remove <nom_du_service> confirm
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED
+Severity = Informational
+Language = English
+Error opening service manager!
+.
+Language = French
+Erreur à l'ouverture du gestionnaire de services!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_PATH_TOO_LONG
+Severity = Informational
+Language = English
+The full path to %s is too long!
+.
+Language = French
+Le chemin complet vers %s est trop long!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH
+Severity = Informational
+Language = English
+Out of memory for ImagePath!
+.
+Language = French
+Mémoire insuffisante pour spécifier le chemin de l'image (ImagePath)!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_CREATESERVICE_FAILED
+Severity = Informational
+Language = English
+Error creating service!
+.
+Language = French
+Erreur à la création du service!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_CREATE_PARAMETERS_FAILED
+Severity = Informational
+Language = English
+Error setting startup parameters for the service!
+.
+Language = French
+Erreur en essayant de régler les paramètres de démarrage du service!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_SERVICE_INSTALLED
+Severity = Informational
+Language = English
+Service "%s" installed successfully!
+.
+Language = French
+Le service "%s" a été installé avec succès!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_OPENSERVICE_FAILED
+Severity = Informational
+Language = English
+Can't open service!
+.
+Language = French
+Impossible d'ouvrir le service!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_DELETESERVICE_FAILED
+Severity = Informational
+Language = English
+Error deleting service!
+.
+Language = French
+Erreur à la suppression du service!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_SERVICE_REMOVED
+Severity = Informational
+Language = English
+Service "%s" removed successfully!
+.
+Language = French
+Le service "%s" a été désinstallé avec succès!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_CREATEDIALOG_FAILED
+Severity = Informational
+Language = English
+CreateDialog() failed:
+%s
+.
+Language = French
+CreateDialog() a échoué:
+%s
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_MISSING_SERVICE_NAME
+Severity = Informational
+Language = English
+No valid service name was specified!
+.
+Language = French
+Aucun nom de service valide n'a été spécifié!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_MISSING_PATH
+Severity = Informational
+Language = English
+No valid executable path was specified!
+.
+Language = French
+Aucun chemin valide de fichier exécutable n'a été spécifié!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_INVALID_OPTIONS
+Severity = Informational
+Language = English
+No valid options were specified!
+.
+Language = French
+Aucun option valide n'a été spécifiée!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH
+Severity = Informational
+Language = English
+Error constructing ImagePath!\nThis really shouldn't happen.  You could be out of memory
+or the world may be about to end or something equally bad.
+.
+Language = French
+Mémoire insuffisante pour spécifier le chemin de l'image (ImagePath)!
+Cette situation ne devrait jamais se produire.  Vous êtes peut-être à court de mémoire RAM,
+ou la fin du monde est proche, ou un autre désastre du même type.
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_INSTALL_SERVICE_FAILED
+Severity = Informational
+Language = English
+Couldn't create service!
+Perhaps it is already installed...
+.
+Language = French
+Impossible de créer le service!
+Peut-être est-il déjà installé...
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_CREATE_PARAMETERS_FAILED
+Severity = Informational
+Language = English
+Couldn't set startup parameters for the service!
+Deleting the service...
+.
+Language = French
+Impossible de régler les paramètres de démarrage pour le service!
+Suppression du dit service...
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_ASK_REMOVE_SERVICE
+Severity = Informational
+Language = English
+.
+Language = French
+Supprimer le service "%s" ?
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_SERVICE_NOT_INSTALLED
+Severity = Informational
+Language = English
+Can't open service!
+Perhaps it isn't installed...
+.
+Language = French
+Impossible d'ouvrir le service!
+Celui-ci n'est peut-être pas installé...
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_REMOVE_SERVICE_FAILED
+Severity = Informational
+Language = English
+Can't delete service!  Make sure the service is stopped and try again.
+If this error persists, you may need to set the service NOT to start
+automatically, reboot your computer and try removing it again.
+.
+Language = French
+Impossible de supprimer le service!  Assurez-vous que ce service est arrêté et réessayez.
+Si cette erreur persiste, réglez ce service en lancement MANUEL
+(non automatique), redémarrez votre ordinateur et tentez de nouveau la suppression.
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_BROWSE_FILTER
+Severity = Informational
+Language = English
+Applications%sAll files%s%0
+.
+Language = French
+Applications%sTous les fichiers%s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_BROWSE_FILTER_APPLICATIONS
+Severity = Informational
+Language = English
+Applications%0
+.
+Language = French
+Applications%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_BROWSE_FILTER_ALL_FILES
+Severity = Informational
+Language = English
+All files%0
+.
+Language = French
+Tous les fichiers%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_BROWSE_TITLE
+Severity = Informational
+Language = English
+Locate application file
+.
+Language = French
+Indiquez le fichier exécutable
+.
+
 MessageId = 1001
 SymbolicName = NSSM_EVENT_DISPATCHER_FAILED
 Severity = Error

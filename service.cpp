@@ -39,7 +39,7 @@ SC_HANDLE open_service_manager() {
 
 /* About to install the service */
 int pre_install_service(int argc, char **argv) {
-  /* Show the dialogue box if we didn't give the */
+  /* Show the dialogue box if we didn't give the service name and path */
   if (argc < 2) return nssm_gui(IDD_INSTALL, argv[0]);
 
   /* Arguments are optional */
@@ -78,7 +78,7 @@ int pre_remove_service(int argc, char **argv) {
   /* Show dialogue box if we didn't pass service name and "confirm" */
   if (argc < 2) return nssm_gui(IDD_REMOVE, argv[0]);
   if (str_equiv(argv[1], "confirm")) return remove_service(argv[0]);
-  fprintf(stderr, "To remove a service without confirmation: nssm remove <servicename> confirm\n");
+  print_message(stderr, NSSM_MESSAGE_PRE_REMOVE_SERVICE);
   return 100;
 }
 
@@ -87,7 +87,7 @@ int install_service(char *name, char *exe, char *flags) {
   /* Open service manager */
   SC_HANDLE services = open_service_manager();
   if (! services) {
-    fprintf(stderr, "Error opening service manager!\n");
+    print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
   
@@ -99,11 +99,11 @@ int install_service(char *name, char *exe, char *flags) {
   char command[CMD_LENGTH];
   size_t pathlen = strlen(path);
   if (pathlen + 1 >= VALUE_LENGTH) {
-    fprintf(stderr, "The full path to " NSSM " is too long!\n");
+    print_message(stderr, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
     return 3;
   }
   if (_snprintf(command, sizeof(command), "\"%s\"", path) < 0) {
-    fprintf(stderr, "Out of memory for ImagePath!\n");
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH);
     return 4;
   }
 
@@ -118,14 +118,14 @@ int install_service(char *name, char *exe, char *flags) {
   /* Create the service */
   SC_HANDLE service = CreateService(services, name, name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
   if (! service) {
-    fprintf(stderr, "Error creating service!\n");
+    print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
     CloseServiceHandle(services);
     return 5;
   }
 
   /* Now we need to put the parameters into the registry */
   if (create_parameters(name, exe, flags, dir)) {
-    fprintf(stderr, "Error setting startup parameters for the service!\n");
+    print_message(stderr, NSSM_MESSAGE_CREATE_PARAMETERS_FAILED);
     DeleteService(service);
     CloseServiceHandle(services);
     return 6;
@@ -137,7 +137,7 @@ int install_service(char *name, char *exe, char *flags) {
   CloseServiceHandle(service);
   CloseServiceHandle(services);
 
-  printf("Service \"%s\" installed successfully!\n", name);
+  print_message(stdout, NSSM_MESSAGE_SERVICE_INSTALLED, name);
   return 0;
 }
 
@@ -146,21 +146,21 @@ int remove_service(char *name) {
   /* Open service manager */
   SC_HANDLE services = open_service_manager();
   if (! services) {
-    fprintf(stderr, "Error opening service manager!\n");
+    print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
   
   /* Try to open the service */
   SC_HANDLE service = OpenService(services, name, SC_MANAGER_ALL_ACCESS);
   if (! service) {
-    fprintf(stderr, "Can't open service!");
+    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
     CloseServiceHandle(services);
     return 3;
   }
 
   /* Try to delete the service */
   if (! DeleteService(service)) {
-    fprintf(stderr, "Error deleting service!\n");
+    print_message(stderr, NSSM_MESSAGE_DELETESERVICE_FAILED);
     CloseServiceHandle(service);
     CloseServiceHandle(services);
     return 4;
@@ -170,7 +170,7 @@ int remove_service(char *name) {
   CloseServiceHandle(service);
   CloseServiceHandle(services);
 
-  printf("Service \"%s\" removed successfully!\n", name);
+  print_message(stdout, NSSM_MESSAGE_SERVICE_REMOVED, name);
   return 0;
 }
 
