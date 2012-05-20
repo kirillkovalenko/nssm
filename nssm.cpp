@@ -58,15 +58,28 @@ int main(int argc, char **argv) {
   /* Register messages */
   if (is_admin) create_messages();
 
-  /* Start service magic */
-  SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
-  if (! StartServiceCtrlDispatcher(table)) {
-    unsigned long error = GetLastError();
-    /* User probably ran nssm with no argument */
-    if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) exit(usage(1));
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(error), 0);
-    exit(100);
+  /*
+    Optimisation for Windows 2000:
+    When we're run from the command line the StartServiceCtrlDispatcher() call
+    will time out after a few seconds on Windows 2000.  On newer versions the
+    call returns instantly.  Check for stdin first and only try to call the
+    function if there's no input stream found.  Although it's possible that
+    we're running with input redirected it's much more likely that we're
+    actually running as a service.
+    This will save time when running with no arguments from a command prompt.
+  */
+  if (_fileno(stdin) < 0) {
+    /* Start service magic */
+    SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
+    if (! StartServiceCtrlDispatcher(table)) {
+      unsigned long error = GetLastError();
+      /* User probably ran nssm with no argument */
+      if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) exit(usage(1));
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(error), 0);
+      exit(100);
+    }
   }
+  else exit(usage(1));
 
   /* And nothing more to do */
   exit(0);
