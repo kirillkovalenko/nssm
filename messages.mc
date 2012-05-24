@@ -253,6 +253,7 @@ MessageId = +1
 SymbolicName = NSSM_GUI_ASK_REMOVE_SERVICE
 Severity = Informational
 Language = English
+Remove the service?
 .
 Language = French
 Supprimer le service "%s" ?
