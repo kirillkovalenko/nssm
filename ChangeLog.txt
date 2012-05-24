@@ -12,9 +12,9 @@ Changes since 2.11
 
   * Really ensure systems recovery actions can happen.
 
-	  The change supposedly introduced in v2.4 to allow service recovery
-		actions to be activated when the application exits gracefully with
-		a non-zero error code didn't actually work.
+    The change supposedly introduced in v2.4 to allow service recovery
+    actions to be activated when the application exits gracefully with
+    a non-zero error code didn't actually work.
 
 Changes since 2.10
 -----------------
