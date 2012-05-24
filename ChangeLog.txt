@@ -1,3 +1,21 @@
+Changes since 2.13
+-----------------
+  * Fixed default GUI language being French not English.
+
+Changes since 2.12
+-----------------
+  * Fixed failure to run on Windows 2000.
+
+Changes since 2.11
+-----------------
+  * NSSM is now translated into French.
+
+  * Really ensure systems recovery actions can happen.
+
+	  The change supposedly introduced in v2.4 to allow service recovery
+		actions to be activated when the application exits gracefully with
+		a non-zero error code didn't actually work.
+
 Changes since 2.10
 -----------------
   * Support AppEnvironment for compatibility with srvany.
