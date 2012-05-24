@@ -453,7 +453,17 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* Check exit code */
   unsigned long exitcode = 0;
+  char code[16];
   GetExitCodeProcess(process_handle, &exitcode);
+
+  /*
+    Log that the service ended BEFORE logging about killing the process
+    tree.  See below for the possible values of the why argument.
+  */
+  if (! why) {
+    _snprintf(code, sizeof(code), "%d", exitcode);
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, exe, service_name, code, 0);
+  }
 
   /* Clean up. */
   kill_process_tree(service_name, pid, exitcode, pid);
@@ -465,10 +475,6 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     this is a controlled shutdown, and don't take any restart action.
   */
   if (why) return;
-
-  char code[16];
-  _snprintf(code, sizeof(code), "%d", exitcode);
-  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, exe, service_name, code, 0);
 
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
