@@ -16,8 +16,8 @@
 int str_equiv(const char *, const char *);
 
 #define NSSM "nssm"
-#define NSSM_VERSION "2.12"
-#define NSSM_DATE "2012-05-07"
+#define NSSM_VERSION "2.13"
+#define NSSM_DATE "2012-05-20"
 
 /*
   MSDN says the commandline in CreateProcess() is limited to 32768 characters
