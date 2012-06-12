@@ -63,9 +63,9 @@ int install(HWND window) {
   if (! window) return 1;
 
   /* Check parameters in the window */
-  char name[STRING_SIZE];
+  char name[VALUE_LENGTH];
   char exe[EXE_LENGTH];
-  char flags[STRING_SIZE];
+  char flags[VALUE_LENGTH];
 
   /* Get service name */
   if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {
@@ -120,7 +120,7 @@ int remove(HWND window) {
   if (! window) return 1;
 
   /* Check parameters in the window */
-  char name[STRING_SIZE];
+  char name[VALUE_LENGTH];
 
   /* Get service name */
   if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {

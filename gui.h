@@ -6,8 +6,6 @@
 #include <commctrl.h>
 #include "resource.h"
 
-#define STRING_SIZE 256
-
 int nssm_gui(int, char *);
 void centre_window(HWND);
 int install(HWND);
