@@ -1,3 +1,9 @@
+Changes since 2.14
+-----------------
+  * NSSM is now translated into Italian.
+
+  * Fixed GUI not allowing paths longer than 256 characters.
+
 Changes since 2.13
 -----------------
   * Fixed default GUI language being French not English.
