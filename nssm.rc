@@ -160,6 +160,111 @@ END
 /////////////////////////////////////////////////////////////////////////////
 
 
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Italian (Italy) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENG)
+#ifdef _WIN32
+LANGUAGE LANG_ITALIAN, SUBLANG_ITALIAN
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#include ""messages.rc\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_NSSM                ICON                    "nssm.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_INSTALL DIALOG  0, 0, 220, 90
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NSSM - Installazione Servizio"
+LANGUAGE LANG_ITALIAN, SUBLANG_ITALIAN
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Installa servizio",IDC_OK,49,69,58,14
+    PUSHBUTTON      "Annulla",IDC_CANCEL,111,69,50,14
+    EDITTEXT        IDC_PATH,48,7,110,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Sfoglia...",IDC_BROWSE,163,7,50,14
+    EDITTEXT        IDC_FLAGS,48,28,165,14,ES_AUTOHSCROLL
+    LTEXT           "Opzioni:",IDC_STATIC,7,31,27,8
+    LTEXT           "Nome\nservizio:",IDC_STATIC,7,49,41,18
+    EDITTEXT        IDC_NAME,48,49,77,14,ES_AUTOHSCROLL
+    LTEXT           "Applicazione:",IDC_STATIC,2,9,43,8
+END
+
+IDD_REMOVE DIALOG  0, 0, 223, 28
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "NSSM - Rimozione Servizio"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "Rimuovi servizio",IDC_REMOVE,154,7,62,14
+    LTEXT           "Nome servizio:",IDC_STATIC,8,9,46,8
+    EDITTEXT        IDC_NAME,59,7,87,14,ES_AUTOHSCROLL
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_INSTALL, DIALOG
+    BEGIN
+        VERTGUIDE, 7
+        VERTGUIDE, 48
+        VERTGUIDE, 213
+        BOTTOMMARGIN, 83
+        HORZGUIDE, 21
+        HORZGUIDE, 42
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.K.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //

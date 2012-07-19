@@ -2,6 +2,7 @@ LanguageNames =
 (
 English=0x0409:MSG00409
 French=0x40C:MSG0040C
+Italian=0x410:MSG00410
 )
 
 MessageId = 501
@@ -49,6 +50,27 @@ Pour désinstaller un service sans confirmation:
 
         nssm remove <nom_du_service> confirm
 .
+Language = Italian
+NSSM: il Service Manager professionale.
+Versione %s, %s
+Uso: nssm <opzioni> [argomenti]
+
+Per aprire l'interfaccia di INSTALLAZIONE Servizio:
+
+        nssm install [<nomeservizio>]
+
+Per INSTALLARE il servizio da riga di comando:
+
+        nssm install <nomeservizio> <applicazione> [<argomenti>]
+
+Per aprire l'interfaccia di RIMOZIONE Servizio:
+
+        nssm remove [<nomeservizio>]
+
+Per RIMUOVERE il servizio da riga di comando:
+
+        nssm remove <nomeservizio> confirm
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL
@@ -58,6 +80,9 @@ Administrator access is needed to install a service.
 .
 Language = French
 Les droits d'administrateur sont requis pour installer un service.
+.
+Language = Italian
+L'installazione di un servizio richiede privilegi di amministratore.
 .
 
 MessageId = +1
@@ -69,6 +94,9 @@ Administrator access is needed to remove a service.
 Language = French
 Les droits d'administrateur sont requis pour désinstaller un service.
 .
+Language = Italian
+La rimozione di un servizio richiede privilegi di amministratore.
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_PRE_REMOVE_SERVICE
@@ -78,6 +106,9 @@ To remove a service without confirmation: nssm remove <servicename> confirm
 .
 Language = French
 Pour désinstaller un service sans confirmation: nssm remove <nom_du_service> confirm
+.
+Language = Italian
+Per rimuovere un servizio da riga di comando: nssm remove <servicename> confirm
 .
 
 MessageId = +1
@@ -89,6 +120,9 @@ Error opening service manager!
 Language = French
 Erreur à l'ouverture du gestionnaire de services!
 .
+Language = Italian
+Errore apertura Service Manager!
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_PATH_TOO_LONG
@@ -99,6 +133,10 @@ The full path to %s is too long!
 Language = French
 Le chemin complet vers %s est trop long!
 .
+Language = Italian
+Il path completo verso %s è troppo lungo!
+.
+
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH
@@ -108,6 +146,9 @@ Out of memory for ImagePath!
 .
 Language = French
 Mémoire insuffisante pour spécifier le chemin de l'image (ImagePath)!
+.
+Language = Italian
+Memoria insufficiente per ImagePath!
 .
 
 MessageId = +1
@@ -119,6 +160,9 @@ Error creating service!
 Language = French
 Erreur à la création du service!
 .
+Language = Italian
+Errore creazione servizio!
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_CREATE_PARAMETERS_FAILED
@@ -128,6 +172,9 @@ Error setting startup parameters for the service!
 .
 Language = French
 Erreur en essayant de régler les paramètres de démarrage du service!
+.
+Language = Italian
+Errore durante l'impostazione dei parametri per il servizio!
 .
 
 MessageId = +1
@@ -139,6 +186,9 @@ Service "%s" installed successfully!
 Language = French
 Le service "%s" a été installé avec succès!
 .
+Language = Italian
+Servizio "%s" installato correttamente!
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_OPENSERVICE_FAILED
@@ -148,6 +198,9 @@ Can't open service!
 .
 Language = French
 Impossible d'ouvrir le service!
+.
+Language = Italian
+Impossibile aprire il servizio!
 .
 
 MessageId = +1
@@ -159,6 +212,9 @@ Error deleting service!
 Language = French
 Erreur à la suppression du service!
 .
+Language = Italian
+Errore durante la rimozione del servizio!
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_SERVICE_REMOVED
@@ -168,6 +224,9 @@ Service "%s" removed successfully!
 .
 Language = French
 Le service "%s" a été désinstallé avec succès!
+.
+Language = Italian
+Servizio "%s" rimosso correttamente!
 .
 
 MessageId = +1
@@ -181,6 +240,10 @@ Language = French
 CreateDialog() a échoué:
 %s
 .
+Language = Italian
+Chiamata a CreateDialog() fallita:
+%s
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_MISSING_SERVICE_NAME
@@ -190,6 +253,9 @@ No valid service name was specified!
 .
 Language = French
 Aucun nom de service valide n'a été spécifié!
+.
+Language = Italian
+Nessun nome di servizio valido specificato!
 .
 
 MessageId = +1
@@ -201,6 +267,9 @@ No valid executable path was specified!
 Language = French
 Aucun chemin valide de fichier exécutable n'a été spécifié!
 .
+Language = Italian
+Path verso l'eseguibile non specificato!
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_INVALID_OPTIONS
@@ -210,6 +279,9 @@ No valid options were specified!
 .
 Language = French
 Aucun option valide n'a été spécifiée!
+.
+Language = Italian
+Nessuna opzione valida specificata!
 .
 
 MessageId = +1
@@ -224,6 +296,10 @@ Mémoire insuffisante pour spécifier le chemin de l'image (ImagePath)!
 Cette situation ne devrait jamais se produire.  Vous êtes peut-être à court de mémoire RAM,
 ou la fin du monde est proche, ou un autre désastre du même type.
 .
+Language = Italian
+Errore durante la costruzione di ImagePath!\nQesto errore è inatteso. La memoria è insuffieiente
+oppure il mondo sta per finire oppure è accaduto qualcosa di ugualmente grave!
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_INSTALL_SERVICE_FAILED
@@ -235,6 +311,10 @@ Perhaps it is already installed...
 Language = French
 Impossible de créer le service!
 Peut-être est-il déjà installé...
+.
+Language = Italian
+Impossibile creare il servizio!
+Probabilmente è già installato...
 .
 
 MessageId = +1
@@ -248,6 +328,10 @@ Language = French
 Impossible de régler les paramètres de démarrage pour le service!
 Suppression du dit service...
 .
+Language = Italian
+Impossibile impostare i parametri di avvio per il servizio!
+Eliminazione servizio in corso...
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_ASK_REMOVE_SERVICE
@@ -257,6 +341,9 @@ Remove the service?
 .
 Language = French
 Supprimer le service "%s" ?
+.
+Language = Italian
+Eliminare il servizio?
 .
 
 MessageId = +1
@@ -269,6 +356,10 @@ Perhaps it isn't installed...
 Language = French
 Impossible d'ouvrir le service!
 Celui-ci n'est peut-être pas installé...
+.
+Language = Italian
+Impossibile aprire il servizio!
+Probabilmente non è installato...
 .
 
 MessageId = +1
@@ -284,6 +375,11 @@ Impossible de supprimer le service!  Assurez-vous que ce service est arrêté et r
 Si cette erreur persiste, réglez ce service en lancement MANUEL
 (non automatique), redémarrez votre ordinateur et tentez de nouveau la suppression.
 .
+Language = Italian
+Impossibile eliminare il servizio! Verificare che sia stato fermato e riprovare.
+Se l'errore persiste, provare ad impostare il servizio come avvio NON
+automatico, riavviare il computer e tentare di nuovo la rimozione.
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_BROWSE_FILTER
@@ -293,6 +389,9 @@ Applications%sAll files%s%0
 .
 Language = French
 Applications%sTous les fichiers%s%0
+.
+Language = Italian
+Applicazioni%sTutti i files%s%0
 .
 
 MessageId = +1
@@ -304,6 +403,9 @@ Applications%0
 Language = French
 Applications%0
 .
+Language = Italian
+Applicazioni%0
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_BROWSE_FILTER_ALL_FILES
@@ -314,6 +416,9 @@ All files%0
 Language = French
 Tous les fichiers%0
 .
+Language = Italian
+Tutti i files%0
+.
 
 MessageId = +1
 SymbolicName = NSSM_GUI_BROWSE_TITLE
@@ -323,6 +428,9 @@ Locate application file
 .
 Language = French
 Indiquez le fichier exécutable
+.
+Language = Italian
+Ricerca file applicazione
 .
 
 MessageId = 1001
@@ -337,6 +445,10 @@ Erreur en tentant de connecter la tâche principale du service au gestionnaire de
 StartServiceCtrlDispatcher() a échoué:
 %1
 .
+Language = Italian
+Chiamata a StartServiceCtrlDispatcher() fallita:
+%1
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_OPENSCMANAGER_FAILED
@@ -349,6 +461,10 @@ Language = French
 Connexion impossible au gestionnaire de services!
 Il vous manque peut-être des droits d'administrateur.
 .
+Language = Italian
+Impossibile connettersi al Service Manager!
+Probabilmente sono necessari permessi di Amministratore...
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_OUT_OF_MEMORY
@@ -359,6 +475,9 @@ Out of memory for %1 in %2!
 Language = French
 Mémoire insuffisante pour %1 dans %2!
 .
+Language = Italian
+Memoria insufficiente per %1 in %2!
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_GET_PARAMETERS_FAILED
@@ -368,6 +487,9 @@ Failed to get startup parameters for service %1.
 .
 Language = French
 Paramètres de démarrage non trouvés pour le service %1.
+.
+Language = Italian
+Impossibile ottenere i permessi di avvio per il servizio %1.
 .
 
 MessageId = +1
@@ -382,6 +504,10 @@ Language = French
 RegisterServiceCtrlHandlerEx() a échoué:
 %1
 .
+Language = Italian
+Chiamata a RegisterServiceCtrlHandlerEx() fallita:
+%1
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_START_SERVICE_FAILED
@@ -393,6 +519,10 @@ Error code: %3.
 Language = French
 Impossible de démarrer %1 pour le service %2.
 Code erreur: %3.
+.
+Language = Italian
+Impossibile avviare %1 per il servizio %2.
+Codice errore: %3.
 .
 
 MessageId = +1
@@ -406,6 +536,10 @@ Language = French
 Impossible de redémarrer %1 pour le service %2.
 Mise en sommeil...
 .
+Language = Italian
+Impossibile riavviare %1 per il servizio %2.
+In stato di attesa...
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_STARTED_SERVICE
@@ -415,6 +549,9 @@ Started %1 %2 for service %3 in %4.
 .
 Language = French
 Démarrage réussi de %1 %2 pour le service %3 depuis le répertoire %4.
+.
+Language = Italian
+Avviati %1 %2 per il servizio %3 in %4.
 .
 
 MessageId = +1
@@ -428,6 +565,11 @@ RegisterWaitForSingleObject() failed:
 Language = French
 Le service %1 peut indiquer être toujours actif lorsque %2 se terminera.
 RegisterWaitForSingleObject() a échoué:
+%3
+.
+Language = Italian
+Servizio %1 potrebbe richiedere di essere in esecuzione quando %2 termina.
+Chiamata a RegisterWaitForSingleObject() fallita:
 %3
 .
 
@@ -444,6 +586,11 @@ Language = French
 CreateProcess() a échoué:
 %3
 .
+Language = Italian
+Impossibile avviare il servizio %1.  Il programma %2 non può essere avviato.
+Chiamata a CreateProcess() fallita:
+%3
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_TERMINATEPROCESS
@@ -453,6 +600,9 @@ Killing process %2 because service %1 is stopping.
 .
 Language = French
 Arrêt forcé du processus %2 du fait de l'arrêt du service %1.
+.
+Language = Italian
+Arresto in corso del processo %2 in quanto il processo %1 sta terminando.
 .
 
 MessageId = +1
@@ -464,6 +614,9 @@ Requested stop of service %1.  No action is required as program %2 is not runnin
 Language = French
 Arrêt requis du service %1.  Aucune action n'est requise car le programme %2 n'est pas en cours d'exécution.
 .
+Language = Italian
+Richiesta terminazione del servizio %1.  Nessuna azione necessaria in quanto il programma %2 non è in esecuzione.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_ENDED_SERVICE
@@ -473,6 +626,9 @@ Program %1 for service %2 exited with return code %3.
 .
 Language = French
 Le programme %1 pour le service %2 s'est arrêté avec code retour %3.
+.
+Language = Italian
+Il programma %1 per il servizio %2 è terminato con codice errore %3.
 .
 
 MessageId = +1
@@ -486,6 +642,10 @@ Language = French
 L'action prévue du service %1 pour le code retour %2 est: %3.
 Tentative de redémarrage de %4.
 .
+Language = Italian
+L'azione per il servizio %1, codice di uscita %2, è %3
+Tentativo di riavvio %4.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_EXIT_IGNORE
@@ -497,6 +657,10 @@ No action will be taken to restart %4.
 Language = French
 L'action prévue du service %1 pour le code retour %2 est: %3.
 Aucune action ne sera entreprise pour redémarrer %4.
+.
+Language = Italian
+Azione di servizio "%1" per il codice di uscita %2 è %3.
+Nessuna azione sarà intrapresa per riavviare %4.
 .
 
 MessageId = +1
@@ -510,6 +674,10 @@ Language = French
 L'action prévue du service %1 pour le code retour %2 est: %3.
 Le programme ne sera pas redémarré.
 .
+Language = Italian
+L'azione per il servizio %1, codice di uscita %2, è %3.
+Termine.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_OPENKEY_FAILED
@@ -520,6 +688,10 @@ Failed to open registry key HKLM\%1:
 .
 Language = French
 Échec de l'ouverture de la clé de registre HKLM\%1:
+%2
+.
+Language = Italian
+Impossibile aprire la chiave di registro HKLM\%1:
 %2
 .
 
@@ -534,6 +706,10 @@ Language = French
 Échec de l'ouverture de la valeur de registre %1:
 %2
 .
+Language = Italian
+Impossibile leggere la chiave di registro %1:
+%2
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_SETVALUE_FAILED
@@ -544,6 +720,10 @@ Failed to write registry value %1:
 .
 Language = French
 Échec de l'écriture de la valeur de registre %1:
+%2
+.
+Language = Italian
+Impossibile scrivere la chiave di registro %1:
 %2
 .
 
@@ -557,6 +737,10 @@ Exiting.
 Language = French
 L'action prévue du service %1 pour le code retour %2 est: %3.
 Le programme s'est terminé de manière impropre.
+.
+Language = Italian
+L'azione per il servizio %1, codice di uscita %2, è %3.
+Il programma è terminato in maniera impropria.
 .
 
 MessageId = +1
@@ -573,6 +757,11 @@ Exécuter cette action %4 ferait que le service serait marqué en échec et sujet à
 Donc, pour éviter cette situation, le service sera arrêté normalement.
 Pour supprimer le présent message, configurez explicitement l'action de sortie pour le code retour 0 à %5 ou %6.
 .
+Language = Italian
+Servizio %1 applicazione %2 uscita con docide 0 ma l'azione di uscita di default è%3.
+In base all'azione %4 il servizio andrebbe impostato come fallito e soggetto ad azioni di ripristino.
+Il servizio verrà invece terminato in modo gentile. Per eliminare questo messaggio, impostare l'azione di uscita per il codice di uscita 0 su %5 o %6.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_EXPANDENVIRONMENTSTRINGS_FAILED
@@ -585,6 +774,10 @@ Language = French
 Erreur lors de l'expansion des variables d'environnement dans la valeur de registre %1:
 %2
 .
+Language = Italian
+Impossibile espandere la chiave di registro %1:
+%2
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_KILLING
@@ -594,6 +787,9 @@ Killing process tree of process %2 for service %1 with exit code %3
 .
 Language = French
 Interruption du processus %2 et de ses processus-fils pour le service %1. Code retour = %3
+.
+Language = Italian
+Arresto dell'albero di processo %2 per il servizio %1 con codice di uscita %3
 .
 
 MessageId = +1
@@ -605,6 +801,10 @@ Failed to create snapshot of running processes when terminating service %1:
 .
 Language = French
 Impossible de créer un instantané des processus en cours d'exécution lors de l'arrêt du service %1:
+%2
+.
+Language = Italian
+Impossibile creare uno snapshot dei processi in esecuzione durante l'arresto del servizio %1!
 %2
 .
 
@@ -619,6 +819,10 @@ Language = French
 Impossible d'énumérer les processus en cours d'exécution lors de l'arrêt du service %1:
 %2
 .
+Language = Italian
+Impossibile enumerare i processi in esecuzione durante la terminazione del servizio %1.
+%2
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_OPENPROCESS_FAILED
@@ -631,6 +835,10 @@ Language = French
 Échec à l'ouverture du handle de processus avec PID est %1 lors de l'arrêt du service %2:
 %3
 .
+Language = Italian
+Impossibile aprire l'handle di proceso con PID %1 durante la terminazione del servizio %2.
+%3
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_KILL_PROCESS_TREE
@@ -640,6 +848,9 @@ Killing PID %1 in process tree of PID %2 because service %3 is stopping.
 .
 Language = French
 Arrêt forcé du processus avec PID %1 (processus enfant du processus avec PID %2) résultant de l'arrêt du service %3.
+.
+Language = Italian
+Terminazione del PID %1 nell'albero di processo con PID %2 in quanto il servizio %3 è in fase di terminazione.
 .
 
 MessageId = +1
@@ -651,6 +862,10 @@ Failed to terminate process with PID %1 for service %2:
 .
 Language = French
 Impossible d'arrêter le processus avec PID %1 pour le service %2:
+%3
+.
+Language = Italian
+Impossibile terminare il processo con PID %1 per il servizio %2:
 %3
 .
 
@@ -665,6 +880,10 @@ Language = French
 La clé de registre %1 n'est pas définie pour le service %2.
 Aucune option ne sera transmise à %3 lorsqu'il démarrera.
 .
+Language = Italian
+La chiave di registro %1 non è impostata per il servizio %2.
+Nessin flag verrà passato a %3 in fase di avvio.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_NO_DIR
@@ -676,6 +895,10 @@ Assuming startup directory %3.
 Language = French
 La clé de registre %1 n'est pas définie pour le service %2.
 Le répertoire de démarrage sera supposé être: %3.
+.
+Language = Italian
+La chiave di registro %1 non è impostata per il servizio %2.
+Cartella di avvio presunta: %3.
 .
 
 MessageId = +1
@@ -689,6 +912,10 @@ Language = French
 La clé de registre %1 n'est pas définie pour le service %2.
 De surcroît, l'expansion de la variable d'environnement "%%SYSTEMROOT%%" a échoué lors de la détermination d'un répertoire de démarrage de secours.
 .
+Language = Italian
+La chiave di registro %1 non è impostata per il servizio %2.
+Inoltre, la chiamata a ExpandEnvironmentStrings("%%SYSTEMROOT%%") è fallita in fase di scelta directory alternativa.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_THREAD_FAILED
@@ -699,6 +926,10 @@ Failed to create snapshot of running threads when terminating service %1:
 .
 Language = French
 Impossible de créer un instantané des threads en cours d'exécution lors de l'arrêt du service %1:
+%2
+.
+Language = Italian
+Impossibile creare uno snapshot dei thread attivi dutante la fase di terminazione del servizio %1:
 %2
 .
 
@@ -713,6 +944,10 @@ Language = French
 Impossible d'énumérer les tâches (threads) en cours d'exécution lors de l'arrêt du service %1:
 %2
 .
+Language = Italian
+Impossibile enumerare i thread attivi durante la fase di terminazione del servizio %1:
+%2
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_THROTTLED
@@ -725,6 +960,10 @@ Language = French
 Le service %1 est resté actif durant moins de %2 millisecondes.
 Son redémarrage sera retardé de %3 millisecondes.
 .
+Language = Italian
+Il servizio %1 è rimasto in esecuzione per meno di %2 millisecondi.
+Il riavvio verrà posticipato di %3 millisecondi.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_RESET_THROTTLE
@@ -734,6 +973,9 @@ Request to resume service %1.  Throttling of restart attempts will be reset.
 .
 Language = French
 Demande de redémarrage du service %1.  La régulation des tentatives de redémarrage sera réinitialisée.
+.
+Language = Italian
+Richiesta di cambio nome per il servizio %1. Il meccanismo di regolazione della pausa di riavvio verrà resettato.
 .
 
 MessageId = +1
@@ -745,6 +987,10 @@ The registry value %2, used to specify the minimum number of milliseconds which 
 Language = French
 La valeur de registre %2, indiquant le nombre minimal de millisecondes devant s'écouler avant que le service %1 soit considéré comme ayant démarré avec succès, 
 n'était pas du type REG_DWORD.  Une durée de %3 millisecondes sera utilisée par défaut.
+.
+Language = Italian
+La chiave di registro %2, utilizzata per specificare il minimo numero di millisecondi che devono intercorrere prima che il servizio %1 sia considerato avviato correttamente, non è di tipo REG_DWORD.
+Verrà usato il tempo di default pari a 3 ms.
 .
 
 MessageId = +1
@@ -760,6 +1006,11 @@ Impossible de créer un déclenchement temporisé ("waitable timer") pour le servic
 %2
 Les redémarrages régulés ne pourront pas être interrompus.
 .
+Language = Italian
+Impossibile creare un timer per il servizio %1:
+%2
+Il meccanismo di regolazione della pausa di riavvio non sarà interrompibile.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT
@@ -774,6 +1025,11 @@ La fonction CreateProcess() a échoué sur une erreur ERROR_INVALID_PARAMETER et u
 Il est vraisemblable que l'environnement a été spécifié de manière incorrecte.
 %3 devrait être définie comme valeur REG_MULTI_SZ comprenant des chaînes sous la forme KEY=VALUE.
 .
+Language = Italian
+Impossibile riavviare il servizio %1. Il programma %2 non può essere avviato.
+Chiamata a CreateProcess() fallita con ERROR_INVALID_PARAMETER e ambiente di processo impostato nella chiave di registro %3. E' probabile che l'ambiente si stato specificato in modo errato.
+$3 dovrebbe essere un valore REG_MULTI_SZ comprendente stringhe nella forma CHIAVE=VALORE.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE
@@ -783,6 +1039,9 @@ Environment declaration %1 for service %2 is not of type REG_MULTI_SZ and will b
 .
 Language = French
 La déclaration de l'environnement %1 pour le service %2 n'est pas du type REG_MULTI_SZ.  Cette déclaration sera ignorée.
+.
+Language = Italian
+Dichiarazione di ambiente %1 per il servizio %2 non è di tipo REG_MULTI_SZ e verrà quindi ingnorata.
 .
 
 MessageId = +1
@@ -794,6 +1053,9 @@ Service %1 received %2 control, which will be handled.
 Language = French
 Le service %1 a reçu le code de contrôle %2, qui sera pris en compte.
 .
+Language = Italian
+Il servizio %1 ha ricevuto la chiave di controllo %2 che sarà gestita.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_SERVICE_CONTROL_NOT_HANDLED
@@ -804,6 +1066,9 @@ Service %1 received unsupported %2 control, which will not be handled.
 Language = French
 Le service %1 a reçu le code de contrôle %2, qui n'est pas géré.  Aucune action ne sera entreprise en réponse à cette demande.
 .
+Language = Italian
+Il servizio %1 ha ricevuto una chiave di controllo %2 non supportata. Essa non sarà gestita.
+.
 
 MessageId = +1
 SymbolicName = NSSM_EVENT_SERVICE_CONTROL_UNKNOWN
@@ -813,6 +1078,9 @@ Service %1 received unknown service control message %2, which will be ignored.
 .
 Language = French
 Le service %1 a reçu le code de contrôle inconnu %2, qui sera donc ignoré.
+.
+Language = Italian
+Il servizio %1 ha ricevuto un messaggio di controllo di servizio sconosciuto %2, che verrà ignorato.
 .
 
 MessageId = +1
@@ -827,4 +1095,8 @@ Language = French
 Erreur lors de la configuration des actions en cas d'échec du service %1.  Le service ne déclenchera aucune action de récupération s'il se termine normalement avec un code retour non nul.
 ChangeServiceConfig2() a échoué:
 .
-
+Language = Italian
+Errore in fase di configurazione delle aziondi di fallimento per il servizio %1. Il servizio non sarà soggetto ad azioni di ripristino nel caso termini in modo gentile con un codice di uscita non nullo.
+Chiamata a ChangeServiceConfig2() fallita:
+%2
+.
