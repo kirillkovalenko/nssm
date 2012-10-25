@@ -1,5 +1,8 @@
 Changes since 2.16
 -----------------
+  * NSSM can now redirect the service's I/O streams to any path
+	  capable of being opened by CreateFile().
+
   * Allow building on Visual Studio Express.
 
   * Silently ignore INTERROGATE control.

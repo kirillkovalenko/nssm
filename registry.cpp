@@ -219,7 +219,7 @@ int get_number(HKEY key, char *value, unsigned long *number) {
   return get_number(key, value, number, true);
 }
 
-int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, char **env, unsigned long *throttle_delay) {
+int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, char **env, unsigned long *throttle_delay, STARTUPINFO *si) {
   unsigned long ret;
 
   /* Get registry */
@@ -271,6 +271,13 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
 
   /* Try to get environment variables - may fail */
   set_environment(service_name, key, env);
+
+  /* Try to get stdout and stderr */
+  if (get_output_handles(key, si)) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service_name, 0);
+    RegCloseKey(key);
+    return 5;
+  }
 
   /* Try to get throttle restart delay */
   unsigned long type = REG_DWORD;

@@ -372,7 +372,7 @@ int start_service() {
 
   /* Get startup parameters */
   char *env = 0;
-  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay);
+  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay, &si);
   if (ret) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
     return stop_service(2, true, true);
@@ -382,21 +382,26 @@ int start_service() {
   char cmd[CMD_LENGTH];
   if (_snprintf(cmd, sizeof(cmd), "\"%s\" %s", exe, flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
+    close_output_handles(&si);
     return stop_service(2, true, true);
   }
 
   throttle_restart();
 
-  if (! CreateProcess(0, cmd, 0, 0, false, 0, env, dir, &si, &pi)) {
+  bool inherit_handles = (si.dwFlags & STARTF_USESTDHANDLES);
+  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, 0, env, dir, &si, &pi)) {
     unsigned long error = GetLastError();
     if (error == ERROR_INVALID_PARAMETER && env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service_name, exe, NSSM_REG_ENV, 0);
     else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, error_string(error), 0);
+    close_output_handles(&si);
     return stop_service(3, true, true);
   }
   process_handle = pi.hProcess;
   pid = pi.dwProcessId;
 
   if (get_process_creation_time(process_handle, &creation_time)) ZeroMemory(&creation_time, sizeof(creation_time));
+
+  close_output_handles(&si);
 
   /* Signal successful start */
   service_status.dwCurrentState = SERVICE_RUNNING;

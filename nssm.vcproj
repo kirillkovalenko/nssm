@@ -467,6 +467,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\io.cpp"
+				>
+			</File>
+			<File
 				RelativePath="nssm.cpp"
 				>
 				<FileConfiguration
@@ -621,6 +625,10 @@
 			</File>
 			<File
 				RelativePath="gui.h"
+				>
+			</File>
+			<File
+				RelativePath=".\io.h"
 				>
 			</File>
 			<File

@@ -10,6 +10,7 @@
 #include "messages.h"
 #include "process.h"
 #include "registry.h"
+#include "io.h"
 #include "service.h"
 #include "gui.h"
 

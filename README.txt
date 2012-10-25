@@ -40,6 +40,10 @@ Since version 2.17, NSSM can try to shut down console applications by
 simulating a Control-C keypress.  If they have installed a handler routine
 they can clean up and shut down gracefully on receipt of the event.
 
+Since version 2.17, NSSM can redirect the managed application's I/O streams
+to an arbitrary path.
+
+
 Usage
 -----
 In the usage notes below, arguments to the program may be written in angle 
@@ -131,6 +135,33 @@ pre-Vista systems where you wish to apply a service recovery action.  Note
 that if the monitored application exits with code 0, NSSM will only honour a
 request to suicide if you explicitly configure a registry key for exit code 0.
 If only the default action is set to Suicide NSSM will instead exit gracefully.
+
+
+I/O redirection
+---------------
+NSSM can redirect the managed application's I/O to any path capable of being
+opened by CreateFile().  This enables, for example, capturing the log output
+of an application which would otherwise only write to the console or accepting
+input from a serial port.
+
+NSSM will look in the registry under
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters for the keys
+corresponding to arguments to CreateFile().  All are optional.  If no path is
+given for a particular stream it will not be redirected.  If a path is given
+but any of the other values are omitted they will be receive sensible defaults.
+
+  AppStdin: Path to receive input.
+  AppStdout: Path to receive output.
+  AppStderr: Path to receive error output.
+
+Parameters for CreateFile() are providing with the "AppStdinShareMode",
+"AppStdinCreationDisposition" and "AppStdinFlagsAndAttributes" values (and
+analogously for stdout and stderr).
+
+In general, if you want the service to log its output, set AppStdout and
+AppStderr to the same path, eg C:\Users\Public\service.log, and it should
+work.  Remember, however, that the path must be accessible to the user
+running the service.
 
 
 Removing services using the GUI

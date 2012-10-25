@@ -1192,3 +1192,49 @@ Error detaching from console for service %1.
 FreeConsole() fallita:
 %2
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_CREATEFILE_FAILED
+Severity = Error
+Language = English
+CreateFile() failed to open %1:
+%2
+.
+Language = French
+CreateFile() a échoué %1:
+%2
+.
+Language = Italian
+Chiamata a CreateFile() fallita %1:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_DUPLICATEHANDLE_FAILED
+Severity = Error
+Language = English
+Error duplicating the filehandle previously opened for %1 as %2.
+DuplicateHandle() failed:
+%3
+.
+Language = French
+DuplicateHandle() a échoué (%1 -> %2):
+%3
+.
+Language = Italian
+Chiamata a DuplicateHandle() fallita (%1 -> %2):
+%3
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED
+Severity = Error
+Language = English
+Error setting up one or more I/O filehandles.  Service %1 will not be started.
+.
+Language = French
+Error setting up one or more I/O filehandles.  Service %1 will not be started.
+.
+Language = Italian
+Error setting up one or more I/O filehandles.  Service %1 will not be started.
+.
