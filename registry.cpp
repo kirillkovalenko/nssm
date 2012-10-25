@@ -181,6 +181,34 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
   return 0;
 }
 
+/*
+  Query an unsigned long from the registry.
+  Returns:  1 if a number was retrieved.
+            0 if none was found and must_exist is false.
+           -1 if none was found and must_exist is true.
+           -2 otherwise.
+*/
+int get_number(HKEY key, char *value, unsigned long *number, bool must_exist) {
+  unsigned long type = REG_DWORD;
+  unsigned long number_len = sizeof(unsigned long);
+
+  int ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) number, &number_len);
+  if (ret == ERROR_SUCCESS) return 1;
+
+  if (ret == ERROR_FILE_NOT_FOUND) {
+    if (! must_exist) return 0;
+  }
+
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+  if (ret == ERROR_FILE_NOT_FOUND) return -1;
+
+  return -2;
+}
+
+int get_number(HKEY key, char *value, unsigned long *number) {
+  return get_number(key, value, number, true);
+}
+
 int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, char **env, unsigned long *throttle_delay) {
   unsigned long ret;
 
