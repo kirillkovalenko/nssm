@@ -141,27 +141,33 @@ int set_environment(char *service_name, HKEY key, char **env) {
   return 0;
 }
 
-int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, bool sanitise) {
+int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, bool sanitise, bool must_exist) {
   unsigned char *buffer = (unsigned char *) HeapAlloc(GetProcessHeap(), 0, datalen);
   if (! buffer) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, "expand_parameter()", 0);
     return 1;
   }
 
+  ZeroMemory(data, datalen);
+
   unsigned long type = REG_EXPAND_SZ;
   unsigned long buflen = datalen;
 
   unsigned long ret = RegQueryValueEx(key, value, 0, &type, buffer, &buflen);
   if (ret != ERROR_SUCCESS) {
-    if (ret != ERROR_FILE_NOT_FOUND) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+    unsigned long error = GetLastError();
     HeapFree(GetProcessHeap(), 0, buffer);
+
+    if (ret == ERROR_FILE_NOT_FOUND) {
+      if (! must_exist) return 0;
+    }
+
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(error), 0);
     return 2;
   }
 
   /* Paths aren't allowed to contain quotes. */
   if (sanitise) PathUnquoteSpaces((LPSTR) buffer);
-
-  ZeroMemory(data, datalen);
 
   /* Technically we shouldn't expand environment strings from REG_SZ values */
   if (type != REG_EXPAND_SZ) {
@@ -179,6 +185,10 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
 
   HeapFree(GetProcessHeap(), 0, buffer);
   return 0;
+}
+
+int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, bool sanitise) {
+  return expand_parameter(key, value, data, datalen, sanitise, true);
 }
 
 /*
