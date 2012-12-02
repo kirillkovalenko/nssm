@@ -1,3 +1,8 @@
+Changes since 2.15
+-----------------
+  * Fixed case where NSSM could kill unrelated processes when
+    shutting down.
+
 Changes since 2.14
 -----------------
   * NSSM is now translated into Italian.
