@@ -14,6 +14,7 @@ bool stopping;
 unsigned long throttle_delay;
 HANDLE throttle_timer;
 LARGE_INTEGER throttle_duetime;
+FILETIME creation_time;
 
 static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
 static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
@@ -90,7 +91,7 @@ int install_service(char *name, char *exe, char *flags) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
-  
+
   /* Get path of this program */
   char path[MAX_PATH];
   GetModuleFileName(0, path, MAX_PATH);
@@ -149,7 +150,7 @@ int remove_service(char *name) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
-  
+
   /* Try to open the service */
   SC_HANDLE service = OpenService(services, name, SC_MANAGER_ALL_ACCESS);
   if (! service) {
@@ -391,6 +392,8 @@ int start_service() {
   process_handle = pi.hProcess;
   pid = pi.dwProcessId;
 
+  if (get_process_creation_time(process_handle, &creation_time)) ZeroMemory(&creation_time, sizeof(creation_time));
+
   /* Signal successful start */
   service_status.dwCurrentState = SERVICE_RUNNING;
   SetServiceStatus(service_handle, &service_status);
@@ -415,12 +418,11 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
     SetServiceStatus(service_handle, &service_status);
   }
 
-  /* Nothing to do if server isn't running */
+  /* Nothing to do if service isn't running */
   if (pid) {
-    /* Shut down server */
+    /* Shut down service */
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service_name, exe, 0);
     kill_process(service_name, process_handle, pid, 0);
-    process_handle = 0;
   }
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);
 
@@ -454,7 +456,10 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   /* Check exit code */
   unsigned long exitcode = 0;
   char code[16];
+  FILETIME exit_time;
   GetExitCodeProcess(process_handle, &exitcode);
+  if (exitcode == STILL_ACTIVE || get_process_exit_time(process_handle, &exit_time)) GetSystemTimeAsFileTime(&exit_time);
+  CloseHandle(process_handle);
 
   /*
     Log that the service ended BEFORE logging about killing the process
@@ -466,7 +471,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   }
 
   /* Clean up. */
-  kill_process_tree(service_name, pid, exitcode, pid);
+  kill_process_tree(service_name, pid, exitcode, pid, &creation_time, &exit_time);
 
   /*
     The why argument is true if our wait timed out or false otherwise.

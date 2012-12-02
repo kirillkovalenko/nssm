@@ -1100,3 +1100,19 @@ Errore in fase di configurazione delle aziondi di fallimento per il servizio %1.
 Chiamata a ChangeServiceConfig2() fallita:
 %2
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_GETPROCESSTIMES_FAILED
+Severity = Error
+Language = English
+GetProcessTimes() failed:
+%1
+.
+Language = French
+Échec de GetProcessTimes():
+%1
+.
+Language = Italian
+Chiamata a GetProcessTimes():
+%1
+.
