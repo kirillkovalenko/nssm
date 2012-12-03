@@ -1,5 +1,7 @@
 Changes since 2.16
 -----------------
+  * Allow building on Visual Studio Express.
+
   * Silently ignore INTERROGATE control.
 
 Changes since 2.15
