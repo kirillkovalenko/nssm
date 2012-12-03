@@ -319,6 +319,10 @@ void log_service_control(char *service_name, unsigned long control, bool handled
 /* Service control handler */
 unsigned long WINAPI service_control_handler(unsigned long control, unsigned long event, void *data, void *context) {
   switch (control) {
+    case SERVICE_CONTROL_INTERROGATE:
+      /* We always keep the service status up-to-date so this is a no-op. */
+      return NO_ERROR;
+
     case SERVICE_CONTROL_SHUTDOWN:
     case SERVICE_CONTROL_STOP:
       log_service_control(service_name, control, true);
