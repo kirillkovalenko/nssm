@@ -39,6 +39,11 @@ int str_equiv(const char *, const char *);
 #define NSSM_RESET_THROTTLE_RESTART 1500
 
 /*
+  How many milliseconds to wait for the application to die after sending
+  a Control-C event to its console.
+*/
+#define NSSM_KILL_CONSOLE_GRACE_PERIOD 1500
+/*
   How many milliseconds to wait for the application to die after posting to
   its windows' message queues.
 */

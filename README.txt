@@ -36,6 +36,10 @@ Thanks François-Régis Tardy.
 Since version 2.15, NSSM is translated into Italian.
 Thanks Riccardo Gusmeroli.
 
+Since version 2.17, NSSM can try to shut down console applications by
+simulating a Control-C keypress.  If they have installed a handler routine
+they can clean up and shut down gracefully on receipt of the event.
+
 Usage
 -----
 In the usage notes below, arguments to the program may be written in angle 
@@ -198,6 +202,8 @@ Thanks to François-Régis Tardy for French translation.
 Thanks to Emilio Frini for spotting that French was inadvertently set as
 the default language when the user's display language was not translated.
 Thanks to Riccardo Gusmeroli for Italian translation.
+Thanks to Eric Cheldelin for the inspiration to generate a Control-C event
+on shutdown.
 
 Licence
 -------

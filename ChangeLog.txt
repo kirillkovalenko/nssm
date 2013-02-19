@@ -4,6 +4,9 @@ Changes since 2.16
 
   * Silently ignore INTERROGATE control.
 
+  * Try to send Control-C events to console applications when
+    shutting them down.
+
 Changes since 2.15
 -----------------
   * Fixed case where NSSM could kill unrelated processes when

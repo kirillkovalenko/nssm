@@ -1116,3 +1116,79 @@ Language = Italian
 Chiamata a GetProcessTimes():
 %1
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_ATTACHCONSOLE_FAILED
+Severity = Error
+Language = English
+Error attaching to console for service %1.
+AttachConsole() failed:
+%2
+.
+Language = French
+Error attaching to console for service %1.
+AttachConsole() a échoué:
+%2
+.
+Language = Italian
+Error attaching to console for service %1.
+AttachConsole() fallita:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_SETCONSOLECTRLHANDLER_FAILED
+Severity = Error
+Language = English
+Error setting null handler for Control-C events sent to service %1.
+SetConsoleCtrlHandler() failed:
+%2
+.
+Language = French
+Error setting null handler for Control-C events sent to service %1.
+SetConsoleCtrlHandler() a échoué:
+%2
+.
+Language = Italian
+Error setting null handler for Control-C events sent to service %1.
+SetConsoleCtrlHandler() fallita:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_GENERATECONSOLECTRLEVENT_FAILED
+Severity = Error
+Language = English
+Error generating Control-C event for service %1.
+GenerateConsoleCtrlEvent() failed:
+%2
+.
+Language = French
+Error generating Control-C event for service %1.
+GenerateConsoleCtrlEvent() a échoué:
+%2
+.
+Language = Italian
+Error generating Control-C event for service %1.
+GenerateConsoleCtrlEvent() fallita:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_FREECONSOLE_FAILED
+Severity = Warning
+Language = English
+Error detaching from console for service %1.
+FreeConsole() failed:
+%2
+.
+Language = French
+Error detaching from console for service %1.
+FreeConsole() a échoué:
+%2
+.
+Language = Italian
+Error detaching from console for service %1.
+FreeConsole() fallita:
+%2
+.

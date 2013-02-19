@@ -146,6 +146,9 @@ int kill_process(char *service_name, HANDLE process_handle, unsigned long pid, u
 
   kill_t k = { pid, exitcode, 0 };
 
+  /* Try to send a Control-C event to the console. */
+  if (! kill_console(service_name, process_handle, pid)) return 1;
+
   /*
     Try to post messages to the windows belonging to the given process ID.
     If the process is a console application it won't have any windows so there's
@@ -167,6 +170,57 @@ int kill_process(char *service_name, HANDLE process_handle, unsigned long pid, u
 
   /* We tried being nice.  Time for extreme prejudice. */
   return TerminateProcess(process_handle, exitcode);
+}
+
+/* Simulate a Control-C event to our console (shared with the app). */
+int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
+  unsigned long ret;
+
+  /* Try to attach to the process's console. */
+  if (! AttachConsole(pid)) {
+    ret = GetLastError();
+
+    switch (ret) {
+      case ERROR_INVALID_HANDLE:
+        /* The app doesn't have a console. */
+        return 1;
+
+      case ERROR_GEN_FAILURE:
+        /* The app already exited. */
+        return 2;
+
+      case ERROR_ACCESS_DENIED:
+      default:
+        /* We already have a console. */
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ATTACHCONSOLE_FAILED, service_name, error_string(ret), 0);
+        return 3;
+    }
+  }
+
+  /* Ignore the event ourselves. */
+  ret = 0;
+  if (! SetConsoleCtrlHandler(0, TRUE)) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETCONSOLECTRLHANDLER_FAILED, service_name, error_string(GetLastError()), 0);
+    ret = 4;
+  }
+
+  /* Sent the event. */
+  if (! ret) {
+    if (! GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0)) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GENERATECONSOLECTRLEVENT_FAILED, service_name, error_string(GetLastError()), 0);
+      ret = 5;
+    }
+  }
+
+  /* Detach from the console. */
+  if (! FreeConsole()) {
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_FREECONSOLE_FAILED, service_name, error_string(GetLastError()), 0);
+  }
+
+  /* Wait for process to exit. */
+  if (! WaitForSingleObject(process_handle, NSSM_KILL_CONSOLE_GRACE_PERIOD)) return 6;
+
+  return ret;
 }
 
 void kill_process_tree(char *service_name, unsigned long pid, unsigned long exitcode, unsigned long ppid, FILETIME *parent_creation_time, FILETIME *parent_exit_time) {
