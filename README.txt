@@ -77,6 +77,9 @@ with the given options (if you specified any).
 
 Don't forget to enclose paths in "quotes" if they contain spaces!
 
+If you want to include quotes in the options you will need to """quote""" the
+quotes.
+
 
 Managing the service
 --------------------
@@ -235,6 +238,7 @@ the default language when the user's display language was not translated.
 Thanks to Riccardo Gusmeroli for Italian translation.
 Thanks to Eric Cheldelin for the inspiration to generate a Control-C event
 on shutdown.
+Thanks to Brian Baxter for suggesting how to escape quotes from the command prompt.
 
 Licence
 -------
