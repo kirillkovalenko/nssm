@@ -18,6 +18,7 @@ int str_equiv(const char *, const char *);
 
 #define NSSM "nssm"
 #define NSSM_VERSION "2.16"
+#define NSSM_VERSIONINFO 2,16,0,0
 #define NSSM_DATE "2012-12-01"
 
 /*
