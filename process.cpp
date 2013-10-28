@@ -204,7 +204,7 @@ int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
     ret = 4;
   }
 
-  /* Sent the event. */
+  /* Send the event. */
   if (! ret) {
     if (! GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0)) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GENERATECONSOLECTRLEVENT_FAILED, service_name, error_string(GetLastError()), 0);
@@ -218,7 +218,7 @@ int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
   }
 
   /* Wait for process to exit. */
-  if (! WaitForSingleObject(process_handle, NSSM_KILL_CONSOLE_GRACE_PERIOD)) return 6;
+  if (WaitForSingleObject(process_handle, NSSM_KILL_CONSOLE_GRACE_PERIOD)) return 6;
 
   return ret;
 }
