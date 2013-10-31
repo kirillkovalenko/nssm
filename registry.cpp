@@ -219,7 +219,7 @@ int get_number(HKEY key, char *value, unsigned long *number) {
   return get_number(key, value, number, true);
 }
 
-int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, char **env, unsigned long *throttle_delay, STARTUPINFO *si) {
+int get_parameters(char *service_name, char *exe, int exelen, char *flags, int flagslen, char *dir, int dirlen, char **env, unsigned long *throttle_delay, unsigned long *stop_method, STARTUPINFO *si) {
   unsigned long ret;
 
   /* Get registry */
@@ -297,6 +297,26 @@ int get_parameters(char *service_name, char *exe, int exelen, char *flags, int f
   else throttle_ok = true;
 
   if (! throttle_ok) *throttle_delay = NSSM_RESET_THROTTLE_RESTART;
+
+  /* Try to get service stop flags. */
+  type = REG_DWORD;
+  unsigned long stop_method_skip;
+  buflen = sizeof(stop_method_skip);
+  bool stop_ok = false;
+  ret = RegQueryValueEx(key, NSSM_REG_STOP_METHOD_SKIP, 0, &type, (unsigned char *) &stop_method_skip, &buflen);
+  if (ret != ERROR_SUCCESS) {
+    if (ret != ERROR_FILE_NOT_FOUND) {
+      if (type != REG_DWORD) {
+        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_STOP_METHOD_SKIP, service_name, NSSM_REG_STOP_METHOD_SKIP, NSSM, 0);
+      }
+      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_STOP_METHOD_SKIP, error_string(GetLastError()), 0);
+    }
+  }
+  else stop_ok = true;
+
+  /* Try all methods except those requested to be skipped. */
+  *stop_method = ~0;
+  if (stop_ok) *stop_method &= ~stop_method_skip;
 
   /* Close registry */
   RegCloseKey(key);

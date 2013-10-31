@@ -59,4 +59,10 @@ int str_equiv(const char *, const char *);
 /* Margin of error for service status wait hints in milliseconds. */
 #define NSSM_WAITHINT_MARGIN 2000
 
+/* Methods used to try to stop the application. */
+#define NSSM_STOP_METHOD_CONSOLE (1 << 0)
+#define NSSM_STOP_METHOD_WINDOW (1 << 1)
+#define NSSM_STOP_METHOD_THREADS (1 << 2)
+#define NSSM_STOP_METHOD_TERMINATE (1 << 3)
+
 #endif

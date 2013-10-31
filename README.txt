@@ -140,6 +140,49 @@ request to suicide if you explicitly configure a registry key for exit code 0.
 If only the default action is set to Suicide NSSM will instead exit gracefully.
 
 
+Stopping the service
+--------------------
+When stopping a service NSSM will attempt several different methods of killing
+the monitored application, each of which can be disabled if necessary.
+
+First NSSM will attempt to generate a Control-C event and send it to the
+application's console.  Batch scripts or console applications may intercept
+the event and shut themselves down gracefully.  GUI applications do not have
+consoles and will not respond to this method.
+
+Secondly NSSM will enumerate all windows created by the application and send
+them a WM_CLOSE message, requesting a graceful exit.
+
+Thirdly NSSM will enumerate all threads created by the application and send
+them a WM_QUIT message, requesting a graceful exit.  Not all applications'
+threads have message queues; those which do not will not respond to this
+method.
+
+Finally NSSM will call TerminateProcess() to request that the operating
+system forcibly terminate the application.  TerminateProcess() cannot be
+trapped or ignored, so in most circumstances the application will be killed.
+However, there is no guarantee that it will have a chance to perform any
+tidyup operations before it exits.
+
+Any or all of the methods above may be disabled.  NSSM will look for the
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppStopMethodSkip
+registry value which should be of type REG_DWORD set to a bit field describing
+which methods should not be applied.
+
+  If AppStopMethodSkip includes 1, Control-C events will not be generated.
+  If AppStopMethodSkip includes 2, WM_CLOSE messages will not be posted.
+  If AppStopMethodSkip includes 4, WM_QUIT messages will not be posted.
+  If AppStopMethodSkip includes 8, TerminateProcess() will not be called.
+
+If, for example, you knew that an application did not respond to Control-C
+events and did not have a thread message queue, you could set AppStopMethodSkip
+to 5 and NSSM would not attempt to use those methods to stop the application.
+
+Take great care when including 8 in the value of AppStopMethodSkip.  If NSSM
+does not call TerminateProcess() it is possible that the application will not
+exit when the service stops.
+
+
 I/O redirection
 ---------------
 NSSM can redirect the managed application's I/O to any path capable of being

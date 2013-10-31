@@ -1238,3 +1238,35 @@ Error setting up one or more I/O filehandles.  Service %1 will not be started.
 Language = Italian
 Error setting up one or more I/O filehandles.  Service %1 will not be started.
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_BOGUS_STOP_METHOD_SKIP
+Severity = Warning
+Language = English
+The registry value %2, used to specify the method(s) by which %3 will skip when attempting to stop service %1, was not of type REG_DWORD.  All available methods will be used.
+.
+Language = French
+The registry value %2, used to specify the method(s) by which %3 will skip when attempting to stop service %1, was not of type REG_DWORD.  All available methods will be used.
+.
+Language = Italian
+The registry value %2, used to specify the method(s) by which %3 will skip when attempting to stop service %1, was not of type REG_DWORD.  All available methods will be used.
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_PROCESS_STILL_ACTIVE
+Severity = Warning
+Language = English
+The service %1 is stopping but PID %2 is still running.
+Usually %3 will call TerminateProcess() as a last resort to ensure that the process is stopped but the registry value %4 has been set and not all process termination methods have been attempted.
+It will no longer be possible to attempt to control the application and the service will report a stopped status.
+.
+Language = French
+The service %1 is stopping but PID %2 is still running.
+Usually %3 will call TerminateProcess() as a last resort to ensure that the process is stopped but the registry value %4 has been set and not all process termination methods have been attempted.
+It will no longer be possible to attempt to control the application and the service will report a stopped status.
+.
+Language = Italian
+The service %1 is stopping but PID %2 is still running.
+Usually %3 will call TerminateProcess() as a last resort to ensure that the process is stopped but the registry value %4 has been set and not all process termination methods have been attempted.
+It will no longer be possible to attempt to control the application and the service will report a stopped status.
+.

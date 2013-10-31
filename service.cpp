@@ -12,6 +12,7 @@ char flags[CMD_LENGTH];
 char dir[MAX_PATH];
 bool stopping;
 unsigned long throttle_delay;
+unsigned long stop_method;
 HANDLE throttle_timer;
 LARGE_INTEGER throttle_duetime;
 FILETIME creation_time;
@@ -372,7 +373,7 @@ int start_service() {
 
   /* Get startup parameters */
   char *env = 0;
-  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay, &si);
+  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay, &stop_method, &si);
   if (ret) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
     return stop_service(2, true, true);
@@ -431,7 +432,7 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   if (pid) {
     /* Shut down service */
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service_name, exe, 0);
-    kill_process(service_name, process_handle, pid, 0);
+    kill_process(service_name, stop_method, process_handle, pid, 0);
   }
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);
 
@@ -480,7 +481,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   }
 
   /* Clean up. */
-  kill_process_tree(service_name, pid, exitcode, pid, &creation_time, &exit_time);
+  kill_process_tree(service_name, stop_method, pid, exitcode, pid, &creation_time, &exit_time);
 
   /*
     The why argument is true if our wait timed out or false otherwise.

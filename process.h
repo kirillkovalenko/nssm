@@ -14,8 +14,8 @@ int get_process_exit_time(HANDLE, FILETIME *);
 int check_parent(char *, PROCESSENTRY32 *, unsigned long, FILETIME *, FILETIME *);
 int CALLBACK kill_window(HWND, LPARAM);
 int kill_threads(char *, kill_t *);
-int kill_process(char *, HANDLE, unsigned long, unsigned long);
 int kill_console(char *, HANDLE, unsigned long);
-void kill_process_tree(char *, unsigned long, unsigned long, unsigned long, FILETIME *, FILETIME *);
+int kill_process(char *, unsigned long, HANDLE, unsigned long, unsigned long);
+void kill_process_tree(char *, unsigned long, unsigned long, unsigned long, unsigned long, FILETIME *, FILETIME *);
 
 #endif
