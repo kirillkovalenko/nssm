@@ -11,6 +11,7 @@ char exe[EXE_LENGTH];
 char flags[CMD_LENGTH];
 char dir[MAX_PATH];
 bool stopping;
+bool allow_restart;
 unsigned long throttle_delay;
 unsigned long stop_method;
 HANDLE throttle_timer;
@@ -359,6 +360,7 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
 /* Start the service */
 int start_service() {
   stopping = false;
+  allow_restart = true;
 
   if (process_handle) return 0;
 
@@ -416,6 +418,9 @@ int start_service() {
 
 /* Stop the service */
 int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
+  allow_restart = false;
+  if (wait_handle) UnregisterWait(wait_handle);
+
   if (default_action && ! exitcode && ! graceful) {
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_GRACEFUL_SUICIDE, service_name, exe, exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_REALLY] ,0);
     graceful = true;
@@ -490,6 +495,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     this is a controlled shutdown, and don't take any restart action.
   */
   if (why) return;
+  if (! allow_restart) return;
 
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
