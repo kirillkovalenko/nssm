@@ -404,12 +404,12 @@ int start_service() {
 
   close_output_handles(&si);
 
+  /* Wait for a clean startup. */
+  if (WaitForSingleObject(process_handle, throttle_delay) == WAIT_TIMEOUT) throttle = 0;
+
   /* Signal successful start */
   service_status.dwCurrentState = SERVICE_RUNNING;
   SetServiceStatus(service_handle, &service_status);
-
-  /* Wait for a clean startup. */
-  if (WaitForSingleObject(process_handle, throttle_delay) == WAIT_TIMEOUT) throttle = 0;
 
   return 0;
 }
