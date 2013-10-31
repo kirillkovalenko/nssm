@@ -5,7 +5,7 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   char value[NSSM_STDIO_LENGTH];
 
   /* Path. */
-  if (_snprintf(value, sizeof(value), "%s", prefix) < 0) {
+  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s", prefix) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, prefix, "get_createfile_parameters()", 0);
     return 1;
   }
@@ -15,7 +15,7 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   }
 
   /* ShareMode. */
-  if (_snprintf(value, sizeof(value), "%s%s", prefix, NSSM_REG_STDIO_SHARING) < 0) {
+  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, NSSM_REG_STDIO_SHARING) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_SHARING, "get_createfile_parameters()", 0);
     return 3;
   }
@@ -26,7 +26,7 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   }
 
   /* CreationDisposition. */
-  if (_snprintf(value, sizeof(value), "%s%s", prefix, NSSM_REG_STDIO_DISPOSITION) < 0) {
+  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, NSSM_REG_STDIO_DISPOSITION) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_DISPOSITION, "get_createfile_parameters()", 0);
     return 5;
   }
@@ -37,7 +37,7 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   }
 
   /* Flags. */
-  if (_snprintf(value, sizeof(value), "%s%s", prefix, NSSM_REG_STDIO_FLAGS) < 0) {
+  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, NSSM_REG_STDIO_FLAGS) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_FLAGS, "get_createfile_parameters()", 0);
     return 7;
   }
@@ -96,7 +96,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
   if (get_createfile_parameters(key, NSSM_REG_STDOUT, path, &sharing, FILE_SHARE_READ | FILE_SHARE_WRITE, &disposition, OPEN_ALWAYS, &flags, FILE_ATTRIBUTE_NORMAL)) return 3;
   if (path[0]) {
     /* Remember path for comparison with stderr. */
-    if (_snprintf(stdout_path, sizeof(stdout_path), "%s", path) < 0) {
+    if (_snprintf_s(stdout_path, sizeof(stdout_path), _TRUNCATE, "%s", path) < 0) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "stdout_path", "get_output_handles", 0);
       return 4;
     }

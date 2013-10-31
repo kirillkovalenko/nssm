@@ -39,7 +39,7 @@ int check_parent(char *service_name, PROCESSENTRY32 *pe, unsigned long ppid, FIL
   HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, false, pe->th32ProcessID);
   if (! process_handle) {
     char pid_string[16];
-    _snprintf(pid_string, sizeof(pid_string), "%d", pe->th32ProcessID);
+    _snprintf_s(pid_string, sizeof(pid_string), _TRUNCATE, "%d", pe->th32ProcessID);
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENPROCESS_FAILED, pid_string, service_name, error_string(GetLastError()), 0);
     return 2;
   }
@@ -238,8 +238,8 @@ void kill_process_tree(char *service_name, unsigned long stop_method, unsigned l
   if (! pid) return;
 
   char pid_string[16], code[16];
-  _snprintf(pid_string, sizeof(pid_string), "%d", pid);
-  _snprintf(code, sizeof(code), "%d", exitcode);
+  _snprintf_s(pid_string, sizeof(pid_string), _TRUNCATE, "%d", pid);
+  _snprintf_s(code, sizeof(code), _TRUNCATE, "%d", exitcode);
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILLING, service_name, pid_string, code, 0);
 
   /* Get a snapshot of all processes in the system. */
@@ -285,7 +285,7 @@ void kill_process_tree(char *service_name, unsigned long stop_method, unsigned l
   }
 
   char ppid_string[16];
-  _snprintf(ppid_string, sizeof(ppid_string), "%d", ppid);
+  _snprintf_s(ppid_string, sizeof(ppid_string), _TRUNCATE, "%d", ppid);
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, service_name, 0);
   if (! kill_process(service_name, stop_method, process_handle, pid, exitcode)) {
     /* Maybe it already died. */

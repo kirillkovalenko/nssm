@@ -14,7 +14,7 @@ char *error_string(unsigned long error) {
   }
 
   if (! FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char *) error_message, NSSM_ERROR_BUFSIZE, 0)) {
-    if (_snprintf(error_message, NSSM_ERROR_BUFSIZE, "system error %lu", error) < 0) return 0;
+    if (_snprintf_s(error_message, NSSM_ERROR_BUFSIZE, _TRUNCATE, "system error %lu", error) < 0) return 0;
   }
   return error_message;
 }
@@ -24,7 +24,7 @@ char *message_string(unsigned long error) {
   char *ret;
   if (! FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_IGNORE_INSERTS, 0, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &ret, NSSM_ERROR_BUFSIZE, 0)) {
     ret = (char *) HeapAlloc(GetProcessHeap(), 0, 32);
-    if (_snprintf(ret, NSSM_ERROR_BUFSIZE, "system error %lu", error) < 0) return 0;
+    if (_snprintf_s(ret, NSSM_ERROR_BUFSIZE, _TRUNCATE, "system error %lu", error) < 0) return 0;
   }
   return ret;
 }
@@ -76,7 +76,7 @@ int popup_message(unsigned int type, unsigned long id, ...) {
 
   char blurb[256];
   va_start(arg, id);
-  if (vsnprintf(blurb, sizeof(blurb), format, arg) < 0) {
+  if (vsnprintf_s(blurb, sizeof(blurb), _TRUNCATE, format, arg) < 0) {
     va_end(arg);
     LocalFree(format);
     return MessageBox(0, "Message %lu was supposed to go here!", NSSM, MB_OK | MB_ICONEXCLAMATION);

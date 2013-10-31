@@ -154,8 +154,8 @@ int remove(HWND window) {
 void browse(HWND window) {
   if (! window) return;
 
-  unsigned long bufsize = 256;
-  unsigned long len = bufsize;
+  size_t bufsize = 256;
+  size_t len = bufsize;
   OPENFILENAME ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
@@ -164,18 +164,18 @@ void browse(HWND window) {
   if (ofn.lpstrFilter) {
     ZeroMemory((void *) ofn.lpstrFilter, bufsize);
     char *localised = message_string(NSSM_GUI_BROWSE_FILTER_APPLICATIONS);
-    _snprintf((char *) ofn.lpstrFilter, bufsize, localised);
+    _snprintf_s((char *) ofn.lpstrFilter, bufsize, _TRUNCATE, localised);
     /* "Applications" + NULL + "*.exe" + NULL */
     len = strlen(localised) + 1;
     LocalFree(localised);
-    _snprintf((char *) ofn.lpstrFilter + len, bufsize - len, "*.exe");
+    _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, "*.exe");
     /* "All files" + NULL + "*.*" + NULL */
     len += 6;
     localised = message_string(NSSM_GUI_BROWSE_FILTER_ALL_FILES);
-    _snprintf((char *) ofn.lpstrFilter + len, bufsize - len, localised);
+    _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, localised);
     len += strlen(localised) + 1;
     LocalFree(localised);
-    _snprintf((char *) ofn.lpstrFilter + len, bufsize - len, "*.*");
+    _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, "*.*");
     /* Remainder of the buffer is already zeroed */
   }
   ofn.lpstrFile = new char[MAX_PATH];

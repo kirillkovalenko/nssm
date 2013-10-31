@@ -105,7 +105,7 @@ int install_service(char *name, char *exe, char *flags) {
     print_message(stderr, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
     return 3;
   }
-  if (_snprintf(command, sizeof(command), "\"%s\"", path) < 0) {
+  if (_snprintf_s(command, sizeof(command), _TRUNCATE, "\"%s\"", path) < 0) {
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH);
     return 4;
   }
@@ -179,7 +179,7 @@ int remove_service(char *name) {
 
 /* Service initialisation */
 void WINAPI service_main(unsigned long argc, char **argv) {
-  if (_snprintf(service_name, sizeof(service_name), "%s", argv[0]) < 0) {
+  if (_snprintf_s(service_name, sizeof(service_name), _TRUNCATE, "%s", argv[0]) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "service_name", "service_main()", 0);
     return;
   }
@@ -262,7 +262,7 @@ int monitor_service() {
   int ret = start_service();
   if (ret) {
     char code[16];
-    _snprintf(code, sizeof(code), "%d", ret);
+    _snprintf_s(code, sizeof(code), _TRUNCATE, "%d", ret);
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_START_SERVICE_FAILED, exe, service_name, ret, 0);
     return ret;
   }
@@ -300,7 +300,7 @@ void log_service_control(char *service_name, unsigned long control, bool handled
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control", 0);
       return;
     }
-    if (_snprintf(text, 11, "0x%08x", control) < 0) {
+    if (_snprintf_s(text, 11, _TRUNCATE, "0x%08x", control) < 0) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control", 0);
       HeapFree(GetProcessHeap(), 0, text);
       return;
@@ -383,7 +383,7 @@ int start_service() {
 
   /* Launch executable with arguments */
   char cmd[CMD_LENGTH];
-  if (_snprintf(cmd, sizeof(cmd), "\"%s\" %s", exe, flags) < 0) {
+  if (_snprintf_s(cmd, sizeof(cmd), _TRUNCATE, "\"%s\" %s", exe, flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
     close_output_handles(&si);
     return stop_service(2, true, true);
@@ -391,7 +391,8 @@ int start_service() {
 
   throttle_restart();
 
-  bool inherit_handles = (si.dwFlags & STARTF_USESTDHANDLES);
+  bool inherit_handles = false;
+  if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
   if (! CreateProcess(0, cmd, 0, 0, inherit_handles, 0, env, dir, &si, &pi)) {
     unsigned long error = GetLastError();
     if (error == ERROR_INVALID_PARAMETER && env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service_name, exe, NSSM_REG_ENV, 0);
@@ -481,7 +482,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     tree.  See below for the possible values of the why argument.
   */
   if (! why) {
-    _snprintf(code, sizeof(code), "%d", exitcode);
+    _snprintf_s(code, sizeof(code), _TRUNCATE, "%d", exitcode);
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, exe, service_name, code, 0);
   }
 
@@ -551,8 +552,8 @@ void throttle_restart() {
   if (throttle > 7) throttle = 8;
 
   char threshold[8], milliseconds[8];
-  _snprintf(threshold, sizeof(threshold), "%d", throttle_delay);
-  _snprintf(milliseconds, sizeof(milliseconds), "%d", ms);
+  _snprintf_s(threshold, sizeof(threshold), _TRUNCATE, "%d", throttle_delay);
+  _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%d", ms);
   log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
 
   if (throttle_timer) {
