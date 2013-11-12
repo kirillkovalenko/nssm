@@ -28,6 +28,7 @@ int nssm_gui(int resource, char *name) {
   /* Go! */
   MSG message;
   while (GetMessage(&message, 0, 0, 0)) {
+    if (IsDialogMessage(dlg, &message)) continue;
     TranslateMessage(&message);
     DispatchMessage(&message);
   }
