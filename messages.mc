@@ -1270,3 +1270,38 @@ The service %1 is stopping but PID %2 is still running.
 Usually %3 will call TerminateProcess() as a last resort to ensure that the process is stopped but the registry value %4 has been set and not all process termination methods have been attempted.
 It will no longer be possible to attempt to control the application and the service will report a stopped status.
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_LOADLIBRARY_FAILED
+Severity = Warning
+Language = English
+Error loading the %1 DLL!
+LoadLibrary() failed:
+%2
+.
+Language = French
+Erreur à l'ouverture de la DLL %1!
+LoadLibrary() a échoué:
+%2
+.
+Language = Italian
+Errore apertura DLL %1!
+Chiamata a LoadLibrary() fallita:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_GETPROCADDRESS_FAILED
+Severity = Warning
+Language = English
+GetProcAddress(%1) failed:
+%2
+.
+Language = French
+GetProcAddress(%1) a échoué:
+%2
+.
+Language = Italian
+Chiamata a GetProcAddress(%1) fallita:
+%2
+.

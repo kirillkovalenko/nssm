@@ -467,6 +467,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\imports.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\io.cpp"
 				>
 			</File>
@@ -625,6 +629,10 @@
 			</File>
 			<File
 				RelativePath="gui.h"
+				>
+			</File>
+			<File
+				RelativePath=".\imports.h"
 				>
 			</File>
 			<File

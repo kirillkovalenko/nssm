@@ -96,6 +96,10 @@ SOURCE=.\gui.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\imports.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\io.cpp
 # End Source File
 # Begin Source File
@@ -125,6 +129,10 @@ SOURCE=.\event.h
 # Begin Source File
 
 SOURCE=.\gui.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\imports.h
 # End Source File
 # Begin Source File
 

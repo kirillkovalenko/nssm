@@ -1,5 +1,7 @@
 #include "nssm.h"
 
+extern imports_t imports;
+
 int get_process_creation_time(HANDLE process_handle, FILETIME *ft) {
   FILETIME creation_time, exit_time, kernel_time, user_time;
 
@@ -186,8 +188,11 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
 int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
   unsigned long ret;
 
+  /* Check we loaded AttachConsole(). */
+  if (! imports.AttachConsole) return 4;
+
   /* Try to attach to the process's console. */
-  if (! AttachConsole(pid)) {
+  if (! imports.AttachConsole(pid)) {
     ret = GetLastError();
 
     switch (ret) {

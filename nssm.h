@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include "event.h"
+#include "imports.h"
 #include "messages.h"
 #include "process.h"
 #include "registry.h"

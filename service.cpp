@@ -538,7 +538,9 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     /* Fake a crash so pre-Vista service managers will run recovery actions. */
     case NSSM_EXIT_UNCLEAN:
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service_name, code, exit_action_strings[action], 0);
-      exit(stop_service(exitcode, false, default_action));
+      stop_service(exitcode, false, default_action);
+      free_imports();
+      exit(exitcode);
     break;
   }
 }

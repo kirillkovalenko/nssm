@@ -2,6 +2,7 @@
 
 extern unsigned long tls_index;
 extern bool is_admin;
+extern imports_t imports;
 
 /* String function */
 int str_equiv(const char *a, const char *b) {
@@ -69,6 +70,9 @@ int main(int argc, char **argv) {
     This will save time when running with no arguments from a command prompt.
   */
   if (_fileno(stdin) < 0) {
+    /* Set up function pointers. */
+    if (get_imports()) exit(111);
+
     /* Start service magic */
     SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
     if (! StartServiceCtrlDispatcher(table)) {
@@ -76,6 +80,7 @@ int main(int argc, char **argv) {
       /* User probably ran nssm with no argument */
       if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) exit(usage(1));
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(error), 0);
+      free_imports();
       exit(100);
     }
   }
