@@ -14,9 +14,14 @@ bool stopping;
 bool allow_restart;
 unsigned long throttle_delay;
 unsigned long stop_method;
+CRITICAL_SECTION throttle_section;
+CONDITION_VARIABLE throttle_condition;
 HANDLE throttle_timer;
 LARGE_INTEGER throttle_duetime;
+bool use_critical_section;
 FILETIME creation_time;
+
+extern imports_t imports;
 
 static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
 static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
@@ -184,6 +189,10 @@ void WINAPI service_main(unsigned long argc, char **argv) {
     return;
   }
 
+  /* We can use a condition variable in a critical section on Vista or later. */
+  if (imports.SleepConditionVariableCS && imports.WakeConditionVariable) use_critical_section = true;
+  else use_critical_section = false;
+
   /* Initialise status */
   ZeroMemory(&service_status, sizeof(service_status));
   service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
@@ -218,9 +227,12 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   }
 
   /* Used for signalling a resume if the service pauses when throttled. */
-  throttle_timer = CreateWaitableTimer(0, 1, 0);
-  if (! throttle_timer) {
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_CREATEWAITABLETIMER_FAILED, service_name, error_string(GetLastError()), 0);
+  if (use_critical_section) InitializeCriticalSection(&throttle_section);
+  else {
+    throttle_timer = CreateWaitableTimer(0, 1, 0);
+    if (! throttle_timer) {
+      log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_CREATEWAITABLETIMER_FAILED, service_name, error_string(GetLastError()), 0);
+    }
   }
 
   monitor_service();
@@ -333,10 +345,13 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
 
     case SERVICE_CONTROL_CONTINUE:
       log_service_control(service_name, control, true);
-      if (! throttle_timer) return ERROR_CALL_NOT_IMPLEMENTED;
       throttle = 0;
-      ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
-      SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
+      if (use_critical_section) imports.WakeConditionVariable(&throttle_condition);
+      else {
+        if (! throttle_timer) return ERROR_CALL_NOT_IMPLEMENTED;
+        ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
+        SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
+      }
       service_status.dwCurrentState = SERVICE_CONTINUE_PENDING;
       service_status.dwWaitHint = throttle_milliseconds() + NSSM_WAITHINT_MARGIN;
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_RESET_THROTTLE, service_name, 0);
@@ -558,7 +573,8 @@ void throttle_restart() {
   _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%d", ms);
   log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
 
-  if (throttle_timer) {
+  if (use_critical_section) EnterCriticalSection(&throttle_section);
+  else if (throttle_timer) {
     ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
     throttle_duetime.QuadPart = 0 - (ms * 10000LL);
     SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
@@ -567,6 +583,12 @@ void throttle_restart() {
   service_status.dwCurrentState = SERVICE_PAUSED;
   SetServiceStatus(service_handle, &service_status);
 
-  if (throttle_timer) WaitForSingleObject(throttle_timer, INFINITE);
-  else Sleep(ms);
+  if (use_critical_section) {
+    imports.SleepConditionVariableCS(&throttle_condition, &throttle_section, ms);
+    LeaveCriticalSection(&throttle_section);
+  }
+  else {
+    if (throttle_timer) WaitForSingleObject(throttle_timer, INFINITE);
+    else Sleep(ms);
+  }
 }

@@ -44,6 +44,16 @@ int get_imports() {
     if (! imports.AttachConsole) {
       if (error != ERROR_PROC_NOT_FOUND) return 2;
     }
+
+    imports.SleepConditionVariableCS = (SleepConditionVariableCS_ptr) get_import(imports.kernel32, "SleepConditionVariableCS", &error);
+    if (! imports.SleepConditionVariableCS) {
+      if (error != ERROR_PROC_NOT_FOUND) return 3;
+    }
+
+    imports.WakeConditionVariable = (WakeConditionVariable_ptr) get_import(imports.kernel32, "WakeConditionVariable", &error);
+    if (! imports.WakeConditionVariable) {
+      if (error != ERROR_PROC_NOT_FOUND) return 4;
+    }
   }
   else if (error != ERROR_MOD_NOT_FOUND) return 1;
 
