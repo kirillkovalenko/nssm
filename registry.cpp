@@ -300,28 +300,12 @@ int get_parameters(char *service_name, char *exe, unsigned long exelen, char *fl
   }
 
   /* Try to get throttle restart delay */
-  unsigned long type = REG_DWORD;
-  unsigned long buflen = sizeof(*throttle_delay);
-  bool throttle_ok = false;
-  ret = RegQueryValueEx(key, NSSM_REG_THROTTLE, 0, &type, (unsigned char *) throttle_delay, &buflen);
-  if (ret != ERROR_SUCCESS) {
-    if (ret != ERROR_FILE_NOT_FOUND) {
-      if (type != REG_DWORD) {
-        char milliseconds[16];
-        _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%lu", NSSM_RESET_THROTTLE_RESTART);
-        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_THROTTLE, service_name, NSSM_REG_THROTTLE, milliseconds, 0);
-      }
-      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_THROTTLE, error_string(GetLastError()), 0);
-    }
-  }
-  else throttle_ok = true;
-
-  if (! throttle_ok) *throttle_delay = NSSM_RESET_THROTTLE_RESTART;
+  override_milliseconds(service_name, key, NSSM_REG_THROTTLE, throttle_delay, NSSM_RESET_THROTTLE_RESTART, NSSM_EVENT_BOGUS_THROTTLE);
 
   /* Try to get service stop flags. */
-  type = REG_DWORD;
+  unsigned long type = REG_DWORD;
   unsigned long stop_method_skip;
-  buflen = sizeof(stop_method_skip);
+  unsigned long buflen = sizeof(stop_method_skip);
   bool stop_ok = false;
   ret = RegQueryValueEx(key, NSSM_REG_STOP_METHOD_SKIP, 0, &type, (unsigned char *) &stop_method_skip, &buflen);
   if (ret != ERROR_SUCCESS) {
