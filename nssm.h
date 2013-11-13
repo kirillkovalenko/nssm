@@ -43,17 +43,17 @@ int str_equiv(const char *, const char *);
 
 /*
   How many milliseconds to wait for the application to die after sending
-  a Control-C event to its console.
+  a Control-C event to its console.  Override in registry.
 */
 #define NSSM_KILL_CONSOLE_GRACE_PERIOD 1500
 /*
   How many milliseconds to wait for the application to die after posting to
-  its windows' message queues.
+  its windows' message queues.  Override in registry.
 */
 #define NSSM_KILL_WINDOW_GRACE_PERIOD 1500
 /*
   How many milliseconds to wait for the application to die after posting to
-  its threads' message queues.
+  its threads' message queues.  Override in registry.
 */
 #define NSSM_KILL_THREADS_GRACE_PERIOD 1500
 

@@ -1,3 +1,8 @@
+Changes since 2.17
+-----------------
+  * Timeouts for each shutdown method can be configured in
+    the registry.
+
 Changes since 2.16
 -----------------
   * NSSM can now redirect the service's I/O streams to any path

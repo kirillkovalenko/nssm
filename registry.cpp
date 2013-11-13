@@ -239,7 +239,7 @@ void override_milliseconds(char *service_name, HKEY key, char *value, unsigned l
   if (! ok) *buffer = default_value;
 }
 
-int get_parameters(char *service_name, char *exe, unsigned long exelen, char *flags, unsigned long flagslen, char *dir, unsigned long dirlen, char **env, unsigned long *throttle_delay, unsigned long *stop_method, STARTUPINFO *si) {
+int get_parameters(char *service_name, char *exe, unsigned long exelen, char *flags, unsigned long flagslen, char *dir, unsigned long dirlen, char **env, unsigned long *throttle_delay, unsigned long *stop_method, unsigned long *kill_console_delay, unsigned long *kill_window_delay, unsigned long *kill_threads_delay, STARTUPINFO *si) {
   unsigned long ret;
 
   /* Get registry */
@@ -321,6 +321,11 @@ int get_parameters(char *service_name, char *exe, unsigned long exelen, char *fl
   /* Try all methods except those requested to be skipped. */
   *stop_method = ~0;
   if (stop_ok) *stop_method &= ~stop_method_skip;
+
+  /* Try to get kill delays - may fail. */
+  override_milliseconds(service_name, key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, kill_console_delay, NSSM_KILL_CONSOLE_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_CONSOLE_GRACE_PERIOD);
+  override_milliseconds(service_name, key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, kill_window_delay, NSSM_KILL_WINDOW_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_WINDOW_GRACE_PERIOD);
+  override_milliseconds(service_name, key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, kill_threads_delay, NSSM_KILL_THREADS_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_THREADS_GRACE_PERIOD);
 
   /* Close registry */
   RegCloseKey(key);

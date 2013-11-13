@@ -1,6 +1,9 @@
 #include "nssm.h"
 
 extern imports_t imports;
+extern unsigned long kill_console_delay;
+extern unsigned long kill_window_delay;
+extern unsigned long kill_threads_delay;
 
 int get_process_creation_time(HANDLE process_handle, FILETIME *ft) {
   FILETIME creation_time, exit_time, kernel_time, user_time;
@@ -161,7 +164,7 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
   if (stop_method & NSSM_STOP_METHOD_WINDOW) {
     EnumWindows((WNDENUMPROC) kill_window, (LPARAM) &k);
     if (k.signalled) {
-      if (! WaitForSingleObject(process_handle, NSSM_KILL_WINDOW_GRACE_PERIOD)) return 1;
+      if (! WaitForSingleObject(process_handle, kill_window_delay)) return 1;
     }
   }
 
@@ -172,7 +175,7 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
   */
   if (stop_method & NSSM_STOP_METHOD_THREADS) {
     if (kill_threads(service_name, &k)) {
-      if (! WaitForSingleObject(process_handle, NSSM_KILL_THREADS_GRACE_PERIOD)) return 1;
+      if (! WaitForSingleObject(process_handle, kill_threads_delay)) return 1;
     }
   }
 
@@ -233,7 +236,7 @@ int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
   }
 
   /* Wait for process to exit. */
-  if (WaitForSingleObject(process_handle, NSSM_KILL_CONSOLE_GRACE_PERIOD)) return 6;
+  if (WaitForSingleObject(process_handle, kill_console_delay)) return 6;
 
   return ret;
 }

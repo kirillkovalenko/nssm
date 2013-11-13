@@ -14,6 +14,9 @@ bool stopping;
 bool allow_restart;
 unsigned long throttle_delay;
 unsigned long stop_method;
+unsigned long kill_console_delay;
+unsigned long kill_window_delay;
+unsigned long kill_threads_delay;
 CRITICAL_SECTION throttle_section;
 CONDITION_VARIABLE throttle_condition;
 HANDLE throttle_timer;
@@ -390,7 +393,7 @@ int start_service() {
 
   /* Get startup parameters */
   char *env = 0;
-  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay, &stop_method, &si);
+  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay, &stop_method, &kill_console_delay, &kill_window_delay, &kill_threads_delay, &si);
   if (ret) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
     return stop_service(2, true, true);
@@ -446,9 +449,9 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   if (graceful) {
     service_status.dwCurrentState = SERVICE_STOP_PENDING;
     service_status.dwWaitHint = NSSM_WAITHINT_MARGIN;
-    if (stop_method & NSSM_STOP_METHOD_CONSOLE && imports.AttachConsole) service_status.dwWaitHint += NSSM_KILL_CONSOLE_GRACE_PERIOD;
-    if (stop_method & NSSM_STOP_METHOD_WINDOW) service_status.dwWaitHint += NSSM_KILL_WINDOW_GRACE_PERIOD;
-    if (stop_method & NSSM_STOP_METHOD_THREADS) service_status.dwWaitHint += NSSM_KILL_THREADS_GRACE_PERIOD;
+    if (stop_method & NSSM_STOP_METHOD_CONSOLE && imports.AttachConsole) service_status.dwWaitHint += kill_console_delay;
+    if (stop_method & NSSM_STOP_METHOD_WINDOW) service_status.dwWaitHint += kill_window_delay;
+    if (stop_method & NSSM_STOP_METHOD_THREADS) service_status.dwWaitHint += kill_threads_delay;
     SetServiceStatus(service_handle, &service_status);
   }
 

@@ -9,6 +9,9 @@
 #define NSSM_REG_EXIT "AppExit"
 #define NSSM_REG_THROTTLE "AppThrottle"
 #define NSSM_REG_STOP_METHOD_SKIP "AppStopMethodSkip"
+#define NSSM_REG_KILL_CONSOLE_GRACE_PERIOD "AppStopMethodConsole"
+#define NSSM_REG_KILL_WINDOW_GRACE_PERIOD "AppStopMethodWindow"
+#define NSSM_REG_KILL_THREADS_GRACE_PERIOD "AppStopMethodThreads"
 #define NSSM_REG_STDIN "AppStdin"
 #define NSSM_REG_STDOUT "AppStdout"
 #define NSSM_REG_STDERR "AppStderr"
@@ -26,7 +29,7 @@ int expand_parameter(HKEY, char *, char *, unsigned long, bool);
 int get_number(HKEY, char *, unsigned long *, bool);
 int get_number(HKEY, char *, unsigned long *);
 void override_milliseconds(char *, HKEY, char *, unsigned long *, unsigned long, unsigned long);
-int get_parameters(char *, char *, unsigned long, char *, unsigned long, char *, unsigned long, char **, unsigned long *, unsigned long *, STARTUPINFO *);
+int get_parameters(char *, char *, unsigned long, char *, unsigned long, char *, unsigned long, char **, unsigned long *, unsigned long *, unsigned long *, unsigned long *, unsigned long *, STARTUPINFO *);
 int get_exit_action(char *, unsigned long *, unsigned char *, bool *);
 
 #endif

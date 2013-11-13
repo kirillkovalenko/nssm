@@ -43,6 +43,9 @@ they can clean up and shut down gracefully on receipt of the event.
 Since version 2.17, NSSM can redirect the managed application's I/O streams
 to an arbitrary path.
 
+Since version 2.18, NSSM can be configured to wait a user-specified amount
+of time for the application to exit when shutting down.
+
 
 Usage
 -----
@@ -182,6 +185,20 @@ Take great care when including 8 in the value of AppStopMethodSkip.  If NSSM
 does not call TerminateProcess() it is possible that the application will not
 exit when the service stops.
 
+By default NSSM will allow processes 1500ms to respond to each of the methods
+described above before proceeding to the next one.  The timeout can be
+configured on a per-method basis by creating REG_DWORD entries in the
+registry under HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters.
+
+  AppStopMethodConsole
+  AppStopMethodWindow
+  AppStopMethodThreads
+
+Each value should be set to the number of milliseconds to wait.  Please note
+that the timeout applies to each process in the application's process tree,
+so the actual time to shutdown may be longer than the sum of all configured
+timeouts if the application spawns multiple subprocesses.
+
 
 I/O redirection
 ---------------
@@ -282,6 +299,7 @@ Thanks to Riccardo Gusmeroli for Italian translation.
 Thanks to Eric Cheldelin for the inspiration to generate a Control-C event
 on shutdown.
 Thanks to Brian Baxter for suggesting how to escape quotes from the command prompt.
+Thanks to Russ Holmann for suggesting that the shutdown timeout be configurable.
 
 Licence
 -------
