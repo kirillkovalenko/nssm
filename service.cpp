@@ -445,7 +445,10 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   /* Signal we are stopping */
   if (graceful) {
     service_status.dwCurrentState = SERVICE_STOP_PENDING;
-    service_status.dwWaitHint = NSSM_KILL_WINDOW_GRACE_PERIOD + NSSM_KILL_THREADS_GRACE_PERIOD + NSSM_WAITHINT_MARGIN;
+    service_status.dwWaitHint = NSSM_WAITHINT_MARGIN;
+    if (stop_method & NSSM_STOP_METHOD_CONSOLE && imports.AttachConsole) service_status.dwWaitHint += NSSM_KILL_CONSOLE_GRACE_PERIOD;
+    if (stop_method & NSSM_STOP_METHOD_WINDOW) service_status.dwWaitHint += NSSM_KILL_WINDOW_GRACE_PERIOD;
+    if (stop_method & NSSM_STOP_METHOD_THREADS) service_status.dwWaitHint += NSSM_KILL_THREADS_GRACE_PERIOD;
     SetServiceStatus(service_handle, &service_status);
   }
 
