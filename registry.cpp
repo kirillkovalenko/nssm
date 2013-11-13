@@ -219,6 +219,26 @@ int get_number(HKEY key, char *value, unsigned long *number) {
   return get_number(key, value, number, true);
 }
 
+void override_milliseconds(char *service_name, HKEY key, char *value, unsigned long *buffer, unsigned long default_value, unsigned long event) {
+  unsigned long type = REG_DWORD;
+  unsigned long buflen = sizeof(unsigned long);
+  bool ok = false;
+  unsigned long ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) buffer, &buflen);
+  if (ret != ERROR_SUCCESS) {
+    if (ret != ERROR_FILE_NOT_FOUND) {
+      if (type != REG_DWORD) {
+        char milliseconds[16];
+        _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%lu", default_value);
+        log_event(EVENTLOG_WARNING_TYPE, event, service_name, value, milliseconds, 0);
+      }
+      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+    }
+  }
+  else ok = true;
+
+  if (! ok) *buffer = default_value;
+}
+
 int get_parameters(char *service_name, char *exe, unsigned long exelen, char *flags, unsigned long flagslen, char *dir, unsigned long dirlen, char **env, unsigned long *throttle_delay, unsigned long *stop_method, STARTUPINFO *si) {
   unsigned long ret;
 
