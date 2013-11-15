@@ -209,7 +209,7 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
           break;
 
         /* Cancel button */
-        case IDC_CANCEL:
+        case IDCANCEL:
           DestroyWindow(window);
           break;
 
