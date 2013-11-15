@@ -599,3 +599,89 @@ void throttle_restart() {
     else Sleep(ms);
   }
 }
+
+/*
+  When responding to a stop (or any other) request we need to set dwWaitHint to
+  the number of milliseconds we expect the operation to take, and optionally
+  increase dwCheckPoint.  If dwWaitHint milliseconds elapses without the
+  operation completing or dwCheckPoint increasing, the system will consider the
+  service to be hung.
+
+  However the system will consider the service to be hung after 30000
+  milliseconds regardless of the value of dwWaitHint if dwCheckPoint has not
+  changed.  Therefore if we want to wait longer than that we must periodically
+  increase dwCheckPoint.
+
+  Furthermore, it will consider the service to be hung after 60000 milliseconds
+  regardless of the value of dwCheckPoint unless dwWaitHint is increased every
+  time dwCheckPoint is also increased.
+
+  Our strategy then is to retrieve the initial dwWaitHint and wait for
+  NSSM_SHUTDOWN_CHECKPOINT milliseconds.  If the process is still running and
+  we haven't finished waiting we increment dwCheckPoint and add whichever is
+  smaller of NSSM_SHUTDOWN_CHECKPOINT or the remaining timeout to dwWaitHint.
+
+  Only doing both these things will prevent the system from killing the service.
+
+  Returns: 1 if the wait timed out.
+           0 if the wait completed.
+          -1 on error.
+*/
+int await_shutdown(char *function_name, char *service_name, SERVICE_STATUS_HANDLE service_handle, SERVICE_STATUS *service_status, HANDLE process_handle, unsigned long timeout) {
+  unsigned long interval;
+  unsigned long waithint;
+  unsigned long ret;
+  unsigned long waited;
+  char interval_milliseconds[16];
+  char timeout_milliseconds[16];
+  char waited_milliseconds[16];
+  char *function = function_name;
+
+  /* Add brackets to function name. */
+  size_t funclen = strlen(function_name) + 3;
+  char *func = (char *) HeapAlloc(GetProcessHeap(), 0, funclen);
+  if (func) {
+    if (_snprintf_s(func, funclen, _TRUNCATE, "%s()", function_name) > -1) function = func;
+  }
+
+  _snprintf_s(timeout_milliseconds, sizeof(timeout_milliseconds), _TRUNCATE, "%lu", timeout);
+
+  waithint = service_status->dwWaitHint;
+  waited = 0;
+  while (waited < timeout) {
+    interval = timeout - waited;
+    if (interval > NSSM_SHUTDOWN_CHECKPOINT) interval = NSSM_SHUTDOWN_CHECKPOINT;
+
+    service_status->dwCurrentState = SERVICE_STOP_PENDING;
+    service_status->dwWaitHint += interval;
+    service_status->dwCheckPoint++;
+    SetServiceStatus(service_handle, service_status);
+
+    if (waited) {
+      _snprintf_s(waited_milliseconds, sizeof(waited_milliseconds), _TRUNCATE, "%lu", waited);
+      _snprintf_s(interval_milliseconds, sizeof(interval_milliseconds), _TRUNCATE, "%lu", interval);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SHUTDOWN, function, service_name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, 0);
+    }
+
+    switch (WaitForSingleObject(process_handle, interval)) {
+      case WAIT_OBJECT_0:
+        ret = 0;
+        goto awaited;
+
+      case WAIT_TIMEOUT:
+        ret = 1;
+      break;
+
+      default:
+        ret = -1;
+        goto awaited;
+    }
+
+    waited += interval;
+  }
+
+awaited:
+  if (func) HeapFree(GetProcessHeap(), 0, func);
+
+  return ret;
+}

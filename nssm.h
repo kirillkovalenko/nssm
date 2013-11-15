@@ -66,4 +66,7 @@ int str_equiv(const char *, const char *);
 #define NSSM_STOP_METHOD_THREADS (1 << 2)
 #define NSSM_STOP_METHOD_TERMINATE (1 << 3)
 
+/* How many milliseconds to wait before updating service status. */
+#define NSSM_SHUTDOWN_CHECKPOINT 20000
+
 #endif

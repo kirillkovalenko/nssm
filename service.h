@@ -19,5 +19,6 @@ int start_service();
 int stop_service(unsigned long, bool, bool);
 void CALLBACK end_service(void *, unsigned char);
 void throttle_restart();
+int await_shutdown(char *, char *, SERVICE_STATUS_HANDLE, SERVICE_STATUS *, HANDLE, unsigned long);
 
 #endif
