@@ -205,7 +205,7 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       switch (LOWORD(w)) {
         /* OK button */
         case IDC_OK:
-          PostQuitMessage(install(window));
+          if (! install(window)) PostQuitMessage(0);
           break;
 
         /* Cancel button */
@@ -220,7 +220,7 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
         /* Remove button */
         case IDC_REMOVE:
-          PostQuitMessage(remove(window));
+          if (! remove(window)) PostQuitMessage(0);
           break;
       }
       return 1;
