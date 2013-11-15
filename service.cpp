@@ -37,6 +37,14 @@ static inline int throttle_milliseconds() {
   return ret * 1000;
 }
 
+/*
+  Wrapper to be called in a new thread so that we can acknowledge a STOP
+  control immediately.
+*/
+static unsigned long WINAPI shutdown_service(void *arg) {
+  return stop_service(0, true, true);
+}
+
 /* Connect to the service manager */
 SC_HANDLE open_service_manager() {
   SC_HANDLE ret = OpenSCManager(0, SERVICES_ACTIVE_DATABASE, SC_MANAGER_ALL_ACCESS);
@@ -343,7 +351,24 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
     case SERVICE_CONTROL_SHUTDOWN:
     case SERVICE_CONTROL_STOP:
       log_service_control(service_name, control, true);
-      stop_service(0, true, true);
+      /*
+        We MUST acknowledge the stop request promptly but we're committed to
+        waiting for the application to exit.  Spawn a new thread to wait
+        while we acknowledge the request.
+      */
+      if (! CreateThread(NULL, 0, shutdown_service, (void *) service_name, 0, NULL)) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETHREAD_FAILED, error_string(GetLastError()), 0);
+
+        /*
+          We couldn't create a thread to tidy up so we'll have to force the tidyup
+          to complete in time in this thread.
+        */
+        kill_console_delay = NSSM_KILL_CONSOLE_GRACE_PERIOD;
+        kill_window_delay = NSSM_KILL_WINDOW_GRACE_PERIOD;
+        kill_threads_delay = NSSM_KILL_THREADS_GRACE_PERIOD;
+
+        stop_service(0, true, true);
+      }
       return NO_ERROR;
 
     case SERVICE_CONTROL_CONTINUE:
@@ -449,9 +474,6 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   if (graceful) {
     service_status.dwCurrentState = SERVICE_STOP_PENDING;
     service_status.dwWaitHint = NSSM_WAITHINT_MARGIN;
-    if (stop_method & NSSM_STOP_METHOD_CONSOLE && imports.AttachConsole) service_status.dwWaitHint += kill_console_delay;
-    if (stop_method & NSSM_STOP_METHOD_WINDOW) service_status.dwWaitHint += kill_window_delay;
-    if (stop_method & NSSM_STOP_METHOD_THREADS) service_status.dwWaitHint += kill_threads_delay;
     SetServiceStatus(service_handle, &service_status);
   }
 

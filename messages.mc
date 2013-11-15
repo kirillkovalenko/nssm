@@ -1360,3 +1360,19 @@ Language = Italian
 %1 has waited %3 of %5 milliseconds for the %2 service to exit.
 Next update in %4 milliseconds.
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_CREATETHREAD_FAILED
+Severity = Error
+Language = English
+CreateThread() failed:
+%1
+.
+Language = French
+CreateThread() a échoué:
+%1
+.
+Language = Italian
+Chiamata a CreateThread() fallita:
+%1
+.
