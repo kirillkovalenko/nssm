@@ -1,5 +1,5 @@
 NSSM: The Non-Sucking Service Manager
-Version 2.17, 2013-11-12
+Version 2.18, 2013-11-15
 
 NSSM is a service helper program similar to srvany and cygrunsrv.  It can 
 start any application as an NT service and will restart the service if it 
