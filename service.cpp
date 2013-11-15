@@ -459,7 +459,7 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
   if (pid) {
     /* Shut down service */
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service_name, exe, 0);
-    kill_process(service_name, stop_method, process_handle, pid, 0);
+    kill_process(service_name, service_handle, &service_status, stop_method, process_handle, pid, 0);
   }
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);
 
@@ -509,7 +509,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* Clean up. */
   if (exitcode == STILL_ACTIVE) exitcode = 0;
-  kill_process_tree(service_name, stop_method, pid, exitcode, pid, &creation_time, &exit_time);
+  kill_process_tree(service_name, service_handle, &service_status, stop_method, pid, exitcode, pid, &creation_time, &exit_time);
 
   /*
     The why argument is true if our wait timed out or false otherwise.

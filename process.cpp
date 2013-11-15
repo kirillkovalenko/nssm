@@ -139,7 +139,7 @@ int kill_threads(char *service_name, kill_t *k) {
 }
 
 /* Give the process a chance to die gracefully. */
-int kill_process(char *service_name, unsigned long stop_method, HANDLE process_handle, unsigned long pid, unsigned long exitcode) {
+int kill_process(char *service_name, SERVICE_STATUS_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long stop_method, HANDLE process_handle, unsigned long pid, unsigned long exitcode) {
   /* Shouldn't happen. */
   if (! pid) return 1;
   if (! process_handle) return 1;
@@ -153,7 +153,7 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
 
   /* Try to send a Control-C event to the console. */
   if (stop_method & NSSM_STOP_METHOD_CONSOLE) {
-    if (! kill_console(service_name, process_handle, pid)) return 1;
+    if (! kill_console(service_name, service_handle, service_status, process_handle, pid)) return 1;
   }
 
   /*
@@ -164,7 +164,7 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
   if (stop_method & NSSM_STOP_METHOD_WINDOW) {
     EnumWindows((WNDENUMPROC) kill_window, (LPARAM) &k);
     if (k.signalled) {
-      if (! WaitForSingleObject(process_handle, kill_window_delay)) return 1;
+      if (! await_shutdown(__FUNCTION__, service_name, service_handle, service_status, process_handle, kill_window_delay)) return 1;
     }
   }
 
@@ -175,7 +175,7 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
   */
   if (stop_method & NSSM_STOP_METHOD_THREADS) {
     if (kill_threads(service_name, &k)) {
-      if (! WaitForSingleObject(process_handle, kill_threads_delay)) return 1;
+      if (! await_shutdown(__FUNCTION__, service_name, service_handle, service_status, process_handle, kill_threads_delay)) return 1;
     }
   }
 
@@ -188,7 +188,7 @@ int kill_process(char *service_name, unsigned long stop_method, HANDLE process_h
 }
 
 /* Simulate a Control-C event to our console (shared with the app). */
-int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
+int kill_console(char *service_name, SERVICE_STATUS_HANDLE service_handle, SERVICE_STATUS *service_status, HANDLE process_handle, unsigned long pid) {
   unsigned long ret;
 
   /* Check we loaded AttachConsole(). */
@@ -236,12 +236,12 @@ int kill_console(char *service_name, HANDLE process_handle, unsigned long pid) {
   }
 
   /* Wait for process to exit. */
-  if (WaitForSingleObject(process_handle, kill_console_delay)) return 6;
+  if (await_shutdown(__FUNCTION__, service_name, service_handle, service_status, process_handle, kill_console_delay)) ret = 6;
 
   return ret;
 }
 
-void kill_process_tree(char *service_name, unsigned long stop_method, unsigned long pid, unsigned long exitcode, unsigned long ppid, FILETIME *parent_creation_time, FILETIME *parent_exit_time) {
+void kill_process_tree(char *service_name, SERVICE_STATUS_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long stop_method, unsigned long pid, unsigned long exitcode, unsigned long ppid, FILETIME *parent_creation_time, FILETIME *parent_exit_time) {
   /* Shouldn't happen unless the service failed to start. */
   if (! pid) return;
 
@@ -268,7 +268,7 @@ void kill_process_tree(char *service_name, unsigned long stop_method, unsigned l
   }
 
   /* This is a child of the doomed process so kill it. */
-  if (! check_parent(service_name, &pe, pid, parent_creation_time, parent_exit_time)) kill_process_tree(service_name, stop_method, pe.th32ProcessID, exitcode, ppid, parent_creation_time, parent_exit_time);
+  if (! check_parent(service_name, &pe, pid, parent_creation_time, parent_exit_time)) kill_process_tree(service_name, service_handle, service_status, stop_method, pe.th32ProcessID, exitcode, ppid, parent_creation_time, parent_exit_time);
 
   while (true) {
     /* Try to get the next process. */
@@ -280,7 +280,7 @@ void kill_process_tree(char *service_name, unsigned long stop_method, unsigned l
       return;
     }
 
-    if (! check_parent(service_name, &pe, pid, parent_creation_time, parent_exit_time)) kill_process_tree(service_name, stop_method, pe.th32ProcessID, exitcode, ppid, parent_creation_time, parent_exit_time);
+    if (! check_parent(service_name, &pe, pid, parent_creation_time, parent_exit_time)) kill_process_tree(service_name, service_handle, service_status, stop_method, pe.th32ProcessID, exitcode, ppid, parent_creation_time, parent_exit_time);
   }
 
   CloseHandle(snapshot);
@@ -295,7 +295,7 @@ void kill_process_tree(char *service_name, unsigned long stop_method, unsigned l
   char ppid_string[16];
   _snprintf_s(ppid_string, sizeof(ppid_string), _TRUNCATE, "%lu", ppid);
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, service_name, 0);
-  if (! kill_process(service_name, stop_method, process_handle, pid, exitcode)) {
+  if (! kill_process(service_name, service_handle, service_status, stop_method, process_handle, pid, exitcode)) {
     /* Maybe it already died. */
     unsigned long ret;
     if (! GetExitCodeProcess(process_handle, &ret) || ret == STILL_ACTIVE) {
