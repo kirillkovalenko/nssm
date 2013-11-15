@@ -280,7 +280,7 @@ int monitor_service() {
   }
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_STARTED_SERVICE, exe, flags, service_name, dir, 0);
 
-  /* Monitor service service */
+  /* Monitor service */
   if (! RegisterWaitForSingleObject(&wait_handle, process_handle, end_service, (void *) pid, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_REGISTERWAITFORSINGLEOBJECT_FAILED, service_name, exe, error_string(GetLastError()), 0);
   }
@@ -309,11 +309,11 @@ void log_service_control(char *service_name, unsigned long control, bool handled
     /* "0x" + 8 x hex + NULL */
     text = (char *) HeapAlloc(GetProcessHeap(), 0, 11);
     if (! text) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control", 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control()", 0);
       return;
     }
     if (_snprintf_s(text, 11, _TRUNCATE, "0x%08x", control) < 0) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control", 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control()", 0);
       HeapFree(GetProcessHeap(), 0, text);
       return;
     }
@@ -497,11 +497,12 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     tree.  See below for the possible values of the why argument.
   */
   if (! why) {
-    _snprintf_s(code, sizeof(code), _TRUNCATE, "%d", exitcode);
+    _snprintf_s(code, sizeof(code), _TRUNCATE, "%lu", exitcode);
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, exe, service_name, code, 0);
   }
 
   /* Clean up. */
+  if (exitcode == STILL_ACTIVE) exitcode = 0;
   kill_process_tree(service_name, stop_method, pid, exitcode, pid, &creation_time, &exit_time);
 
   /*
@@ -569,8 +570,8 @@ void throttle_restart() {
   if (throttle > 7) throttle = 8;
 
   char threshold[8], milliseconds[8];
-  _snprintf_s(threshold, sizeof(threshold), _TRUNCATE, "%d", throttle_delay);
-  _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%d", ms);
+  _snprintf_s(threshold, sizeof(threshold), _TRUNCATE, "%lu", throttle_delay);
+  _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%lu", ms);
   log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
 
   if (use_critical_section) EnterCriticalSection(&throttle_section);

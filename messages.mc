@@ -990,7 +990,7 @@ n'était pas du type REG_DWORD.  Une durée de %3 millisecondes sera utilisée par 
 .
 Language = Italian
 La chiave di registro %2, utilizzata per specificare il minimo numero di millisecondi che devono intercorrere prima che il servizio %1 sia considerato avviato correttamente, non è di tipo REG_DWORD.
-Verrà usato il tempo di default pari a 3 ms.
+Verrà usato il tempo di default pari a %3 ms.
 .
 
 MessageId = +1
