@@ -1,6 +1,7 @@
 #include "nssm.h"
 
 #define NSSM_ERROR_BUFSIZE 65535
+#define NSSM_NUM_EVENT_STRINGS 16
 unsigned long tls_index;
 
 /* Convert error code to error string - must call LocalFree() on return value */
@@ -34,7 +35,7 @@ void log_event(unsigned short type, unsigned long id, ...) {
   va_list arg;
   int count;
   char *s;
-  char *strings[6];
+  char *strings[NSSM_NUM_EVENT_STRINGS];
 
   /* Open event log */
   HANDLE handle = RegisterEventSource(0, TEXT(NSSM));
@@ -43,7 +44,8 @@ void log_event(unsigned short type, unsigned long id, ...) {
   /* Log it */
   count = 0;
   va_start(arg, id);
-  while ((s = va_arg(arg, char *))) strings[count++] = s;
+  while ((s = va_arg(arg, char *)) && count < NSSM_NUM_EVENT_STRINGS - 1) strings[count++] = s;
+  strings[count] = 0;
   va_end(arg);
   ReportEvent(handle, type, 0, id, 0, count, 0, (const char **) strings, 0);
 
