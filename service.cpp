@@ -450,12 +450,33 @@ int start_service() {
 
   close_output_handles(&si);
 
-  /* Wait for a clean startup. */
-  if (WaitForSingleObject(process_handle, throttle_delay) == WAIT_TIMEOUT) throttle = 0;
+  /*
+    Wait for a clean startup before changing the service status to RUNNING
+    but be mindful of the fact that we are blocking the service control manager
+    so abandon the wait before too much time has elapsed.
+  */
+  unsigned long delay = throttle_delay;
+  if (delay > NSSM_SERVICE_STATUS_DEADLINE) {
+    char delay_milliseconds[16];
+    _snprintf_s(delay_milliseconds, sizeof(delay_milliseconds), _TRUNCATE, "%lu", delay);
+    char deadline_milliseconds[16];
+    _snprintf_s(deadline_milliseconds, sizeof(deadline_milliseconds), _TRUNCATE, "%lu", NSSM_SERVICE_STATUS_DEADLINE);
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_STARTUP_DELAY_TOO_LONG, service_name, delay_milliseconds, NSSM, deadline_milliseconds, 0);
+    delay = NSSM_SERVICE_STATUS_DEADLINE;
+  }
+  unsigned long deadline = WaitForSingleObject(process_handle, delay);
 
   /* Signal successful start */
   service_status.dwCurrentState = SERVICE_RUNNING;
   SetServiceStatus(service_handle, &service_status);
+
+  /* Continue waiting for a clean startup. */
+  if (deadline == WAIT_TIMEOUT) {
+    if (throttle_delay > delay) {
+      if (WaitForSingleObject(process_handle, throttle_delay - delay) == WAIT_TIMEOUT) throttle = 0;
+    }
+    else throttle = 0;
+  }
 
   return 0;
 }
@@ -639,9 +660,10 @@ void throttle_restart() {
   time dwCheckPoint is also increased.
 
   Our strategy then is to retrieve the initial dwWaitHint and wait for
-  NSSM_SHUTDOWN_CHECKPOINT milliseconds.  If the process is still running and
-  we haven't finished waiting we increment dwCheckPoint and add whichever is
-  smaller of NSSM_SHUTDOWN_CHECKPOINT or the remaining timeout to dwWaitHint.
+  NSSM_SERVICE_STATUS_DEADLINE milliseconds.  If the process is still running
+  and we haven't finished waiting we increment dwCheckPoint and add whichever is
+  smaller of NSSM_SERVICE_STATUS_DEADLINE or the remaining timeout to
+  dwWaitHint.
 
   Only doing both these things will prevent the system from killing the service.
 
@@ -672,7 +694,7 @@ int await_shutdown(char *function_name, char *service_name, SERVICE_STATUS_HANDL
   waited = 0;
   while (waited < timeout) {
     interval = timeout - waited;
-    if (interval > NSSM_SHUTDOWN_CHECKPOINT) interval = NSSM_SHUTDOWN_CHECKPOINT;
+    if (interval > NSSM_SERVICE_STATUS_DEADLINE) interval = NSSM_SERVICE_STATUS_DEADLINE;
 
     service_status->dwCurrentState = SERVICE_STOP_PENDING;
     service_status->dwWaitHint += interval;
