@@ -6,13 +6,13 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <windows.h>
+#include "service.h"
 #include "event.h"
 #include "imports.h"
 #include "messages.h"
 #include "process.h"
 #include "registry.h"
 #include "io.h"
-#include "service.h"
 #include "gui.h"
 
 int str_equiv(const char *, const char *);
@@ -21,19 +21,6 @@ int str_equiv(const char *, const char *);
 #define NSSM_VERSION "2.18"
 #define NSSM_VERSIONINFO 2,18,0,0
 #define NSSM_DATE "2013-11-15"
-
-/*
-  MSDN says the commandline in CreateProcess() is limited to 32768 characters
-  and the application name to MAX_PATH.
-  A registry key is limited to 255 characters.
-  A registry value is limited to 16383 characters.
-  Therefore we limit the service name to accommodate the path under HKLM.
-*/
-#define EXE_LENGTH MAX_PATH
-#define CMD_LENGTH 32768
-#define KEY_LENGTH 255
-#define VALUE_LENGTH 16383
-#define SERVICE_NAME_LENGTH KEY_LENGTH - 55
 
 /*
   Throttle the restart of the service if it stops before this many

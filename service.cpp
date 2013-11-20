@@ -1,37 +1,14 @@
 #include "nssm.h"
 
 bool is_admin;
-SERVICE_STATUS service_status;
-SERVICE_STATUS_HANDLE service_handle;
-HANDLE process_handle;
-HANDLE wait_handle;
-unsigned long pid;
-static char service_name[SERVICE_NAME_LENGTH];
-char exe[EXE_LENGTH];
-char flags[CMD_LENGTH];
-char dir[MAX_PATH];
-bool stopping;
-bool allow_restart;
-unsigned long throttle_delay;
-unsigned long stop_method;
-unsigned long kill_console_delay;
-unsigned long kill_window_delay;
-unsigned long kill_threads_delay;
-CRITICAL_SECTION throttle_section;
-CONDITION_VARIABLE throttle_condition;
-HANDLE throttle_timer;
-LARGE_INTEGER throttle_duetime;
 bool use_critical_section;
-FILETIME creation_time;
 
 extern imports_t imports;
 
 static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
 static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
 
-static unsigned long throttle;
-
-static inline int throttle_milliseconds() {
+static inline int throttle_milliseconds(unsigned long throttle) {
   /* pow() operates on doubles. */
   int ret = 1; for (unsigned long i = 1; i < throttle; i++) ret *= 2;
   return ret * 1000;
@@ -42,7 +19,7 @@ static inline int throttle_milliseconds() {
   control immediately.
 */
 static unsigned long WINAPI shutdown_service(void *arg) {
-  return stop_service(0, true, true);
+  return stop_service((nssm_service_t *) arg, 0, true, true);
 }
 
 /* Connect to the service manager */
@@ -56,25 +33,45 @@ SC_HANDLE open_service_manager() {
   return ret;
 }
 
+/* Allocate and zero memory for a service. */
+nssm_service_t *alloc_nssm_service() {
+  nssm_service_t *service = (nssm_service_t *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(nssm_service_t));
+  if (! service) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "service", "alloc_nssm_service()", 0);
+  return service;
+}
+
+/* Free memory for a service. */
+void cleanup_nssm_service(nssm_service_t *service) {
+  if (! service) return;
+  if (service->env) HeapFree(GetProcessHeap(), 0, service->env);
+  if (service->handle) CloseServiceHandle(service->handle);
+  if (service->process_handle) CloseHandle(service->process_handle);
+  if (service->wait_handle) UnregisterWait(service->process_handle);
+  if (service->throttle_section_initialised) DeleteCriticalSection(&service->throttle_section);
+  if (service->throttle_timer) CloseHandle(service->throttle_timer);
+  HeapFree(GetProcessHeap(), 0, service);
+}
+
 /* About to install the service */
 int pre_install_service(int argc, char **argv) {
   /* Show the dialogue box if we didn't give the service name and path */
   if (argc < 2) return nssm_gui(IDD_INSTALL, argv[0]);
 
+  nssm_service_t *service = alloc_nssm_service();
+  if (! service) {
+    print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, "service", "pre_install_service()");
+    return 1;
+  }
+
+  memmove(service->name, argv[0], strlen(argv[0]));
+  memmove(service->exe, argv[1], strlen(argv[1]));
+
   /* Arguments are optional */
-  char *flags;
   size_t flagslen = 0;
   size_t s = 0;
-  int i;
+  size_t i;
   for (i = 2; i < argc; i++) flagslen += strlen(argv[i]) + 1;
   if (! flagslen) flagslen = 1;
-
-  flags = (char *) HeapAlloc(GetProcessHeap(), 0, flagslen);
-  if (! flags) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "flags", "pre_install_service()", 0);
-    return 2;
-  }
-  ZeroMemory(flags, flagslen);
 
   /*
     This probably isn't UTF8-safe and should use std::string or something
@@ -84,29 +81,46 @@ int pre_install_service(int argc, char **argv) {
   */
   for (i = 2; i < argc; i++) {
     size_t len = strlen(argv[i]);
-    memmove(flags + s, argv[i], len);
+    memmove(service->flags + s, argv[i], len);
     s += len;
-    if (i < argc - 1) flags[s++] = ' ';
+    if (i < argc - 1) service->flags[s++] = ' ';
   }
 
-  return install_service(argv[0], argv[1], flags);
+  /* Work out directory name */
+  size_t len = strlen(service->exe);
+  for (i = len; i && service->exe[i] != '\\' && service->exe[i] != '/'; i--);
+  memmove(service->dir, service->exe, i);
+  service->dir[i] = '\0';
+
+  int ret = install_service(service);
+  cleanup_nssm_service(service);
+  return ret;
 }
 
 /* About to remove the service */
 int pre_remove_service(int argc, char **argv) {
   /* Show dialogue box if we didn't pass service name and "confirm" */
   if (argc < 2) return nssm_gui(IDD_REMOVE, argv[0]);
-  if (str_equiv(argv[1], "confirm")) return remove_service(argv[0]);
+  if (str_equiv(argv[1], "confirm")) {
+    nssm_service_t *service = alloc_nssm_service();
+    memmove(service->name, argv[0], strlen(argv[0]));
+    int ret = remove_service(service);
+    cleanup_nssm_service(service);
+    return ret;
+  }
   print_message(stderr, NSSM_MESSAGE_PRE_REMOVE_SERVICE);
   return 100;
 }
 
 /* Install the service */
-int install_service(char *name, char *exe, char *flags) {
+int install_service(nssm_service_t *service) {
+  if (! service) return 1;
+
   /* Open service manager */
   SC_HANDLE services = open_service_manager();
   if (! services) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+    cleanup_nssm_service(service);
     return 2;
   }
 
@@ -126,42 +140,36 @@ int install_service(char *name, char *exe, char *flags) {
     return 4;
   }
 
-  /* Work out directory name */
-  size_t len = strlen(exe);
-  size_t i;
-  for (i = len; i && exe[i] != '\\' && exe[i] != '/'; i--);
-  char dir[MAX_PATH];
-  memmove(dir, exe, i);
-  dir[i] = '\0';
-
   /* Create the service */
-  SC_HANDLE service = CreateService(services, name, name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
-  if (! service) {
+  service->handle = CreateService(services, service->name, service->name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
+  if (! service->handle) {
     print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
     CloseServiceHandle(services);
     return 5;
   }
 
   /* Now we need to put the parameters into the registry */
-  if (create_parameters(name, exe, flags, dir)) {
+  if (create_parameters(service)) {
     print_message(stderr, NSSM_MESSAGE_CREATE_PARAMETERS_FAILED);
-    DeleteService(service);
+    DeleteService(service->handle);
     CloseServiceHandle(services);
     return 6;
   }
 
-  set_service_recovery(service, name);
+  set_service_recovery(service);
+
+  print_message(stdout, NSSM_MESSAGE_SERVICE_INSTALLED, service->name);
 
   /* Cleanup */
-  CloseServiceHandle(service);
   CloseServiceHandle(services);
 
-  print_message(stdout, NSSM_MESSAGE_SERVICE_INSTALLED, name);
   return 0;
 }
 
 /* Remove the service */
-int remove_service(char *name) {
+int remove_service(nssm_service_t *service) {
+  if (! service) return 1;
+
   /* Open service manager */
   SC_HANDLE services = open_service_manager();
   if (! services) {
@@ -170,33 +178,34 @@ int remove_service(char *name) {
   }
 
   /* Try to open the service */
-  SC_HANDLE service = OpenService(services, name, SC_MANAGER_ALL_ACCESS);
-  if (! service) {
+  service->handle = OpenService(services, service->name, SC_MANAGER_ALL_ACCESS);
+  if (! service->handle) {
     print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
     CloseServiceHandle(services);
     return 3;
   }
 
   /* Try to delete the service */
-  if (! DeleteService(service)) {
+  if (! DeleteService(service->handle)) {
     print_message(stderr, NSSM_MESSAGE_DELETESERVICE_FAILED);
-    CloseServiceHandle(service);
     CloseServiceHandle(services);
     return 4;
   }
 
   /* Cleanup */
-  CloseServiceHandle(service);
   CloseServiceHandle(services);
 
-  print_message(stdout, NSSM_MESSAGE_SERVICE_REMOVED, name);
+  print_message(stdout, NSSM_MESSAGE_SERVICE_REMOVED, service->name);
   return 0;
 }
 
 /* Service initialisation */
 void WINAPI service_main(unsigned long argc, char **argv) {
-  if (_snprintf_s(service_name, sizeof(service_name), _TRUNCATE, "%s", argv[0]) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "service_name", "service_main()", 0);
+  nssm_service_t *service = alloc_nssm_service();
+  if (! service) return;
+
+  if (_snprintf_s(service->name, sizeof(service->name), _TRUNCATE, "%s", argv[0]) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "service->name", "service_main()", 0);
     return;
   }
 
@@ -205,95 +214,88 @@ void WINAPI service_main(unsigned long argc, char **argv) {
   else use_critical_section = false;
 
   /* Initialise status */
-  ZeroMemory(&service_status, sizeof(service_status));
-  service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
-  service_status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE;
-  service_status.dwWin32ExitCode = NO_ERROR;
-  service_status.dwServiceSpecificExitCode = 0;
-  service_status.dwCheckPoint = 0;
-  service_status.dwWaitHint = NSSM_WAITHINT_MARGIN;
+  ZeroMemory(&service->status, sizeof(service->status));
+  service->status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
+  service->status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE;
+  service->status.dwWin32ExitCode = NO_ERROR;
+  service->status.dwServiceSpecificExitCode = 0;
+  service->status.dwCheckPoint = 0;
+  service->status.dwWaitHint = NSSM_WAITHINT_MARGIN;
 
   /* Signal we AREN'T running the server */
-  process_handle = 0;
-  pid = 0;
+  service->process_handle = 0;
+  service->pid = 0;
 
   /* Register control handler */
-  service_handle = RegisterServiceCtrlHandlerEx(NSSM, service_control_handler, 0);
-  if (! service_handle) {
+  service->status_handle = RegisterServiceCtrlHandlerEx(NSSM, service_control_handler, (void *) service);
+  if (! service->status_handle) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_REGISTERSERVICECTRLHANDER_FAILED, error_string(GetLastError()), 0);
     return;
   }
 
-  log_service_control(service_name, 0, true);
+  log_service_control(service->name, 0, true);
 
-  service_status.dwCurrentState = SERVICE_START_PENDING;
-  service_status.dwWaitHint = throttle_delay + NSSM_WAITHINT_MARGIN;
-  SetServiceStatus(service_handle, &service_status);
+  service->status.dwCurrentState = SERVICE_START_PENDING;
+  service->status.dwWaitHint = service->throttle_delay + NSSM_WAITHINT_MARGIN;
+  SetServiceStatus(service->status_handle, &service->status);
 
   if (is_admin) {
     /* Try to create the exit action parameters; we don't care if it fails */
-    create_exit_action(argv[0], exit_action_strings[0]);
+    create_exit_action(service->name, exit_action_strings[0]);
 
-    set_service_recovery(0, service_name);
-  }
-
-  /* Used for signalling a resume if the service pauses when throttled. */
-  if (use_critical_section) InitializeCriticalSection(&throttle_section);
-  else {
-    throttle_timer = CreateWaitableTimer(0, 1, 0);
-    if (! throttle_timer) {
-      log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_CREATEWAITABLETIMER_FAILED, service_name, error_string(GetLastError()), 0);
+    SC_HANDLE services = open_service_manager();
+    if (services) {
+      service->handle = OpenService(services, service->name, SC_MANAGER_ALL_ACCESS);
+      set_service_recovery(service);
+      CloseServiceHandle(services);
     }
   }
 
-  monitor_service();
+  /* Used for signalling a resume if the service pauses when throttled. */
+  if (use_critical_section) {
+    InitializeCriticalSection(&service->throttle_section);
+    service->throttle_section_initialised = true;
+  }
+  else {
+    service->throttle_timer = CreateWaitableTimer(0, 1, 0);
+    if (! service->throttle_timer) {
+      log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_CREATEWAITABLETIMER_FAILED, service->name, error_string(GetLastError()), 0);
+    }
+  }
+
+  monitor_service(service);
 }
 
 /* Make sure service recovery actions are taken where necessary */
-void set_service_recovery(SC_HANDLE service, char *service_name) {
-  SC_HANDLE services = 0;
-
-  if (! service) {
-    services = open_service_manager();
-    if (! services) return;
-
-    service = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
-    if (! service) return;
-  }
-
+void set_service_recovery(nssm_service_t *service) {
   SERVICE_FAILURE_ACTIONS_FLAG flag;
   ZeroMemory(&flag, sizeof(flag));
   flag.fFailureActionsOnNonCrashFailures = true;
 
   /* This functionality was added in Vista so the call may fail */
-  if (! ChangeServiceConfig2(service, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, &flag)) {
+  if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, &flag)) {
     unsigned long error = GetLastError();
     /* Pre-Vista we expect to fail with ERROR_INVALID_LEVEL */
     if (error != ERROR_INVALID_LEVEL) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CHANGESERVICECONFIG2_FAILED, service_name, error_string(error), 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CHANGESERVICECONFIG2_FAILED, service->name, error_string(error), 0);
     }
-  }
-
-  if (services) {
-    CloseServiceHandle(service);
-    CloseServiceHandle(services);
   }
 }
 
-int monitor_service() {
+int monitor_service(nssm_service_t *service) {
   /* Set service status to started */
-  int ret = start_service();
+  int ret = start_service(service);
   if (ret) {
     char code[16];
     _snprintf_s(code, sizeof(code), _TRUNCATE, "%d", ret);
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_START_SERVICE_FAILED, exe, service_name, ret, 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_START_SERVICE_FAILED, service->exe, service->name, ret, 0);
     return ret;
   }
-  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_STARTED_SERVICE, exe, flags, service_name, dir, 0);
+  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_STARTED_SERVICE, service->exe, service->flags, service->name, service->dir, 0);
 
   /* Monitor service */
-  if (! RegisterWaitForSingleObject(&wait_handle, process_handle, end_service, (void *) pid, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_REGISTERWAITFORSINGLEOBJECT_FAILED, service_name, exe, error_string(GetLastError()), 0);
+  if (! RegisterWaitForSingleObject(&service->wait_handle, service->process_handle, end_service, (void *) service, INFINITE, WT_EXECUTEONLYONCE | WT_EXECUTELONGFUNCTION)) {
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_REGISTERWAITFORSINGLEOBJECT_FAILED, service->name, service->exe, error_string(GetLastError()), 0);
   }
 
   return 0;
@@ -343,6 +345,8 @@ void log_service_control(char *service_name, unsigned long control, bool handled
 
 /* Service control handler */
 unsigned long WINAPI service_control_handler(unsigned long control, unsigned long event, void *data, void *context) {
+  nssm_service_t *service = (nssm_service_t *) context;
+
   switch (control) {
     case SERVICE_CONTROL_INTERROGATE:
       /* We always keep the service status up-to-date so this is a no-op. */
@@ -350,40 +354,40 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
 
     case SERVICE_CONTROL_SHUTDOWN:
     case SERVICE_CONTROL_STOP:
-      log_service_control(service_name, control, true);
+      log_service_control(service->name, control, true);
       /*
         We MUST acknowledge the stop request promptly but we're committed to
         waiting for the application to exit.  Spawn a new thread to wait
         while we acknowledge the request.
       */
-      if (! CreateThread(NULL, 0, shutdown_service, (void *) service_name, 0, NULL)) {
+      if (! CreateThread(NULL, 0, shutdown_service, context, 0, NULL)) {
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETHREAD_FAILED, error_string(GetLastError()), 0);
 
         /*
           We couldn't create a thread to tidy up so we'll have to force the tidyup
           to complete in time in this thread.
         */
-        kill_console_delay = NSSM_KILL_CONSOLE_GRACE_PERIOD;
-        kill_window_delay = NSSM_KILL_WINDOW_GRACE_PERIOD;
-        kill_threads_delay = NSSM_KILL_THREADS_GRACE_PERIOD;
+        service->kill_console_delay = NSSM_KILL_CONSOLE_GRACE_PERIOD;
+        service->kill_window_delay = NSSM_KILL_WINDOW_GRACE_PERIOD;
+        service->kill_threads_delay = NSSM_KILL_THREADS_GRACE_PERIOD;
 
-        stop_service(0, true, true);
+        stop_service(service, 0, true, true);
       }
       return NO_ERROR;
 
     case SERVICE_CONTROL_CONTINUE:
-      log_service_control(service_name, control, true);
-      throttle = 0;
-      if (use_critical_section) imports.WakeConditionVariable(&throttle_condition);
+      log_service_control(service->name, control, true);
+      service->throttle = 0;
+      if (use_critical_section) imports.WakeConditionVariable(&service->throttle_condition);
       else {
-        if (! throttle_timer) return ERROR_CALL_NOT_IMPLEMENTED;
-        ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
-        SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
+        if (! service->throttle_timer) return ERROR_CALL_NOT_IMPLEMENTED;
+        ZeroMemory(&service->throttle_duetime, sizeof(service->throttle_duetime));
+        SetWaitableTimer(service->throttle_timer, &service->throttle_duetime, 0, 0, 0, 0);
       }
-      service_status.dwCurrentState = SERVICE_CONTINUE_PENDING;
-      service_status.dwWaitHint = throttle_milliseconds() + NSSM_WAITHINT_MARGIN;
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_RESET_THROTTLE, service_name, 0);
-      SetServiceStatus(service_handle, &service_status);
+      service->status.dwCurrentState = SERVICE_CONTINUE_PENDING;
+      service->status.dwWaitHint = throttle_milliseconds(service->throttle) + NSSM_WAITHINT_MARGIN;
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_RESET_THROTTLE, service->name, 0);
+      SetServiceStatus(service->status_handle, &service->status);
       return NO_ERROR;
 
     case SERVICE_CONTROL_PAUSE:
@@ -391,21 +395,21 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
         We don't accept pause messages but it isn't possible to register
         only for continue messages so we have to handle this case.
       */
-      log_service_control(service_name, control, false);
+      log_service_control(service->name, control, false);
       return ERROR_CALL_NOT_IMPLEMENTED;
   }
 
   /* Unknown control */
-  log_service_control(service_name, control, false);
+  log_service_control(service->name, control, false);
   return ERROR_CALL_NOT_IMPLEMENTED;
 }
 
 /* Start the service */
-int start_service() {
-  stopping = false;
-  allow_restart = true;
+int start_service(nssm_service_t *service) {
+  service->stopping = false;
+  service->allow_restart = true;
 
-  if (process_handle) return 0;
+  if (service->process_handle) return 0;
 
   /* Allocate a STARTUPINFO structure for a new process */
   STARTUPINFO si;
@@ -417,36 +421,35 @@ int start_service() {
   ZeroMemory(&pi, sizeof(pi));
 
   /* Get startup parameters */
-  char *env = 0;
-  int ret = get_parameters(service_name, exe, sizeof(exe), flags, sizeof(flags), dir, sizeof(dir), &env, &throttle_delay, &stop_method, &kill_console_delay, &kill_window_delay, &kill_threads_delay, &si);
+  int ret = get_parameters(service, &si);
   if (ret) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service_name, 0);
-    return stop_service(2, true, true);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service->name, 0);
+    return stop_service(service, 2, true, true);
   }
 
   /* Launch executable with arguments */
   char cmd[CMD_LENGTH];
-  if (_snprintf_s(cmd, sizeof(cmd), _TRUNCATE, "\"%s\" %s", exe, flags) < 0) {
+  if (_snprintf_s(cmd, sizeof(cmd), _TRUNCATE, "\"%s\" %s", service->exe, service->flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
     close_output_handles(&si);
-    return stop_service(2, true, true);
+    return stop_service(service, 2, true, true);
   }
 
-  throttle_restart();
+  throttle_restart(service);
 
   bool inherit_handles = false;
   if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
-  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, 0, env, dir, &si, &pi)) {
+  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, 0, service->env, service->dir, &si, &pi)) {
     unsigned long error = GetLastError();
-    if (error == ERROR_INVALID_PARAMETER && env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service_name, exe, NSSM_REG_ENV, 0);
-    else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service_name, exe, error_string(error), 0);
+    if (error == ERROR_INVALID_PARAMETER && service->env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service->name, service->exe, NSSM_REG_ENV, 0);
+    else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
     close_output_handles(&si);
-    return stop_service(3, true, true);
+    return stop_service(service, 3, true, true);
   }
-  process_handle = pi.hProcess;
-  pid = pi.dwProcessId;
+  service->process_handle = pi.hProcess;
+  service->pid = pi.dwProcessId;
 
-  if (get_process_creation_time(process_handle, &creation_time)) ZeroMemory(&creation_time, sizeof(creation_time));
+  if (get_process_creation_time(service->process_handle, &service->creation_time)) ZeroMemory(&service->creation_time, sizeof(service->creation_time));
 
   close_output_handles(&si);
 
@@ -455,71 +458,74 @@ int start_service() {
     but be mindful of the fact that we are blocking the service control manager
     so abandon the wait before too much time has elapsed.
   */
-  unsigned long delay = throttle_delay;
+  unsigned long delay = service->throttle_delay;
   if (delay > NSSM_SERVICE_STATUS_DEADLINE) {
     char delay_milliseconds[16];
     _snprintf_s(delay_milliseconds, sizeof(delay_milliseconds), _TRUNCATE, "%lu", delay);
     char deadline_milliseconds[16];
     _snprintf_s(deadline_milliseconds, sizeof(deadline_milliseconds), _TRUNCATE, "%lu", NSSM_SERVICE_STATUS_DEADLINE);
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_STARTUP_DELAY_TOO_LONG, service_name, delay_milliseconds, NSSM, deadline_milliseconds, 0);
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_STARTUP_DELAY_TOO_LONG, service->name, delay_milliseconds, NSSM, deadline_milliseconds, 0);
     delay = NSSM_SERVICE_STATUS_DEADLINE;
   }
-  unsigned long deadline = WaitForSingleObject(process_handle, delay);
+  unsigned long deadline = WaitForSingleObject(service->process_handle, delay);
 
   /* Signal successful start */
-  service_status.dwCurrentState = SERVICE_RUNNING;
-  SetServiceStatus(service_handle, &service_status);
+  service->status.dwCurrentState = SERVICE_RUNNING;
+  SetServiceStatus(service->status_handle, &service->status);
 
   /* Continue waiting for a clean startup. */
   if (deadline == WAIT_TIMEOUT) {
-    if (throttle_delay > delay) {
-      if (WaitForSingleObject(process_handle, throttle_delay - delay) == WAIT_TIMEOUT) throttle = 0;
+    if (service->throttle_delay > delay) {
+      if (WaitForSingleObject(service->process_handle, service->throttle_delay - delay) == WAIT_TIMEOUT) service->throttle = 0;
     }
-    else throttle = 0;
+    else service->throttle = 0;
   }
 
   return 0;
 }
 
 /* Stop the service */
-int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
-  allow_restart = false;
-  if (wait_handle) UnregisterWait(wait_handle);
+int stop_service(nssm_service_t *service, unsigned long exitcode, bool graceful, bool default_action) {
+  service->allow_restart = false;
+  if (service->wait_handle) {
+    UnregisterWait(service->wait_handle);
+    service->wait_handle = 0;
+  }
 
   if (default_action && ! exitcode && ! graceful) {
-    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_GRACEFUL_SUICIDE, service_name, exe, exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_REALLY] ,0);
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_GRACEFUL_SUICIDE, service->name, service->exe, exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_REALLY] ,0);
     graceful = true;
   }
 
   /* Signal we are stopping */
   if (graceful) {
-    service_status.dwCurrentState = SERVICE_STOP_PENDING;
-    service_status.dwWaitHint = NSSM_WAITHINT_MARGIN;
-    SetServiceStatus(service_handle, &service_status);
+    service->status.dwCurrentState = SERVICE_STOP_PENDING;
+    service->status.dwWaitHint = NSSM_WAITHINT_MARGIN;
+    SetServiceStatus(service->status_handle, &service->status);
   }
 
   /* Nothing to do if service isn't running */
-  if (pid) {
+  if (service->pid) {
     /* Shut down service */
-    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service_name, exe, 0);
-    kill_process(service_name, service_handle, &service_status, stop_method, process_handle, pid, 0);
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service->name, service->exe, 0);
+    kill_process(service, service->process_handle, service->pid, 0);
   }
-  else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service_name, exe, 0);
+  else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service->name, service->exe, 0);
 
-  end_service((void *) pid, true);
+  end_service((void *) service, true);
 
   /* Signal we stopped */
   if (graceful) {
-    service_status.dwCurrentState = SERVICE_STOPPED;
+    service->status.dwCurrentState = SERVICE_STOPPED;
     if (exitcode) {
-      service_status.dwWin32ExitCode = ERROR_SERVICE_SPECIFIC_ERROR;
-      service_status.dwServiceSpecificExitCode = exitcode;
+      service->status.dwWin32ExitCode = ERROR_SERVICE_SPECIFIC_ERROR;
+      service->status.dwServiceSpecificExitCode = exitcode;
     }
     else {
-      service_status.dwWin32ExitCode = NO_ERROR;
-      service_status.dwServiceSpecificExitCode = 0;
+      service->status.dwWin32ExitCode = NO_ERROR;
+      service->status.dwServiceSpecificExitCode = 0;
     }
-    SetServiceStatus(service_handle, &service_status);
+    SetServiceStatus(service->status_handle, &service->status);
   }
 
   return exitcode;
@@ -527,19 +533,21 @@ int stop_service(unsigned long exitcode, bool graceful, bool default_action) {
 
 /* Callback function triggered when the server exits */
 void CALLBACK end_service(void *arg, unsigned char why) {
-  if (stopping) return;
+  nssm_service_t *service = (nssm_service_t *) arg;
 
-  stopping = true;
+  if (service->stopping) return;
 
-  pid = (unsigned long) arg;
+  service->stopping = true;
 
   /* Check exit code */
   unsigned long exitcode = 0;
   char code[16];
-  FILETIME exit_time;
-  GetExitCodeProcess(process_handle, &exitcode);
-  if (exitcode == STILL_ACTIVE || get_process_exit_time(process_handle, &exit_time)) GetSystemTimeAsFileTime(&exit_time);
-  CloseHandle(process_handle);
+  GetExitCodeProcess(service->process_handle, &exitcode);
+  if (exitcode == STILL_ACTIVE || get_process_exit_time(service->process_handle, &service->exit_time)) GetSystemTimeAsFileTime(&service->exit_time);
+  CloseHandle(service->process_handle);
+
+  service->process_handle = 0;
+  service->pid = 0;
 
   /*
     Log that the service ended BEFORE logging about killing the process
@@ -547,12 +555,12 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   */
   if (! why) {
     _snprintf_s(code, sizeof(code), _TRUNCATE, "%lu", exitcode);
-    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, exe, service_name, code, 0);
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, service->exe, service->name, code, 0);
   }
 
   /* Clean up. */
   if (exitcode == STILL_ACTIVE) exitcode = 0;
-  kill_process_tree(service_name, service_handle, &service_status, stop_method, pid, exitcode, pid, &creation_time, &exit_time);
+  kill_process_tree(service, service->pid, exitcode, service->pid);
 
   /*
     The why argument is true if our wait timed out or false otherwise.
@@ -561,13 +569,13 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     this is a controlled shutdown, and don't take any restart action.
   */
   if (why) return;
-  if (! allow_restart) return;
+  if (! service->allow_restart) return;
 
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
   unsigned char action_string[ACTION_LEN];
   bool default_action;
-  if (! get_exit_action(service_name, &exitcode, action_string, &default_action)) {
+  if (! get_exit_action(service->name, &exitcode, action_string, &default_action)) {
     for (int i = 0; exit_action_strings[i]; i++) {
       if (! _strnicmp((const char *) action_string, exit_action_strings[i], ACTION_LEN)) {
         action = i;
@@ -576,69 +584,67 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     }
   }
 
-  process_handle = 0;
-  pid = 0;
   switch (action) {
     /* Try to restart the service or return failure code to service manager */
     case NSSM_EXIT_RESTART:
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_RESTART, service_name, code, exit_action_strings[action], exe, 0);
-      while (monitor_service()) {
-        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_RESTART_SERVICE_FAILED, exe, service_name, 0);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_RESTART, service->name, code, exit_action_strings[action], service->exe, 0);
+      while (monitor_service(service)) {
+        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_RESTART_SERVICE_FAILED, service->exe, service->name, 0);
         Sleep(30000);
       }
     break;
 
     /* Do nothing, just like srvany would */
     case NSSM_EXIT_IGNORE:
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_IGNORE, service_name, code, exit_action_strings[action], exe, 0);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_IGNORE, service->name, code, exit_action_strings[action], service->exe, 0);
       Sleep(INFINITE);
     break;
 
     /* Tell the service manager we are finished */
     case NSSM_EXIT_REALLY:
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_REALLY, service_name, code, exit_action_strings[action], 0);
-      stop_service(exitcode, true, default_action);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_REALLY, service->name, code, exit_action_strings[action], 0);
+      stop_service(service, exitcode, true, default_action);
     break;
 
     /* Fake a crash so pre-Vista service managers will run recovery actions. */
     case NSSM_EXIT_UNCLEAN:
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service_name, code, exit_action_strings[action], 0);
-      stop_service(exitcode, false, default_action);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service->name, code, exit_action_strings[action], 0);
+      stop_service(service, exitcode, false, default_action);
       free_imports();
       exit(exitcode);
     break;
   }
 }
 
-void throttle_restart() {
+void throttle_restart(nssm_service_t *service) {
   /* This can't be a restart if the service is already running. */
-  if (! throttle++) return;
+  if (! service->throttle++) return;
 
-  int ms = throttle_milliseconds();
+  int ms = throttle_milliseconds(service->throttle);
 
-  if (throttle > 7) throttle = 8;
+  if (service->throttle > 7) service->throttle = 8;
 
   char threshold[8], milliseconds[8];
-  _snprintf_s(threshold, sizeof(threshold), _TRUNCATE, "%lu", throttle_delay);
+  _snprintf_s(threshold, sizeof(threshold), _TRUNCATE, "%lu", service->throttle_delay);
   _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%lu", ms);
-  log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service_name, threshold, milliseconds, 0);
+  log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service->name, threshold, milliseconds, 0);
 
-  if (use_critical_section) EnterCriticalSection(&throttle_section);
-  else if (throttle_timer) {
-    ZeroMemory(&throttle_duetime, sizeof(throttle_duetime));
-    throttle_duetime.QuadPart = 0 - (ms * 10000LL);
-    SetWaitableTimer(throttle_timer, &throttle_duetime, 0, 0, 0, 0);
+  if (use_critical_section) EnterCriticalSection(&service->throttle_section);
+  else if (service->throttle_timer) {
+    ZeroMemory(&service->throttle_duetime, sizeof(service->throttle_duetime));
+    service->throttle_duetime.QuadPart = 0 - (ms * 10000LL);
+    SetWaitableTimer(service->throttle_timer, &service->throttle_duetime, 0, 0, 0, 0);
   }
 
-  service_status.dwCurrentState = SERVICE_PAUSED;
-  SetServiceStatus(service_handle, &service_status);
+  service->status.dwCurrentState = SERVICE_PAUSED;
+  SetServiceStatus(service->status_handle, &service->status);
 
   if (use_critical_section) {
-    imports.SleepConditionVariableCS(&throttle_condition, &throttle_section, ms);
-    LeaveCriticalSection(&throttle_section);
+    imports.SleepConditionVariableCS(&service->throttle_condition, &service->throttle_section, ms);
+    LeaveCriticalSection(&service->throttle_section);
   }
   else {
-    if (throttle_timer) WaitForSingleObject(throttle_timer, INFINITE);
+    if (service->throttle_timer) WaitForSingleObject(service->throttle_timer, INFINITE);
     else Sleep(ms);
   }
 }
@@ -671,7 +677,7 @@ void throttle_restart() {
            0 if the wait completed.
           -1 on error.
 */
-int await_shutdown(char *function_name, char *service_name, SERVICE_STATUS_HANDLE service_handle, SERVICE_STATUS *service_status, HANDLE process_handle, unsigned long timeout) {
+int await_shutdown(nssm_service_t *service, char *function_name, unsigned long timeout) {
   unsigned long interval;
   unsigned long waithint;
   unsigned long ret;
@@ -690,24 +696,24 @@ int await_shutdown(char *function_name, char *service_name, SERVICE_STATUS_HANDL
 
   _snprintf_s(timeout_milliseconds, sizeof(timeout_milliseconds), _TRUNCATE, "%lu", timeout);
 
-  waithint = service_status->dwWaitHint;
+  waithint = service->status.dwWaitHint;
   waited = 0;
   while (waited < timeout) {
     interval = timeout - waited;
     if (interval > NSSM_SERVICE_STATUS_DEADLINE) interval = NSSM_SERVICE_STATUS_DEADLINE;
 
-    service_status->dwCurrentState = SERVICE_STOP_PENDING;
-    service_status->dwWaitHint += interval;
-    service_status->dwCheckPoint++;
-    SetServiceStatus(service_handle, service_status);
+    service->status.dwCurrentState = SERVICE_STOP_PENDING;
+    service->status.dwWaitHint += interval;
+    service->status.dwCheckPoint++;
+    SetServiceStatus(service->status_handle, &service->status);
 
     if (waited) {
       _snprintf_s(waited_milliseconds, sizeof(waited_milliseconds), _TRUNCATE, "%lu", waited);
       _snprintf_s(interval_milliseconds, sizeof(interval_milliseconds), _TRUNCATE, "%lu", interval);
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SHUTDOWN, function, service_name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, 0);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SHUTDOWN, function, service->name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, 0);
     }
 
-    switch (WaitForSingleObject(process_handle, interval)) {
+    switch (WaitForSingleObject(service->process_handle, interval)) {
       case WAIT_OBJECT_0:
         ret = 0;
         goto awaited;

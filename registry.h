@@ -21,7 +21,7 @@
 #define NSSM_STDIO_LENGTH 29
 
 int create_messages();
-int create_parameters(char *, char *, char *, char *);
+int create_parameters(nssm_service_t *);
 int create_exit_action(char *, const char *);
 int set_environment(char *, HKEY, char **);
 int expand_parameter(HKEY, char *, char *, unsigned long, bool, bool);
@@ -31,7 +31,7 @@ int set_number(HKEY, char *, unsigned long);
 int get_number(HKEY, char *, unsigned long *, bool);
 int get_number(HKEY, char *, unsigned long *);
 void override_milliseconds(char *, HKEY, char *, unsigned long *, unsigned long, unsigned long);
-int get_parameters(char *, char *, unsigned long, char *, unsigned long, char *, unsigned long, char **, unsigned long *, unsigned long *, unsigned long *, unsigned long *, unsigned long *, STARTUPINFO *);
+int get_parameters(nssm_service_t *, STARTUPINFO *);
 int get_exit_action(char *, unsigned long *, unsigned char *, bool *);
 
 #endif

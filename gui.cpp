@@ -72,56 +72,68 @@ void centre_window(HWND window) {
 int install(HWND window) {
   if (! window) return 1;
 
-  /* Check parameters in the window */
-  char name[VALUE_LENGTH];
-  char exe[EXE_LENGTH];
-  char flags[VALUE_LENGTH];
-
-  /* Get service name */
-  if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {
-    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
-    return 2;
-  }
-
-  /* Get executable name */
-  if (! GetDlgItemText(window, IDC_PATH, exe, sizeof(exe))) {
-    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
-    return 3;
-  }
-
-  /* Get flags */
-  if (SendMessage(GetDlgItem(window, IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
-    if (! GetDlgItemText(window, IDC_FLAGS, flags, sizeof(flags))) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
-      return 4;
+  nssm_service_t *service = alloc_nssm_service();
+  if (service) {
+    /* Get service name. */
+    if (! GetDlgItemText(window, IDC_NAME, service->name, sizeof(service->name))) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
+      cleanup_nssm_service(service);
+      return 2;
     }
-  }
-  else ZeroMemory(&flags, sizeof(flags));
 
-  /* See if it works */
-  switch (install_service(name, exe, flags)) {
+    /* Get executable name */
+    if (! GetDlgItemText(window, IDC_PATH, service->exe, sizeof(service->exe))) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
+      return 3;
+    }
+  
+    /* Get flags */
+    if (SendMessage(GetDlgItem(window, IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
+      if (! GetDlgItemText(window, IDC_FLAGS, service->flags, sizeof(service->flags))) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
+        return 4;
+      }
+    }
+
+    memmove(service->dir, service->exe, strlen(service->exe));
+    strip_basename(service->dir);
+  }
+
+  /* See if it works. */
+  switch (install_service(service)) {
+    case 1:
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "service", "install()");
+      cleanup_nssm_service(service);
+      return 1;
+
     case 2:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+      cleanup_nssm_service(service);
       return 2;
 
     case 3:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
+      cleanup_nssm_service(service);
       return 3;
 
     case 4:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
+      cleanup_nssm_service(service);
       return 4;
 
     case 5:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INSTALL_SERVICE_FAILED);
+      cleanup_nssm_service(service);
       return 5;
 
     case 6:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_CREATE_PARAMETERS_FAILED);
+      cleanup_nssm_service(service);
       return 6;
   }
 
-  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_INSTALLED, name);
+  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_INSTALLED, service->name);
+  cleanup_nssm_service(service);
   return 0;
 }
 
@@ -129,34 +141,47 @@ int install(HWND window) {
 int remove(HWND window) {
   if (! window) return 1;
 
-  /* Check parameters in the window */
-  char name[VALUE_LENGTH];
+  /* See if it works */
+  nssm_service_t *service = alloc_nssm_service();
+  if (service) {
+    /* Get service name */
+    if (! GetDlgItemText(window, IDC_NAME, service->name, sizeof(service->name))) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
+      cleanup_nssm_service(service);
+      return 2;
+    }
 
-  /* Get service name */
-  if (! GetDlgItemText(window, IDC_NAME, name, sizeof(name))) {
-    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
-    return 2;
+    /* Confirm */
+    if (popup_message(MB_YESNO, NSSM_GUI_ASK_REMOVE_SERVICE, service->name) != IDYES) {
+      cleanup_nssm_service(service);
+      return 0;
+    }
   }
 
-  /* Confirm */
-  if (popup_message(MB_YESNO, NSSM_GUI_ASK_REMOVE_SERVICE, name) != IDYES) return 0;
+  switch (remove_service(service)) {
+    case 1:
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "service", "remove()");
+      cleanup_nssm_service(service);
+      return 1;
 
-  /* See if it works */
-  switch (remove_service(name)) {
     case 2:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+      cleanup_nssm_service(service);
       return 2;
 
     case 3:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_SERVICE_NOT_INSTALLED);
       return 3;
+      cleanup_nssm_service(service);
 
     case 4:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_REMOVE_SERVICE_FAILED);
+      cleanup_nssm_service(service);
       return 4;
   }
 
-  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_REMOVED, name);
+  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_REMOVED, service->name);
+  cleanup_nssm_service(service);
   return 0;
 }
 

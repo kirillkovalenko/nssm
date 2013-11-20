@@ -26,10 +26,10 @@ int create_messages() {
   return 0;
 }
 
-int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
+int create_parameters(nssm_service_t *service) {
   /* Get registry */
   char registry[KEY_LENGTH];
-  if (_snprintf_s(registry, sizeof(registry), _TRUNCATE, NSSM_REGISTRY, service_name) < 0) {
+  if (_snprintf_s(registry, sizeof(registry), _TRUNCATE, NSSM_REGISTRY, service->name) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REGISTRY", "create_parameters()", 0);
     return 1;
   }
@@ -42,19 +42,19 @@ int create_parameters(char *service_name, char *exe, char *flags, char *dir) {
   }
 
   /* Try to create the parameters */
-  if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_EXPAND_SZ, (const unsigned char *) exe, (unsigned long) strlen(exe) + 1) != ERROR_SUCCESS) {
+  if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_EXPAND_SZ, (const unsigned char *) service->exe, (unsigned long) strlen(service->exe) + 1) != ERROR_SUCCESS) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXE, error_string(GetLastError()), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 3;
   }
-  if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_EXPAND_SZ, (const unsigned char *) flags, (unsigned long) strlen(flags) + 1) != ERROR_SUCCESS) {
+  if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_EXPAND_SZ, (const unsigned char *) service->flags, (unsigned long) strlen(service->flags) + 1) != ERROR_SUCCESS) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_FLAGS, error_string(GetLastError()), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 4;
   }
-  if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_EXPAND_SZ, (const unsigned char *) dir, (unsigned long) strlen(dir) + 1) != ERROR_SUCCESS) {
+  if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_EXPAND_SZ, (const unsigned char *) service->dir, (unsigned long) strlen(service->dir) + 1) != ERROR_SUCCESS) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_DIR, error_string(GetLastError()), 0);
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
@@ -122,6 +122,9 @@ int set_environment(char *service_name, HKEY key, char **env) {
 
   /* Probably not possible */
   if (! envlen) return 0;
+
+  /* Previously initialised? */
+  if (*env) HeapFree(GetProcessHeap(), 0, *env);
 
   *env = (char *) HeapAlloc(GetProcessHeap(), 0, envlen);
   if (! *env) {
@@ -261,12 +264,12 @@ void override_milliseconds(char *service_name, HKEY key, char *value, unsigned l
   if (! ok) *buffer = default_value;
 }
 
-int get_parameters(char *service_name, char *exe, unsigned long exelen, char *flags, unsigned long flagslen, char *dir, unsigned long dirlen, char **env, unsigned long *throttle_delay, unsigned long *stop_method, unsigned long *kill_console_delay, unsigned long *kill_window_delay, unsigned long *kill_threads_delay, STARTUPINFO *si) {
+int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   unsigned long ret;
 
   /* Get registry */
   char registry[KEY_LENGTH];
-  if (_snprintf_s(registry, sizeof(registry), _TRUNCATE, NSSM_REGISTRY, service_name) < 0) {
+  if (_snprintf_s(registry, sizeof(registry), _TRUNCATE, NSSM_REGISTRY, service->name) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "NSSM_REGISTRY", "get_parameters()", 0);
     return 1;
   }
@@ -279,50 +282,50 @@ int get_parameters(char *service_name, char *exe, unsigned long exelen, char *fl
   }
 
   /* Try to get executable file - MUST succeed */
-  if (expand_parameter(key, NSSM_REG_EXE, exe, exelen, false)) {
+  if (expand_parameter(key, NSSM_REG_EXE, service->exe, sizeof(service->exe), false)) {
     RegCloseKey(key);
     return 3;
   }
 
   /* Try to get flags - may fail and we don't care */
-  if (expand_parameter(key, NSSM_REG_FLAGS, flags, flagslen, false)) {
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_FLAGS, NSSM_REG_FLAGS, service_name, exe, 0);
-    ZeroMemory(flags, flagslen);
+  if (expand_parameter(key, NSSM_REG_FLAGS, service->flags, sizeof(service->flags), false)) {
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_FLAGS, NSSM_REG_FLAGS, service->name, service->exe, 0);
+    ZeroMemory(service->flags, sizeof(service->flags));
   }
 
   /* Try to get startup directory - may fail and we fall back to a default */
-  if (expand_parameter(key, NSSM_REG_DIR, dir, dirlen, true) || ! dir[0]) {
+  if (expand_parameter(key, NSSM_REG_DIR, service->dir, sizeof(service->dir), true) || ! service->dir[0]) {
     /* Our buffers are defined to be long enough for this to be safe */
     size_t i;
-    for (i = strlen(exe); i && exe[i] != '\\' && exe[i] != '/'; i--);
+    for (i = strlen(service->exe); i && service->exe[i] != '\\' && service->exe[i] != '/'; i--);
     if (i) {
-      memmove(dir, exe, i);
-      dir[i] = '\0';
+      memmove(service->dir, service->exe, i);
+      service->dir[i] = '\0';
     }
     else {
       /* Help! */
-      ret = GetWindowsDirectory(dir, dirlen);
-      if (! ret || ret > dirlen) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_NO_DIR_AND_NO_FALLBACK, NSSM_REG_DIR, service_name, 0);
+      ret = GetWindowsDirectory(service->dir, sizeof(service->dir));
+      if (! ret || ret > sizeof(service->dir)) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_NO_DIR_AND_NO_FALLBACK, NSSM_REG_DIR, service->name, 0);
         RegCloseKey(key);
         return 4;
       }
     }
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_DIR, NSSM_REG_DIR, service_name, dir, 0);
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_DIR, NSSM_REG_DIR, service->name, service->dir, 0);
   }
 
   /* Try to get environment variables - may fail */
-  set_environment(service_name, key, env);
+  set_environment(service->name, key, &service->env);
 
   /* Try to get stdout and stderr */
   if (get_output_handles(key, si)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service_name, 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
     RegCloseKey(key);
     return 5;
   }
 
   /* Try to get throttle restart delay */
-  override_milliseconds(service_name, key, NSSM_REG_THROTTLE, throttle_delay, NSSM_RESET_THROTTLE_RESTART, NSSM_EVENT_BOGUS_THROTTLE);
+  override_milliseconds(service->name, key, NSSM_REG_THROTTLE, &service->throttle_delay, NSSM_RESET_THROTTLE_RESTART, NSSM_EVENT_BOGUS_THROTTLE);
 
   /* Try to get service stop flags. */
   unsigned long type = REG_DWORD;
@@ -333,7 +336,7 @@ int get_parameters(char *service_name, char *exe, unsigned long exelen, char *fl
   if (ret != ERROR_SUCCESS) {
     if (ret != ERROR_FILE_NOT_FOUND) {
       if (type != REG_DWORD) {
-        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_STOP_METHOD_SKIP, service_name, NSSM_REG_STOP_METHOD_SKIP, NSSM, 0);
+        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_STOP_METHOD_SKIP, service->name, NSSM_REG_STOP_METHOD_SKIP, NSSM, 0);
       }
       else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_STOP_METHOD_SKIP, error_string(GetLastError()), 0);
     }
@@ -341,13 +344,13 @@ int get_parameters(char *service_name, char *exe, unsigned long exelen, char *fl
   else stop_ok = true;
 
   /* Try all methods except those requested to be skipped. */
-  *stop_method = ~0;
-  if (stop_ok) *stop_method &= ~stop_method_skip;
+  service->stop_method = ~0;
+  if (stop_ok) service->stop_method &= ~stop_method_skip;
 
   /* Try to get kill delays - may fail. */
-  override_milliseconds(service_name, key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, kill_console_delay, NSSM_KILL_CONSOLE_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_CONSOLE_GRACE_PERIOD);
-  override_milliseconds(service_name, key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, kill_window_delay, NSSM_KILL_WINDOW_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_WINDOW_GRACE_PERIOD);
-  override_milliseconds(service_name, key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, kill_threads_delay, NSSM_KILL_THREADS_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_THREADS_GRACE_PERIOD);
+  override_milliseconds(service->name, key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, &service->kill_console_delay, NSSM_KILL_CONSOLE_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_CONSOLE_GRACE_PERIOD);
+  override_milliseconds(service->name, key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, &service->kill_window_delay, NSSM_KILL_WINDOW_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_WINDOW_GRACE_PERIOD);
+  override_milliseconds(service->name, key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, &service->kill_threads_delay, NSSM_KILL_THREADS_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_THREADS_GRACE_PERIOD);
 
   /* Close registry */
   RegCloseKey(key);
