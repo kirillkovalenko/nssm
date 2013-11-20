@@ -26,6 +26,8 @@ int create_exit_action(char *, const char *);
 int set_environment(char *, HKEY, char **);
 int expand_parameter(HKEY, char *, char *, unsigned long, bool, bool);
 int expand_parameter(HKEY, char *, char *, unsigned long, bool);
+int set_expand_string(HKEY, char *, char *);
+int set_number(HKEY, char *, unsigned long);
 int get_number(HKEY, char *, unsigned long *, bool);
 int get_number(HKEY, char *, unsigned long *);
 void override_milliseconds(char *, HKEY, char *, unsigned long *, unsigned long, unsigned long);

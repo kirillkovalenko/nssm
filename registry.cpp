@@ -192,6 +192,28 @@ int expand_parameter(HKEY key, char *value, char *data, unsigned long datalen, b
 }
 
 /*
+  Sets a string in the registry.
+  Returns: 0 if it was set.
+           1 on error.
+*/
+int set_expand_string(HKEY key, char *value, char *string) {
+  if (RegSetValueEx(key, value, 0, REG_EXPAND_SZ, (const unsigned char *) string, (unsigned long) strlen(string) + 1) == ERROR_SUCCESS) return 0;
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, value, error_string(GetLastError()), 0);
+  return 1;
+}
+
+/*
+  Set an unsigned long in the registry.
+  Returns: 0 if it was set.
+           1 on error.
+*/
+int set_number(HKEY key, char *value, unsigned long number) {
+  if (RegSetValueEx(key, value, 0, REG_DWORD, (const unsigned char *) &number, sizeof(number)) == ERROR_SUCCESS) return 0;
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, value, error_string(GetLastError()), 0);
+  return 1;
+}
+
+/*
   Query an unsigned long from the registry.
   Returns:  1 if a number was retrieved.
             0 if none was found and must_exist is false.
