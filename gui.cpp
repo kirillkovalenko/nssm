@@ -1,5 +1,14 @@
 #include "nssm.h"
 
+static void strip_basename(char *buffer) {
+  size_t len = strlen(buffer);
+  size_t i;
+  for (i = len; i && buffer[i] != '\\' && buffer[i] != '/'; i--);
+  /* X:\ is OK. */
+  if (i && buffer[i-1] == ':') i++;
+  buffer[i] = '\0';
+}
+
 int nssm_gui(int resource, char *name) {
   /* Create window */
   HWND dlg = CreateDialog(0, MAKEINTRESOURCE(resource), 0, install_dlg);
