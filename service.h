@@ -22,6 +22,10 @@ typedef struct {
   char flags[VALUE_LENGTH];
   char dir[MAX_PATH];
   char *env;
+  char stdin_path[MAX_PATH];
+  char stdout_path[MAX_PATH];
+  char stderr_path[MAX_PATH];
+  unsigned long default_exit_action;
   unsigned long throttle_delay;
   unsigned long stop_method;
   unsigned long kill_console_delay;

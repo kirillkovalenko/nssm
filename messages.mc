@@ -382,19 +382,6 @@ automatico, riavviare il computer e tentare di nuovo la rimozione.
 .
 
 MessageId = +1
-SymbolicName = NSSM_GUI_BROWSE_FILTER
-Severity = Informational
-Language = English
-Applications%sAll files%s%0
-.
-Language = French
-Applications%sTous les fichiers%s%0
-.
-Language = Italian
-Applicazioni%sTutti i files%s%0
-.
-
-MessageId = +1
 SymbolicName = NSSM_GUI_BROWSE_FILTER_APPLICATIONS
 Severity = Informational
 Language = English
@@ -405,6 +392,19 @@ Applications%0
 .
 Language = Italian
 Applicazioni%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_BROWSE_FILTER_DIRECTORIES
+Severity = Informational
+Language = English
+Directories%0
+.
+Language = French
+Répertoires%0
+.
+Language = Italian
+Cartelle%0
 .
 
 MessageId = +1
@@ -431,6 +431,110 @@ Indiquez le fichier exécutable
 .
 Language = Italian
 Ricerca file applicazione
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_APPLICATION
+Severity = Informational
+Language = English
+Application
+.
+Language = French
+Application
+.
+Language = Italian
+Applicazione
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_SHUTDOWN
+Severity = Informational
+Language = English
+Shutdown
+.
+Language = French
+Shutdown
+.
+Language = Italian
+Shutdown
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_EXIT
+Severity = Informational
+Language = English
+Exit actions
+.
+Language = French
+Exit actions
+.
+Language = Italian
+Exit actions
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_IO
+Severity = Informational
+Language = English
+I/O
+.
+Language = French
+I/O
+.
+Language = Italian
+I/O
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_EXIT_RESTART
+Severity = Informational
+Language = English
+Restart application
+.
+Language = French
+Redémarrer l'application
+.
+Language = Italian
+Riavvare l'applicazione
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_EXIT_IGNORE
+Severity = Informational
+Language = English
+No action (srvany compatible)
+.
+Language = French
+No action (srvany compatible)
+.
+Language = Italian
+No action (srvany compatible)
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_EXIT_REALLY
+Severity = Informational
+Language = English
+Stop service (oneshot mode)
+.
+Language = French
+Stop service (oneshot mode)
+.
+Language = Italian
+Stop service (oneshot mode)
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_EXIT_UNCLEAN
+Severity = Informational
+Language = English
+Fake crash (pre-Vista)
+.
+Language = French
+Fake crash (pre-Vista)
+.
+Language = Italian
+Fake crash (pre-Vista)
 .
 
 MessageId = 1001
@@ -1041,7 +1145,7 @@ Language = French
 La déclaration de l'environnement %1 pour le service %2 n'est pas du type REG_MULTI_SZ.  Cette déclaration sera ignorée.
 .
 Language = Italian
-Dichiarazione di ambiente %1 per il servizio %2 non è di tipo REG_MULTI_SZ e verrà quindi ingnorata.
+Dichiarazione di ambiente %1 per il servizio %2 non è di tipo REG_MULTI_SZ e verrà quindi ignorata.
 .
 
 MessageId = +1

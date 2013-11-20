@@ -1,5 +1,7 @@
 #include "nssm.h"
 
+extern const char *exit_action_strings[];
+
 int create_messages() {
   HKEY key;
 
@@ -21,7 +23,7 @@ int create_messages() {
   /* Try to register the module but don't worry so much on failure */
   RegSetValueEx(key, "EventMessageFile", 0, REG_SZ, (const unsigned char *) path, (unsigned long) strlen(path) + 1);
   unsigned long types = EVENTLOG_INFORMATION_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_ERROR_TYPE;
-  RegSetValueEx(key, "TypesSupported", 0, REG_DWORD, /*XXX*/(PBYTE) &types, sizeof(types));
+  RegSetValueEx(key, "TypesSupported", 0, REG_DWORD, (const unsigned char *) &types, sizeof(types));
 
   return 0;
 }
@@ -42,26 +44,35 @@ int create_parameters(nssm_service_t *service) {
   }
 
   /* Try to create the parameters */
-  if (RegSetValueEx(key, NSSM_REG_EXE, 0, REG_EXPAND_SZ, (const unsigned char *) service->exe, (unsigned long) strlen(service->exe) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_EXE, error_string(GetLastError()), 0);
+  if (set_expand_string(key, NSSM_REG_EXE, service->exe)) {
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 3;
   }
-  if (RegSetValueEx(key, NSSM_REG_FLAGS, 0, REG_EXPAND_SZ, (const unsigned char *) service->flags, (unsigned long) strlen(service->flags) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_FLAGS, error_string(GetLastError()), 0);
+  if (set_expand_string(key, NSSM_REG_FLAGS, service->flags)) {
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 4;
   }
-  if (RegSetValueEx(key, NSSM_REG_DIR, 0, REG_EXPAND_SZ, (const unsigned char *) service->dir, (unsigned long) strlen(service->dir) + 1) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_DIR, error_string(GetLastError()), 0);
+  if (set_expand_string(key, NSSM_REG_DIR, service->dir)) {
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
     return 5;
   }
 
-  /* Close registry */
+  /* Other non-default parameters. May fail. */
+  unsigned long stop_method_skip = ~service->stop_method;
+  if (stop_method_skip) set_number(key, NSSM_REG_STOP_METHOD_SKIP, stop_method_skip);
+  if (service->default_exit_action < NSSM_NUM_EXIT_ACTIONS) create_exit_action(service->name, exit_action_strings[service->default_exit_action]);
+  if (service->throttle_delay != NSSM_RESET_THROTTLE_RESTART) set_number(key, NSSM_REG_THROTTLE, service->throttle_delay);
+  if (service->kill_console_delay != NSSM_KILL_CONSOLE_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, service->kill_console_delay);
+  if (service->kill_window_delay != NSSM_KILL_WINDOW_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, service->kill_window_delay);
+  if (service->kill_threads_delay != NSSM_KILL_THREADS_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, service->kill_threads_delay);
+  if (service->stdin_path[0]) set_expand_string(key, NSSM_REG_STDIN, service->stdin_path);
+  if (service->stdout_path[0]) set_expand_string(key, NSSM_REG_STDOUT, service->stdout_path);
+  if (service->stderr_path[0]) set_expand_string(key, NSSM_REG_STDERR, service->stderr_path);
+
+  /* Close registry. */
   RegCloseKey(key);
 
   return 0;

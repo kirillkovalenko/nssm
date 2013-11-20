@@ -5,8 +5,7 @@ bool use_critical_section;
 
 extern imports_t imports;
 
-static enum { NSSM_EXIT_RESTART, NSSM_EXIT_IGNORE, NSSM_EXIT_REALLY, NSSM_EXIT_UNCLEAN } exit_actions;
-static const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
+const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
 
 static inline int throttle_milliseconds(unsigned long throttle) {
   /* pow() operates on doubles. */

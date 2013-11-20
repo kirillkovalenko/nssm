@@ -46,6 +46,9 @@ to an arbitrary path.
 Since version 2.18, NSSM can be configured to wait a user-specified amount
 of time for the application to exit when shutting down.
 
+Since version 2.19, many more service options can be configured with the
+GUI installer as well as via the registry.
+
 
 Usage
 -----

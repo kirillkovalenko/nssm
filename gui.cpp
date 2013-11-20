@@ -1,5 +1,9 @@
 #include "nssm.h"
 
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_NUM_TABS };
+static HWND tablist[NSSM_NUM_TABS];
+static int selected_tab;
+
 static void strip_basename(char *buffer) {
   size_t len = strlen(buffer);
   size_t i;
@@ -68,7 +72,25 @@ void centre_window(HWND window) {
   MoveWindow(window, x, y, size.right - size.left, size.bottom - size.top, 0);
 }
 
-/* Install the service */
+static inline void check_stop_method(nssm_service_t *service, unsigned long method, unsigned long control) {
+  if (SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], control, BM_GETCHECK, 0, 0) & BST_CHECKED) return;
+  service->stop_method &= ~method;
+}
+
+static inline void check_method_timeout(HWND tab, unsigned long control, unsigned long *timeout) {
+  BOOL translated;
+  unsigned long configured = GetDlgItemInt(tab, control, &translated, 0);
+  if (translated) *timeout = configured;
+}
+
+static inline void check_io(char *name, char *buffer, size_t bufsize, unsigned long control) {
+  if (! SendMessage(GetDlgItem(tablist[NSSM_TAB_IO], control), WM_GETTEXTLENGTH, 0, 0)) return;
+  if (GetDlgItemText(tablist[NSSM_TAB_IO], control, buffer, (int) bufsize)) return;
+  popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, name);
+  ZeroMemory(buffer, bufsize);
+}
+
+/* Install the service. */
 int install(HWND window) {
   if (! window) return 1;
 
@@ -82,21 +104,45 @@ int install(HWND window) {
     }
 
     /* Get executable name */
-    if (! GetDlgItemText(window, IDC_PATH, service->exe, sizeof(service->exe))) {
+    if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->exe, sizeof(service->exe))) {
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
       return 3;
     }
-  
-    /* Get flags */
-    if (SendMessage(GetDlgItem(window, IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
+
+    /* Get startup directory. */
+    if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_DIR, service->dir, sizeof(service->dir))) {
+      memmove(service->dir, service->exe, sizeof(service->dir));
+      strip_basename(service->dir);
+    }
+
+    /* Get flags. */
+    if (SendMessage(GetDlgItem(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
       if (! GetDlgItemText(window, IDC_FLAGS, service->flags, sizeof(service->flags))) {
         popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
         return 4;
       }
     }
 
-    memmove(service->dir, service->exe, strlen(service->exe));
-    strip_basename(service->dir);
+    /* Get stop method stuff. */
+    service->stop_method = ~0;
+    check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
+    check_stop_method(service, NSSM_STOP_METHOD_WINDOW, IDC_METHOD_WINDOW);
+    check_stop_method(service, NSSM_STOP_METHOD_THREADS, IDC_METHOD_THREADS);
+    check_stop_method(service, NSSM_STOP_METHOD_TERMINATE, IDC_METHOD_TERMINATE);
+    check_method_timeout(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, &service->kill_console_delay);
+    check_method_timeout(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, &service->kill_window_delay);
+    check_method_timeout(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, &service->kill_threads_delay);
+
+    /* Get exit action stuff. */
+    check_method_timeout(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
+    HWND combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
+    service->default_exit_action = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
+    if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
+
+    /* Get I/O stuff. */
+    check_io("stdin", service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
+    check_io("stdout", service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
+    check_io("stderr", service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
   }
 
   /* See if it works. */
@@ -185,12 +231,33 @@ int remove(HWND window) {
   return 0;
 }
 
+static char *browse_filter(int message) {
+  switch (message) {
+    case NSSM_GUI_BROWSE_FILTER_APPLICATIONS: return "*.exe;*.bat;*.cmd";
+    case NSSM_GUI_BROWSE_FILTER_DIRECTORIES: return ".";
+    case NSSM_GUI_BROWSE_FILTER_ALL_FILES: /* Fall through. */
+    default: return "*.*";
+  }
+}
+
+UINT_PTR CALLBACK browse_hook(HWND dlg, UINT message, WPARAM w, LPARAM l) {
+  switch (message) {
+    case WM_INITDIALOG:
+      return 1;
+  }
+
+  return 0;
+}
+
 /* Browse for application */
-void browse(HWND window) {
+void browse(HWND window, char *current, unsigned long flags, ...) {
   if (! window) return;
 
+  va_list arg;
   size_t bufsize = 256;
   size_t len = bufsize;
+  int i;
+
   OPENFILENAME ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
@@ -198,28 +265,34 @@ void browse(HWND window) {
   /* XXX: Escaping nulls with FormatMessage is tricky */
   if (ofn.lpstrFilter) {
     ZeroMemory((void *) ofn.lpstrFilter, bufsize);
-    char *localised = message_string(NSSM_GUI_BROWSE_FILTER_APPLICATIONS);
-    _snprintf_s((char *) ofn.lpstrFilter, bufsize, _TRUNCATE, localised);
+    len = 0;
     /* "Applications" + NULL + "*.exe" + NULL */
-    len = strlen(localised) + 1;
-    LocalFree(localised);
-    _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, "*.exe");
-    /* "All files" + NULL + "*.*" + NULL */
-    len += 6;
-    localised = message_string(NSSM_GUI_BROWSE_FILTER_ALL_FILES);
-    _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, localised);
-    len += strlen(localised) + 1;
-    LocalFree(localised);
-    _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, "*.*");
+    va_start(arg, flags);
+    while (i = va_arg(arg, int)) {
+      char *localised = message_string(i);
+      _snprintf_s((char *) ofn.lpstrFilter + len, bufsize, _TRUNCATE, localised);
+      len += strlen(localised) + 1;
+      LocalFree(localised);
+      char *filter = browse_filter(i);
+      _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, "%s", filter);
+      len += strlen(filter) + 1;
+    }
+    va_end(arg);
     /* Remainder of the buffer is already zeroed */
   }
   ofn.lpstrFile = new char[MAX_PATH];
-  ofn.lpstrFile[0] = '\0';
+  if (flags & OFN_NOVALIDATE) {
+    /* Directory hack. */
+    _snprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, ":%s:", message_string(NSSM_GUI_BROWSE_FILTER_DIRECTORIES));
+  }
+  else _snprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, "%s", current);
   ofn.lpstrTitle = message_string(NSSM_GUI_BROWSE_TITLE);
   ofn.nMaxFile = MAX_PATH;
-  ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+  ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | flags;
 
   if (GetOpenFileName(&ofn)) {
+    /* Directory hack. */
+    if (flags & OFN_NOVALIDATE) strip_basename(ofn.lpstrFile);
     SendMessage(window, WM_SETTEXT, 0, (LPARAM) ofn.lpstrFile);
   }
   if (ofn.lpstrFilter) HeapFree(GetProcessHeap(), 0, (void *) ofn.lpstrFilter);
@@ -227,29 +300,176 @@ void browse(HWND window) {
   delete[] ofn.lpstrFile;
 }
 
+INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
+  switch (message) {
+    case WM_INITDIALOG:
+      return 1;
+
+    /* Button was pressed or control was controlled. */
+    case WM_COMMAND:
+      HWND dlg;
+      char buffer[MAX_PATH];
+
+      switch (LOWORD(w)) {
+        /* Browse for application. */
+        case IDC_BROWSE:
+          dlg = GetDlgItem(tab, IDC_PATH);
+          GetDlgItemText(tab, IDC_PATH, buffer, sizeof(buffer));
+          browse(dlg, buffer, OFN_FILEMUSTEXIST, NSSM_GUI_BROWSE_FILTER_APPLICATIONS, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
+          /* Fill in startup directory if it wasn't already specified. */
+          GetDlgItemText(tab, IDC_DIR, buffer, sizeof(buffer));
+          if (! buffer[0]) {
+            GetDlgItemText(tab, IDC_PATH, buffer, sizeof(buffer));
+            strip_basename(buffer);
+            SetDlgItemText(tab, IDC_DIR, buffer);
+          }
+          break;
+
+          /* Browse for startup directory. */
+        case IDC_BROWSE_DIR:
+          dlg = GetDlgItem(tab, IDC_DIR);
+          GetDlgItemText(tab, IDC_DIR, buffer, sizeof(buffer));
+          browse(dlg, buffer, OFN_NOVALIDATE, NSSM_GUI_BROWSE_FILTER_DIRECTORIES, 0);
+          break;
+
+        /* Browse for stdin. */
+        case IDC_BROWSE_STDIN:
+          dlg = GetDlgItem(tab, IDC_STDIN);
+          GetDlgItemText(tab, IDC_STDIN, buffer, sizeof(buffer));
+          browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
+          break;
+
+        /* Browse for stdout. */
+        case IDC_BROWSE_STDOUT:
+          dlg = GetDlgItem(tab, IDC_STDOUT);
+          GetDlgItemText(tab, IDC_STDOUT, buffer, sizeof(buffer));
+          browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
+          /* Fill in stderr if it wasn't already specified. */
+          GetDlgItemText(tab, IDC_STDERR, buffer, sizeof(buffer));
+          if (! buffer[0]) {
+            GetDlgItemText(tab, IDC_STDOUT, buffer, sizeof(buffer));
+            SetDlgItemText(tab, IDC_STDERR, buffer);
+          }
+          break;
+
+        /* Browse for stderr. */
+        case IDC_BROWSE_STDERR:
+          dlg = GetDlgItem(tab, IDC_STDERR);
+          GetDlgItemText(tab, IDC_STDERR, buffer, sizeof(buffer));
+          browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
+          break;
+      }
+      return 1;
+  }
+
+  return 0;
+}
+
 /* Install/remove dialogue callback */
 INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
   switch (message) {
     /* Creating the dialogue */
     case WM_INITDIALOG:
+      HWND tabs;
+      HWND combo;
+      tabs = GetDlgItem(window, IDC_TAB1);
+      if (! tabs) return 0;
+
+      /* Set up tabs. */
+      TCITEM tab;
+      ZeroMemory(&tab, sizeof(tab));
+      tab.mask = TCIF_TEXT;
+
+      /* Application tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_APPLICATION);
+      tab.cchTextMax = (int) strlen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_APPLICATION, (LPARAM) &tab);
+      tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_APPLICATION], SW_SHOW);
+
+      /* Shutdown tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);
+      tab.cchTextMax = (int) strlen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_SHUTDOWN, (LPARAM) &tab);
+      tablist[NSSM_TAB_SHUTDOWN] = CreateDialog(0, MAKEINTRESOURCE(IDD_SHUTDOWN), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_SHUTDOWN], SW_HIDE);
+
+      /* Set defaults. */
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_CONSOLE, BM_SETCHECK, BST_CHECKED, 0);
+      SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, NSSM_KILL_CONSOLE_GRACE_PERIOD, 0);
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_WINDOW, BM_SETCHECK, BST_CHECKED, 0);
+      SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, NSSM_KILL_WINDOW_GRACE_PERIOD, 0);
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_THREADS, BM_SETCHECK, BST_CHECKED, 0);
+      SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, NSSM_KILL_THREADS_GRACE_PERIOD, 0);
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_TERMINATE, BM_SETCHECK, BST_CHECKED, 0);
+
+      /* Restart tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_EXIT);
+      tab.cchTextMax = (int) strlen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_EXIT, (LPARAM) &tab);
+      tablist[NSSM_TAB_EXIT] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPEXIT), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_EXIT], SW_HIDE);
+
+      /* Set defaults. */
+      SetDlgItemInt(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, NSSM_RESET_THROTTLE_RESTART, 0);
+      combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
+      SendMessage(combo, CB_INSERTSTRING, NSSM_EXIT_RESTART, (LPARAM) message_string(NSSM_GUI_EXIT_RESTART));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_EXIT_IGNORE, (LPARAM) message_string(NSSM_GUI_EXIT_IGNORE));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_EXIT_REALLY, (LPARAM) message_string(NSSM_GUI_EXIT_REALLY));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_EXIT_UNCLEAN, (LPARAM) message_string(NSSM_GUI_EXIT_UNCLEAN));
+      SendMessage(combo, CB_SETCURSEL, NSSM_EXIT_RESTART, 0);
+
+      /* I/O tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_IO);
+      tab.cchTextMax = (int) strlen(tab.pszText) + 1;
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_IO, (LPARAM) &tab);
+      tablist[NSSM_TAB_IO] = CreateDialog(0, MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_IO], SW_HIDE);
+
+      selected_tab = 0;
+
       return 1;
+
+    /* Tab change. */
+    case WM_NOTIFY:
+      NMHDR *notification;
+
+      notification = (NMHDR *) l;
+      switch (notification->code) {
+        case TCN_SELCHANGE:
+          HWND tabs;
+          int selection;
+
+          tabs = GetDlgItem(window, IDC_TAB1);
+          if (! tabs) return 0;
+
+          selection = (int) SendMessage(tabs, TCM_GETCURSEL, 0, 0);
+          if (selection != selected_tab) {
+            ShowWindow(tablist[selected_tab], SW_HIDE);
+            /*
+              XXX: Sets focus to the service name which isn't ideal but is
+                   better than leaving it in another tab.
+            */
+            ShowWindow(tablist[selection], SW_SHOWDEFAULT);
+            SetFocus(tablist[selection]);
+            selected_tab = selection;
+          }
+          return 1;
+      }
+
+      return 0;
 
     /* Button was pressed or control was controlled */
     case WM_COMMAND:
       switch (LOWORD(w)) {
         /* OK button */
-        case IDC_OK:
+        case IDOK:
           if (! install(window)) PostQuitMessage(0);
           break;
 
         /* Cancel button */
         case IDCANCEL:
           DestroyWindow(window);
-          break;
-
-        /* Browse button */
-        case IDC_BROWSE:
-          browse(GetDlgItem(window, IDC_PATH));
           break;
 
         /* Remove button */

@@ -53,6 +53,13 @@ int str_equiv(const char *, const char *);
 #define NSSM_STOP_METHOD_THREADS (1 << 2)
 #define NSSM_STOP_METHOD_TERMINATE (1 << 3)
 
+/* Exit actions. */
+#define NSSM_EXIT_RESTART 0
+#define NSSM_EXIT_IGNORE 1
+#define NSSM_EXIT_REALLY 2
+#define NSSM_EXIT_UNCLEAN 3
+#define NSSM_NUM_EXIT_ACTIONS 4
+
 /* How many milliseconds to wait before updating service status. */
 #define NSSM_SERVICE_STATUS_DEADLINE 20000
 

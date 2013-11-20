@@ -63,22 +63,18 @@ IDI_NSSM                ICON                    "nssm.ico"
 // Dialog
 //
 
-IDD_INSTALL DIALOG  0, 0, 220, 90
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "NSSM service installer"
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+IDD_INSTALL DIALOG 0, 0, 286, 126
+STYLE DS_MODALFRAME | DS_SETFONT | WS_CAPTION | WS_POPUP | WS_SYSMENU
+CAPTION "NSSM service installer"
 FONT 8, "MS Sans Serif"
-BEGIN
-    DEFPUSHBUTTON   "Install service",IDC_OK,55,69,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,111,69,50,14
-    EDITTEXT        IDC_PATH,48,7,110,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_BROWSE,163,7,50,14
-    EDITTEXT        IDC_FLAGS,48,28,165,14,ES_AUTOHSCROLL
-    LTEXT           "Options:",IDC_STATIC,7,31,27,8
-    LTEXT           "Service\nname:",IDC_STATIC,7,49,41,18
-    EDITTEXT        IDC_NAME,48,49,77,14,ES_AUTOHSCROLL
-    LTEXT           "Application:",IDC_STATIC,7,9,38,8
-END
+{
+    CONTROL         "", IDC_TAB1, WC_TABCONTROL, 0, 7, 7, 269, 93
+    LTEXT           "Service name:", IDC_STATIC, 7, 106, 52, 8, SS_LEFT
+    EDITTEXT        IDC_NAME, 64, 104, 98, 12, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Install service", IDOK, 172, 104, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 227, 104, 50, 14
+}
 
 IDD_REMOVE DIALOG  0, 0, 223, 28
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
@@ -89,6 +85,76 @@ BEGIN
     LTEXT           "Service name:",IDC_STATIC,8,9,46,8
     EDITTEXT        IDC_NAME,59,7,87,14,ES_AUTOHSCROLL
 END
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+IDD_APPLICATION DIALOG 9, 20, 261, 73
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "Application", IDC_STATIC, 7, 7, 251, 58
+    LTEXT           "Path:", IDC_STATIC, 13, 18, 53, 8, SS_LEFT
+    EDITTEXT        IDC_PATH, 70, 16, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE, 239, 15, 15, 14
+    LTEXT           "Startup directory:", IDC_STATIC, 13, 34, 53, 8, SS_LEFT
+    EDITTEXT        IDC_DIR, 70, 32, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE_DIR, 239, 31, 15, 14
+    LTEXT           "Options:", IDC_STATIC, 13, 50, 53, 8, SS_LEFT
+    EDITTEXT        IDC_FLAGS, 70, 48, 184, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+}
+
+
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_SHUTDOWN DIALOG 9, 20, 261, 75
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "Shutdown", IDC_STATIC, 7, 7, 251, 68
+    AUTOCHECKBOX    "Generate Control-C", IDC_METHOD_CONSOLE, 13, 18, 76, 8
+    LTEXT           "Timeout:", IDC_STATIC, 135, 18, 26, 8, SS_LEFT
+    EDITTEXT        IDC_KILL_CONSOLE, 163, 16, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "ms", IDC_STATIC, 194, 18, 10, 8, SS_LEFT
+    AUTOCHECKBOX    "Send WM_CLOSE to windows", IDC_METHOD_WINDOW, 13, 32, 113, 8
+    LTEXT           "Timeout:", IDC_STATIC, 135, 32, 26, 8, SS_LEFT
+    EDITTEXT        IDC_KILL_WINDOW, 163, 30, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "ms", IDC_STATIC, 194, 32, 10, 8, SS_LEFT
+    AUTOCHECKBOX    "Post WM_QUIT to threads", IDC_METHOD_THREADS, 13, 46, 100, 8
+    EDITTEXT        IDC_KILL_THREADS, 163, 44, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "ms", IDC_STATIC, 194, 46, 10, 8, SS_LEFT
+    LTEXT           "Timeout:", IDC_STATIC, 135, 46, 26, 8, SS_LEFT
+    AUTOCHECKBOX    "Terminate process", IDC_METHOD_TERMINATE, 13, 60, 74, 8
+}
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_APPEXIT DIALOG 9, 20, 261, 73
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "Throttling", IDC_STATIC, 7, 7, 251, 25
+    LTEXT           "Delay restart if application runs for less than", IDC_STATIC, 13, 18, 137, 8, SS_LEFT
+    EDITTEXT        IDC_THROTTLE, 152, 16, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "ms", IDC_STATIC, 186, 18, 10, 8, SS_LEFT
+    GROUPBOX        "Restart", IDC_STATIC, 7, 33, 251, 35
+    LTEXT           "Action to take when application exits other\nthan in response to a controlled service\nshutdown:", IDC_STATIC, 14, 42, 134, 24, SS_LEFT
+    COMBOBOX        IDC_APPEXIT, 153, 47, 100, 120, CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_TABSTOP
+}
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_IO DIALOG 9, 20, 261, 73
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "I/O redirection", IDC_STATIC, 7, 7, 251, 58
+    LTEXT           "Input (stdin):", IDC_STATIC, 13, 18, 53, 8, SS_LEFT
+    EDITTEXT        IDC_STDIN, 70, 16, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE_STDIN, 239, 15, 15, 14
+    LTEXT           "Output (stdout):", IDC_STATIC, 13, 34, 53, 8, SS_LEFT
+    EDITTEXT        IDC_STDOUT, 70, 32, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE_STDOUT, 239, 31, 15, 14
+    LTEXT           "Error (stderr):", IDC_STATIC, 13, 50, 53, 8, SS_LEFT
+    EDITTEXT        IDC_STDERR, 70, 48, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE_STDERR, 239, 47, 15, 14
+}
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -151,25 +217,30 @@ LANGUAGE LANG_FRENCH, SUBLANG_FRENCH
 
 /////////////////////////////////////////////////////////////////////////////
 //
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_NSSM                ICON                    "nssm.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // Dialog
 //
 
-IDD_INSTALL DIALOG  0, 0, 220, 90
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Installation d'un service NSSM"
 LANGUAGE LANG_FRENCH, SUBLANG_FRENCH
+IDD_INSTALL DIALOG 0, 0, 282, 126
+STYLE DS_MODALFRAME | DS_SETFONT | WS_CAPTION | WS_POPUP | WS_SYSMENU
+CAPTION "Installation d'un service NSSM"
 FONT 8, "MS Sans Serif"
-BEGIN
-    DEFPUSHBUTTON   "Installer le service",IDC_OK,49,69,75,14
-    PUSHBUTTON      "Annuler",IDCANCEL,131,69,50,14
-    EDITTEXT        IDC_PATH,48,7,110,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "Parcourir",IDC_BROWSE,163,7,50,14
-    EDITTEXT        IDC_FLAGS,48,28,165,14,ES_AUTOHSCROLL
-    LTEXT           "Options:",IDC_STATIC,7,31,27,8
-    LTEXT           "Nom du\nservice:",IDC_STATIC,7,49,41,18
-    EDITTEXT        IDC_NAME,48,49,77,14,ES_AUTOHSCROLL
-    LTEXT           "Application:",IDC_STATIC,7,9,38,8
-END
+{
+    CONTROL         "", IDC_TAB1, WC_TABCONTROL, 0, 7, 7, 269, 93
+    LTEXT           "Nom du service:", IDC_STATIC, 7, 106, 52, 8, SS_LEFT
+    EDITTEXT        IDC_NAME, 64, 104, 98, 12, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Installer le service", IDOK, 172, 106, 50, 14
+    PUSHBUTTON      "Anuller", IDCANCEL, 227, 106, 50, 14
+}
 
 IDD_REMOVE DIALOG  0, 0, 223, 28
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
@@ -181,10 +252,53 @@ BEGIN
     EDITTEXT        IDC_NAME,43,7,90,14,ES_AUTOHSCROLL
 END
 
+LANGUAGE LANG_FRENCH, SUBLANG_FRENCH
+IDD_APPLICATION DIALOG 9, 20, 261, 73
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "Application", IDC_STATIC, 7, 7, 251, 58
+    LTEXT           "Chemin:", IDC_STATIC, 13, 18, 53, 8, SS_LEFT
+    EDITTEXT        IDC_PATH, 80, 16, 157, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE, 239, 15, 15, 14
+    LTEXT           "Rép. de démarrage:", IDC_STATIC, 13, 32, 64, 8, SS_LEFT
+    EDITTEXT        IDC_DIR, 80, 30, 157, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE_DIR, 239, 30, 15, 14
+    LTEXT           "Options:", IDC_STATIC, 13, 47, 53, 8, SS_LEFT
+    EDITTEXT        IDC_FLAGS, 80, 45, 174, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // DESIGNINFO
 //
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION NSSM_VERSIONINFO
+ PRODUCTVERSION NSSM_VERSIONINFO
+ FILEFLAGSMASK 0x17L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+    END
+END
 
 #endif    // French resources
 /////////////////////////////////////////////////////////////////////////////
@@ -240,22 +354,18 @@ IDI_NSSM                ICON                    "nssm.ico"
 // Dialog
 //
 
-IDD_INSTALL DIALOG  0, 0, 220, 90
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "NSSM - Installazione Servizio"
 LANGUAGE LANG_ITALIAN, SUBLANG_ITALIAN
+IDD_INSTALL DIALOG 0, 0, 282, 126
+STYLE DS_MODALFRAME | DS_SETFONT | WS_CAPTION | WS_POPUP | WS_SYSMENU
+CAPTION "NSSM - Installazione Servizio"
 FONT 8, "MS Sans Serif"
-BEGIN
-    DEFPUSHBUTTON   "Installa servizio",IDC_OK,49,69,58,14
-    PUSHBUTTON      "Annulla",IDCANCEL,111,69,50,14
-    EDITTEXT        IDC_PATH,48,7,110,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "Sfoglia...",IDC_BROWSE,163,7,50,14
-    EDITTEXT        IDC_FLAGS,48,28,165,14,ES_AUTOHSCROLL
-    LTEXT           "Opzioni:",IDC_STATIC,7,31,27,8
-    LTEXT           "Nome\nservizio:",IDC_STATIC,7,49,41,18
-    EDITTEXT        IDC_NAME,48,49,77,14,ES_AUTOHSCROLL
-    LTEXT           "Applicazione:",IDC_STATIC,2,9,43,8
-END
+{
+    CONTROL         "", IDC_TAB1, WC_TABCONTROL, 0, 7, 7, 269, 93
+    LTEXT           "Nome servizio:", IDC_STATIC, 7, 106, 52, 8, SS_LEFT
+    EDITTEXT        IDC_NAME, 64, 104, 98, 12, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Installa servizio", IDOK, 172, 106, 50, 14
+    PUSHBUTTON      "Anulla", IDCANCEL, 227, 106, 50, 14
+}
 
 IDD_REMOVE DIALOG  0, 0, 223, 28
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
@@ -266,6 +376,22 @@ BEGIN
     LTEXT           "Nome servizio:",IDC_STATIC,8,9,46,8
     EDITTEXT        IDC_NAME,59,7,87,14,ES_AUTOHSCROLL
 END
+
+LANGUAGE LANG_ITALIAN, SUBLANG_ITALIAN
+IDD_APPLICATION DIALOG 9, 20, 261, 73
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "Applicazione", IDC_STATIC, 7, 7, 251, 58
+    LTEXT           "Path:", IDC_STATIC, 13, 18, 53, 8, SS_LEFT
+    EDITTEXT        IDC_PATH, 70, 16, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE, 239, 16, 15, 14
+    LTEXT           "Cartella di avvio:", IDC_STATIC, 13, 32, 53, 8, SS_LEFT
+    EDITTEXT        IDC_DIR, 70, 30, 167, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+    DEFPUSHBUTTON   "...", IDC_BROWSE_DIR, 239, 30, 15, 14
+    LTEXT           "Opzioni:", IDC_STATIC, 13, 47, 53, 8, SS_LEFT
+    EDITTEXT        IDC_FLAGS, 70, 46, 184, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
+}
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -288,7 +414,33 @@ BEGIN
 END
 #endif    // APSTUDIO_INVOKED
 
-#endif    // English (U.K.) resources
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION NSSM_VERSIONINFO
+ PRODUCTVERSION NSSM_VERSIONINFO
+ FILEFLAGSMASK 0x17L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+    END
+END
+
+#endif    // Italian (Italy) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -303,4 +455,3 @@ END
 #include "messages.rc"
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
