@@ -302,6 +302,19 @@ oppure il mondo sta per finire oppure è accaduto qualcosa di ugualmente grave!
 .
 
 MessageId = +1
+SymbolicName = NSSM_GUI_INVALID_ENVIRONMENT
+Severity = Informational
+Language = English
+Environment should comprise strings of the form KEY=VALUE.
+.
+Language = French
+L'environnement devrait comprendre des chaînes sous la forme KEY=VALUE.
+.
+Language = Italian
+L'ambiente dovrebbe comprendere stringhe nella forma CHIAVE=VALORE.
+.
+
+MessageId = +1
 SymbolicName = NSSM_GUI_INSTALL_SERVICE_FAILED
 Severity = Informational
 Language = English
@@ -483,6 +496,19 @@ I/O
 .
 Language = Italian
 I/O
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_ENVIRONMENT
+Severity = Informational
+Language = English
+Environment
+.
+Language = French
+Environnement
+.
+Language = Italian
+Ambiente
 .
 
 MessageId = +1

@@ -72,6 +72,18 @@ int create_parameters(nssm_service_t *service) {
   if (service->stdout_path[0]) set_expand_string(key, NSSM_REG_STDOUT, service->stdout_path);
   if (service->stderr_path[0]) set_expand_string(key, NSSM_REG_STDERR, service->stderr_path);
 
+  /* Environment */
+  if (service->env) {
+    if (RegSetValueEx(key, NSSM_REG_ENV, 0, REG_MULTI_SZ, (const unsigned char *) service->env, (unsigned long) service->envlen) != ERROR_SUCCESS) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_ENV, error_string(GetLastError()), 0);
+    }
+  }
+  if (service->env_extra) {
+    if (RegSetValueEx(key, NSSM_REG_ENV_EXTRA, 0, REG_MULTI_SZ, (const unsigned char *) service->env_extra, (unsigned long) service->env_extralen) != ERROR_SUCCESS) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_ENV_EXTRA, error_string(GetLastError()), 0);
+    }
+  }
+
   /* Close registry. */
   RegCloseKey(key);
 

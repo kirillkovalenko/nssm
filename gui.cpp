@@ -1,6 +1,6 @@
 #include "nssm.h"
 
-static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_NUM_TABS };
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
@@ -143,6 +143,80 @@ int install(HWND window) {
     check_io("stdin", service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
     check_io("stdout", service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
     check_io("stderr", service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
+
+    /* Get environment. */
+    unsigned long envlen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT), WM_GETTEXTLENGTH, 0, 0);
+    if (envlen) {
+      char *env = (char *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, envlen + 2);
+      if (! env) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "environment", "install()");
+        cleanup_nssm_service(service);
+        return 5;
+      }
+
+      if (! GetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, env, envlen + 1)) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
+        HeapFree(GetProcessHeap(), 0, env);
+        cleanup_nssm_service(service);
+        return 5;
+      }
+
+      /* Strip CR and replace LF with NULL. */
+      unsigned long newlen = 0;
+      unsigned long i, j;
+      for (i = 0; i < envlen; i++) if (env[i] != '\r') newlen++;
+      /* Must end with two NULLs. */
+      newlen++;
+
+      char *newenv = (char *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen);
+      if (! newenv) {
+        HeapFree(GetProcessHeap(), 0, env);
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "environment", "install()");
+        cleanup_nssm_service(service);
+        return 5;
+      }
+
+      for (i = 0, j = 0; i < envlen; i++) {
+        if (env[i] == '\r') continue;
+        if (env[i] == '\n') newenv[j] = '\0';
+        else newenv[j] = env[i];
+        j++;
+      }
+
+      HeapFree(GetProcessHeap(), 0, env);
+      env = newenv;
+      envlen = newlen;
+
+      /* Test the environment is valid. */
+      char path[MAX_PATH];
+      GetModuleFileName(0, path, sizeof(path));
+      STARTUPINFO si;
+      ZeroMemory(&si, sizeof(si));
+      si.cb = sizeof(si);
+      PROCESS_INFORMATION pi;
+      ZeroMemory(&pi, sizeof(pi));
+
+      if (! CreateProcess(0, path, 0, 0, 0, CREATE_SUSPENDED, env, 0, &si, &pi)) {
+        unsigned long error = GetLastError();
+        if (error == ERROR_INVALID_PARAMETER) {
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
+          HeapFree(GetProcessHeap(), 0, env);
+          envlen = 0;
+        }
+        cleanup_nssm_service(service);
+        return 5;
+      }
+      TerminateProcess(pi.hProcess, 0);
+
+      if (SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+        service->env = env;
+        service->envlen = envlen;
+      }
+      else {
+        service->env_extra = env;
+        service->env_extralen = envlen;
+      }
+    }
   }
 
   /* See if it works. */
@@ -425,6 +499,13 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_IO, (LPARAM) &tab);
       tablist[NSSM_TAB_IO] = CreateDialog(0, MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_IO], SW_HIDE);
+
+      /* Environment tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_ENVIRONMENT);
+      tab.cchTextMax = (int) strlen(tab.pszText) + 1;
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_ENVIRONMENT, (LPARAM) &tab);
+      tablist[NSSM_TAB_ENVIRONMENT] = CreateDialog(0, MAKEINTRESOURCE(IDD_ENVIRONMENT), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_ENVIRONMENT], SW_HIDE);
 
       selected_tab = 0;
 

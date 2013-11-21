@@ -1,5 +1,8 @@
 Changes since 2.18
 -----------------
+  * Support AppEnvironmentExtra to append to the environment
+    instead of replacing it.
+
   * The GUI is significantly less sucky.
 
 Changes since 2.17

@@ -156,6 +156,16 @@ FONT 8, "MS Sans Serif"
     DEFPUSHBUTTON   "...", IDC_BROWSE_STDERR, 239, 47, 15, 14
 }
 
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_ENVIRONMENT DIALOG 9, 20, 261, 75
+STYLE DS_SHELLFONT | WS_VISIBLE | WS_CHILD | DS_CONTROL
+FONT 8, "MS Sans Serif"
+{
+    GROUPBOX        "Environment variables", IDC_STATIC, 7, 7, 251, 68
+    EDITTEXT        IDC_ENVIRONMENT, 13, 18, 238, 36, ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN
+    AUTOCHECKBOX    "Replace default environment (srvany compatible)", IDC_ENVIRONMENT_REPLACE, 13, 60, 238, 8
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
