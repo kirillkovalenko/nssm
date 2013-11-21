@@ -1493,3 +1493,18 @@ The minimum number of milliseconds which must pass before service %1 is consider
 Language = Italian
 The minimum number of milliseconds which must pass before service %1 is considered to have been started successfully is set to %2.  Access to the Windows service control manager is blocked until the service updates its status, therefore %3 will wait a maximum of %4 milliseconds before reporting the service's state as running.  Service restart throttling will be enforced if the service runs for less than the full %2 milliseconds.
 .
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED
+Severity = Warning
+Language = English
+SetEnvironmentVariable(%1=%2) failed:
+%3
+.
+Language = French
+SetEnvironmentVariable(%1=%2) a échoué:
+%3
+.
+Language = Italian
+Chiamata a SetEnvironmentVariable(%1=%2) fallita:
+.

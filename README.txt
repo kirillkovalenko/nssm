@@ -49,6 +49,10 @@ of time for the application to exit when shutting down.
 Since version 2.19, many more service options can be configured with the
 GUI installer as well as via the registry.
 
+Since version 2.19, NSSM can add to the service's environment by setting
+AppEnvironmentExtra in place of or in addition to the srvany-compatible
+AppEnvironment.
+
 
 Usage
 -----
@@ -228,6 +232,22 @@ In general, if you want the service to log its output, set AppStdout and
 AppStderr to the same path, eg C:\Users\Public\service.log, and it should
 work.  Remember, however, that the path must be accessible to the user
 running the service.
+
+
+Environment variables
+---------------------
+NSSM can replace or append to the managed application's environment.  Two
+multi-valued string (REG_MULTI_SZ) registry values are recognised under
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters.
+
+AppEnvironment defines a list of environment variables which will override
+the service's environment.  AppEnvironmentExtra defines a list of
+environment variables which will be added to the service's environment.
+
+Each entry in the list should be of the form KEY=VALUE.  It is possible to
+omit the VALUE but the = symbol is mandatory.
+
+srvany only supports AppEnvironment.
 
 
 Removing services using the GUI

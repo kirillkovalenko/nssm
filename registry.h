@@ -6,6 +6,7 @@
 #define NSSM_REG_FLAGS "AppParameters"
 #define NSSM_REG_DIR "AppDirectory"
 #define NSSM_REG_ENV "AppEnvironment"
+#define NSSM_REG_ENV_EXTRA "AppEnvironmentExtra"
 #define NSSM_REG_EXIT "AppExit"
 #define NSSM_REG_THROTTLE "AppThrottle"
 #define NSSM_REG_STOP_METHOD_SKIP "AppStopMethodSkip"
@@ -23,7 +24,7 @@
 int create_messages();
 int create_parameters(nssm_service_t *);
 int create_exit_action(char *, const char *);
-int set_environment(char *, HKEY, char **);
+int set_environment(char *, HKEY, char *, char **, unsigned long *);
 int expand_parameter(HKEY, char *, char *, unsigned long, bool, bool);
 int expand_parameter(HKEY, char *, char *, unsigned long, bool);
 int set_expand_string(HKEY, char *, char *);

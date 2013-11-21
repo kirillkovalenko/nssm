@@ -22,6 +22,9 @@ typedef struct {
   char flags[VALUE_LENGTH];
   char dir[MAX_PATH];
   char *env;
+  unsigned long envlen;
+  char *env_extra;
+  unsigned long env_extralen;
   char stdin_path[MAX_PATH];
   char stdout_path[MAX_PATH];
   char stderr_path[MAX_PATH];

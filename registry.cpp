@@ -113,42 +113,43 @@ int create_exit_action(char *service_name, const char *action_string) {
   return 0;
 }
 
-int set_environment(char *service_name, HKEY key, char **env) {
+int set_environment(char *service_name, HKEY key, char *value, char **env, unsigned long *envlen) {
   unsigned long type = REG_MULTI_SZ;
-  unsigned long envlen = 0;
 
   /* Dummy test to find buffer size */
-  unsigned long ret = RegQueryValueEx(key, NSSM_REG_ENV, 0, &type, NULL, &envlen);
+  unsigned long ret = RegQueryValueEx(key, value, 0, &type, NULL, envlen);
   if (ret != ERROR_SUCCESS) {
+    *envlen = 0;
     /* The service probably doesn't have any environment configured */
     if (ret == ERROR_FILE_NOT_FOUND) return 0;
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_ENV, error_string(GetLastError()), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     return 1;
   }
 
   if (type != REG_MULTI_SZ) {
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE, NSSM_REG_ENV, service_name, 0);
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE, value, service_name, 0);
     return 2;
   }
 
   /* Probably not possible */
-  if (! envlen) return 0;
+  if (! *envlen) return 0;
 
   /* Previously initialised? */
   if (*env) HeapFree(GetProcessHeap(), 0, *env);
 
-  *env = (char *) HeapAlloc(GetProcessHeap(), 0, envlen);
+  *env = (char *) HeapAlloc(GetProcessHeap(), 0, *envlen);
   if (! *env) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "environment registry", "set_environment()", 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, "set_environment()", 0);
     return 3;
   }
 
   /* Actually get the strings */
-  ret = RegQueryValueEx(key, NSSM_REG_ENV, 0, &type, (unsigned char *) *env, &envlen);
+  ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) *env, envlen);
   if (ret != ERROR_SUCCESS) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, *env);
     *env = 0;
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_ENV, error_string(GetLastError()), 0);
+    *envlen = 0;
     return 4;
   }
 
@@ -326,7 +327,42 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   }
 
   /* Try to get environment variables - may fail */
-  set_environment(service->name, key, &service->env);
+  set_environment(service->name, key, NSSM_REG_ENV, &service->env, &service->envlen);
+  /* Environment variables to add to existing rather than replace - may fail. */
+  set_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
+
+  if (service->env_extra) {
+    /* Append these to any other environment variables set. */
+    if (service->env) {
+      /* Append extra variables to configured variables. */
+      unsigned long envlen = service->envlen + service->env_extralen - 1;
+      char *env = (char *) HeapAlloc(GetProcessHeap(), 0, envlen);
+      if (env) {
+        memmove(env, service->env, service->envlen - 1);
+        memmove(env + service->envlen - 1, service->env_extra, service->env_extralen);
+
+        HeapFree(GetProcessHeap(), 0, service->env);
+        service->env = env;
+        service->envlen = envlen;
+      }
+      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "environment", "get_parameters()", 0);
+    }
+    else {
+      /* Append extra variables to our environment. */
+      char *env, *s;
+      size_t envlen, len;
+
+      env = service->env_extra;
+      len = 0;
+      while (*env) {
+        envlen = strlen(env) + 1;
+        for (s = env; *s && *s != '='; s++);
+        if (*s == '=') *s++ = '\0';
+        if (! SetEnvironmentVariable(env, s)) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED, env, s, error_string(GetLastError()));
+        env += envlen;
+      }
+    }
+  }
 
   /* Try to get stdout and stderr */
   if (get_output_handles(key, si)) {

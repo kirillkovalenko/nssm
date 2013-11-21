@@ -43,6 +43,7 @@ nssm_service_t *alloc_nssm_service() {
 void cleanup_nssm_service(nssm_service_t *service) {
   if (! service) return;
   if (service->env) HeapFree(GetProcessHeap(), 0, service->env);
+  if (service->env_extra) HeapFree(GetProcessHeap(), 0, service->env_extra);
   if (service->handle) CloseServiceHandle(service->handle);
   if (service->process_handle) CloseHandle(service->process_handle);
   if (service->wait_handle) UnregisterWait(service->process_handle);
