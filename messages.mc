@@ -450,117 +450,117 @@ MessageId = +1
 SymbolicName = NSSM_GUI_TAB_APPLICATION
 Severity = Informational
 Language = English
-Application
+Application%0
 .
 Language = French
-Application
+Application%0
 .
 Language = Italian
-Applicazione
+Applicazione%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_TAB_SHUTDOWN
 Severity = Informational
 Language = English
-Shutdown
+Shutdown%0
 .
 Language = French
-Shutdown
+Shutdown%0
 .
 Language = Italian
-Shutdown
+Shutdown%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_TAB_EXIT
 Severity = Informational
 Language = English
-Exit actions
+Exit actions%0
 .
 Language = French
-Exit actions
+Exit actions%0
 .
 Language = Italian
-Exit actions
+Exit actions%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_TAB_IO
 Severity = Informational
 Language = English
-I/O
+I/O%0
 .
 Language = French
-I/O
+I/O%0
 .
 Language = Italian
-I/O
+I/O%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_TAB_ENVIRONMENT
 Severity = Informational
 Language = English
-Environment
+Environment%0
 .
 Language = French
-Environnement
+Environnement%0
 .
 Language = Italian
-Ambiente
+Ambiente%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_EXIT_RESTART
 Severity = Informational
 Language = English
-Restart application
+Restart application%0
 .
 Language = French
-Redémarrer l'application
+Redémarrer l'application%0
 .
 Language = Italian
-Riavvare l'applicazione
+Riavvare l'applicazione%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_EXIT_IGNORE
 Severity = Informational
 Language = English
-No action (srvany compatible)
+No action (srvany compatible)%0
 .
 Language = French
-No action (srvany compatible)
+No action (srvany compatible)%0
 .
 Language = Italian
-No action (srvany compatible)
+No action (srvany compatible)%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_EXIT_REALLY
 Severity = Informational
 Language = English
-Stop service (oneshot mode)
+Stop service (oneshot mode)%0
 .
 Language = French
-Stop service (oneshot mode)
+Stop service (oneshot mode)%0
 .
 Language = Italian
-Stop service (oneshot mode)
+Stop service (oneshot mode)%0
 .
 
 MessageId = +1
 SymbolicName = NSSM_GUI_EXIT_UNCLEAN
 Severity = Informational
 Language = English
-Fake crash (pre-Vista)
+Fake crash (pre-Vista)%0
 .
 Language = French
-Fake crash (pre-Vista)
+Fake crash (pre-Vista)%0
 .
 Language = Italian
-Fake crash (pre-Vista)
+Fake crash (pre-Vista)%0
 .
 
 MessageId = 1001
