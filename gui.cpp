@@ -435,6 +435,8 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
   switch (message) {
     /* Creating the dialogue */
     case WM_INITDIALOG:
+      SetFocus(GetDlgItem(window, IDC_NAME));
+
       HWND tabs;
       HWND combo;
       tabs = GetDlgItem(window, IDC_TAB1);
