@@ -157,7 +157,7 @@ int install(HWND window) {
       unsigned long i, j;
       for (i = 0; i < envlen; i++) if (env[i] != '\r') newlen++;
       /* Must end with two NULLs. */
-      newlen++;
+      newlen += 2;
 
       char *newenv = (char *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen);
       if (! newenv) {
