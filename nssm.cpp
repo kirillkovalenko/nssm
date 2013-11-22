@@ -13,6 +13,16 @@ int str_equiv(const char *a, const char *b) {
   }
 }
 
+/* Remove basename of a path. */
+void strip_basename(char *buffer) {
+  size_t len = strlen(buffer);
+  size_t i;
+  for (i = len; i && buffer[i] != '\\' && buffer[i] != '/'; i--);
+  /* X:\ is OK. */
+  if (i && buffer[i-1] == ':') i++;
+  buffer[i] = '\0';
+}
+
 /* How to use me correctly */
 int usage(int ret) {
   print_message(stderr, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);

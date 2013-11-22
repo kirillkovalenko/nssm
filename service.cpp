@@ -69,7 +69,7 @@ int pre_install_service(int argc, char **argv) {
   /* Arguments are optional */
   size_t flagslen = 0;
   size_t s = 0;
-  size_t i;
+  int i;
   for (i = 2; i < argc; i++) flagslen += strlen(argv[i]) + 1;
   if (! flagslen) flagslen = 1;
 
@@ -87,10 +87,8 @@ int pre_install_service(int argc, char **argv) {
   }
 
   /* Work out directory name */
-  size_t len = strlen(service->exe);
-  for (i = len; i && service->exe[i] != '\\' && service->exe[i] != '/'; i--);
-  memmove(service->dir, service->exe, i);
-  service->dir[i] = '\0';
+  memmove(service->dir, service->exe, sizeof(service->dir));
+  strip_basename(service->dir);
 
   int ret = install_service(service);
   cleanup_nssm_service(service);

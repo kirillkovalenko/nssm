@@ -16,6 +16,7 @@
 #include "gui.h"
 
 int str_equiv(const char *, const char *);
+void strip_basename(char *);
 
 #define NSSM "nssm"
 #define NSSM_VERSION "2.18"
