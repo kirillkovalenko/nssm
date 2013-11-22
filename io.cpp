@@ -50,6 +50,17 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   return 0;
 }
 
+int set_createfile_parameter(HKEY key, char *prefix, char *suffix, unsigned long number) {
+  char value[NSSM_STDIO_LENGTH];
+
+  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, suffix) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, suffix, "set_createfile_parameter()", 0);
+    return 1;
+  }
+
+  return set_number(key, value, number);
+}
+
 HANDLE append_to_file(char *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
   HANDLE ret;
 
@@ -82,7 +93,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
   attributes.bInheritHandle = true;
 
   /* stdin */
-  if (get_createfile_parameters(key, NSSM_REG_STDIN, path, &sharing, FILE_SHARE_WRITE, &disposition, OPEN_EXISTING, &flags, FILE_ATTRIBUTE_NORMAL)) return 1;
+  if (get_createfile_parameters(key, NSSM_REG_STDIN, path, &sharing, NSSM_STDIN_SHARING, &disposition, NSSM_STDIN_DISPOSITION, &flags, NSSM_STDIN_FLAGS)) return 1;
   if (path[0]) {
     si->hStdInput = CreateFile(path, FILE_READ_DATA, sharing, &attributes, disposition, flags, 0);
     if (! si->hStdInput) {
@@ -93,7 +104,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
   }
 
   /* stdout */
-  if (get_createfile_parameters(key, NSSM_REG_STDOUT, path, &sharing, FILE_SHARE_READ | FILE_SHARE_WRITE, &disposition, OPEN_ALWAYS, &flags, FILE_ATTRIBUTE_NORMAL)) return 3;
+  if (get_createfile_parameters(key, NSSM_REG_STDOUT, path, &sharing, NSSM_STDOUT_SHARING, &disposition, NSSM_STDOUT_DISPOSITION, &flags, NSSM_STDOUT_FLAGS)) return 3;
   if (path[0]) {
     /* Remember path for comparison with stderr. */
     if (_snprintf_s(stdout_path, sizeof(stdout_path), _TRUNCATE, "%s", path) < 0) {
@@ -108,7 +119,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
   else ZeroMemory(stdout_path, sizeof(stdout_path));
 
   /* stderr */
-  if (get_createfile_parameters(key, NSSM_REG_STDERR, path, &sharing, FILE_SHARE_READ | FILE_SHARE_WRITE, &disposition, OPEN_ALWAYS, &flags, FILE_ATTRIBUTE_NORMAL)) return 6;
+  if (get_createfile_parameters(key, NSSM_REG_STDERR, path, &sharing, NSSM_STDERR_SHARING, &disposition, NSSM_STDERR_DISPOSITION, &flags, NSSM_STDERR_FLAGS)) return 6;
   if (path[0]) {
     /* Same as stdin? */
     if (str_equiv(path, stdout_path)) {

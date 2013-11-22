@@ -26,8 +26,17 @@ typedef struct {
   char *env_extra;
   unsigned long env_extralen;
   char stdin_path[MAX_PATH];
+  unsigned long stdin_sharing;
+  unsigned long stdin_disposition;
+  unsigned long stdin_flags;
   char stdout_path[MAX_PATH];
+  unsigned long stdout_sharing;
+  unsigned long stdout_disposition;
+  unsigned long stdout_flags;
   char stderr_path[MAX_PATH];
+  unsigned long stderr_sharing;
+  unsigned long stderr_disposition;
+  unsigned long stderr_flags;
   unsigned long default_exit_action;
   unsigned long throttle_delay;
   unsigned long stop_method;

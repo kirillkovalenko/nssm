@@ -134,6 +134,21 @@ int install(HWND window) {
     check_io("stdin", service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
     check_io("stdout", service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
     check_io("stderr", service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
+    /* I/O defaults. */
+    service->stdin_sharing = NSSM_STDIN_SHARING;
+    service->stdin_disposition = NSSM_STDIN_DISPOSITION;
+    service->stdin_flags = NSSM_STDIN_FLAGS;
+    service->stdout_sharing = NSSM_STDOUT_SHARING;
+    service->stdout_disposition = NSSM_STDOUT_DISPOSITION;
+    service->stdout_flags = NSSM_STDOUT_FLAGS;
+    service->stderr_sharing = NSSM_STDERR_SHARING;
+    service->stderr_disposition = NSSM_STDERR_DISPOSITION;
+    service->stderr_flags = NSSM_STDERR_FLAGS;
+    /* Override stdout and/or stderr. */
+    if (SendDlgItemMessage(tablist[NSSM_TAB_IO], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      if (service->stdout_path[0]) service->stdout_disposition = CREATE_ALWAYS;
+      if (service->stderr_path[0]) service->stderr_disposition = CREATE_ALWAYS;
+    }
 
     /* Get environment. */
     unsigned long envlen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT), WM_GETTEXTLENGTH, 0, 0);

@@ -37,6 +37,7 @@
 #define IDC_BROWSE_DIR                  1024
 #define IDC_ENVIRONMENT                 1025
 #define IDC_ENVIRONMENT_REPLACE         1026
+#define IDC_TRUNCATE                    1027
 
 // Next default values for new objects
 // 
@@ -44,7 +45,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        109
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1027
+#define _APS_NEXT_CONTROL_VALUE         1028
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
