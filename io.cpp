@@ -1,12 +1,12 @@
 #include "nssm.h"
 
 /* Get path, share mode, creation disposition and flags for a stream. */
-int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long *sharing, unsigned long default_sharing, unsigned long *disposition, unsigned long default_disposition, unsigned long *flags, unsigned long default_flags) {
-  char value[NSSM_STDIO_LENGTH];
+int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned long *sharing, unsigned long default_sharing, unsigned long *disposition, unsigned long default_disposition, unsigned long *flags, unsigned long default_flags) {
+  TCHAR value[NSSM_STDIO_LENGTH];
 
   /* Path. */
-  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s", prefix) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, prefix, "get_createfile_parameters()", 0);
+  if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s"), prefix) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, prefix, _T("get_createfile_parameters()"), 0);
     return 1;
   }
   switch (expand_parameter(key, value, path, MAX_PATH, true, false)) {
@@ -15,8 +15,8 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   }
 
   /* ShareMode. */
-  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, NSSM_REG_STDIO_SHARING) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_SHARING, "get_createfile_parameters()", 0);
+  if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s%s"), prefix, NSSM_REG_STDIO_SHARING) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_SHARING, _T("get_createfile_parameters()"), 0);
     return 3;
   }
   switch (get_number(key, value, sharing, false)) {
@@ -26,8 +26,8 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   }
 
   /* CreationDisposition. */
-  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, NSSM_REG_STDIO_DISPOSITION) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_DISPOSITION, "get_createfile_parameters()", 0);
+  if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s%s"), prefix, NSSM_REG_STDIO_DISPOSITION) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_DISPOSITION, _T("get_createfile_parameters()"), 0);
     return 5;
   }
   switch (get_number(key, value, disposition, false)) {
@@ -37,8 +37,8 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   }
 
   /* Flags. */
-  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, NSSM_REG_STDIO_FLAGS) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_FLAGS, "get_createfile_parameters()", 0);
+  if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s%s"), prefix, NSSM_REG_STDIO_FLAGS) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_FLAGS, _T("get_createfile_parameters()"), 0);
     return 7;
   }
   switch (get_number(key, value, flags, false)) {
@@ -50,18 +50,18 @@ int get_createfile_parameters(HKEY key, char *prefix, char *path, unsigned long 
   return 0;
 }
 
-int set_createfile_parameter(HKEY key, char *prefix, char *suffix, unsigned long number) {
-  char value[NSSM_STDIO_LENGTH];
+int set_createfile_parameter(HKEY key, TCHAR *prefix, TCHAR *suffix, unsigned long number) {
+  TCHAR value[NSSM_STDIO_LENGTH];
 
-  if (_snprintf_s(value, sizeof(value), _TRUNCATE, "%s%s", prefix, suffix) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, suffix, "set_createfile_parameter()", 0);
+  if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s%s"), prefix, suffix) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, suffix, _T("set_createfile_parameter()"), 0);
     return 1;
   }
 
   return set_number(key, value, number);
 }
 
-HANDLE append_to_file(char *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
+HANDLE append_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
   HANDLE ret;
 
   /* Try to append to the file first. */
@@ -82,8 +82,8 @@ HANDLE append_to_file(char *path, unsigned long sharing, SECURITY_ATTRIBUTES *at
 }
 
 int get_output_handles(HKEY key, STARTUPINFO *si) {
-  char path[MAX_PATH];
-  char stdout_path[MAX_PATH];
+  TCHAR path[MAX_PATH];
+  TCHAR stdout_path[MAX_PATH];
   unsigned long sharing, disposition, flags;
   bool set_flags = false;
 
@@ -107,8 +107,8 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
   if (get_createfile_parameters(key, NSSM_REG_STDOUT, path, &sharing, NSSM_STDOUT_SHARING, &disposition, NSSM_STDOUT_DISPOSITION, &flags, NSSM_STDOUT_FLAGS)) return 3;
   if (path[0]) {
     /* Remember path for comparison with stderr. */
-    if (_snprintf_s(stdout_path, sizeof(stdout_path), _TRUNCATE, "%s", path) < 0) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "stdout_path", "get_output_handles", 0);
+    if (_sntprintf_s(stdout_path, _countof(stdout_path), _TRUNCATE, _T("%s"), path) < 0) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("stdout_path"), _T("get_output_handles"), 0);
       return 4;
     }
 

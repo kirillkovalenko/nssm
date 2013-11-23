@@ -5,7 +5,7 @@ bool use_critical_section;
 
 extern imports_t imports;
 
-const char *exit_action_strings[] = { "Restart", "Ignore", "Exit", "Suicide", 0 };
+const TCHAR *exit_action_strings[] = { _T("Restart"), _T("Ignore"), _T("Exit"), _T("Suicide"), 0 };
 
 static inline int throttle_milliseconds(unsigned long throttle) {
   /* pow() operates on doubles. */
@@ -55,7 +55,7 @@ void set_nssm_service_defaults(nssm_service_t *service) {
 /* Allocate and zero memory for a service. */
 nssm_service_t *alloc_nssm_service() {
   nssm_service_t *service = (nssm_service_t *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(nssm_service_t));
-  if (! service) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "service", "alloc_nssm_service()", 0);
+  if (! service) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("alloc_nssm_service()"), 0);
   return service;
 }
 
@@ -73,42 +73,40 @@ void cleanup_nssm_service(nssm_service_t *service) {
 }
 
 /* About to install the service */
-int pre_install_service(int argc, char **argv) {
+int pre_install_service(int argc, TCHAR **argv) {
   /* Show the dialogue box if we didn't give the service name and path */
   if (argc < 2) return nssm_gui(IDD_INSTALL, argv[0]);
 
   nssm_service_t *service = alloc_nssm_service();
   if (! service) {
-    print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, "service", "pre_install_service()");
+    print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("pre_install_service()"));
     return 1;
   }
 
   set_nssm_service_defaults(service);
-  memmove(service->name, argv[0], strlen(argv[0]));
-  memmove(service->exe, argv[1], strlen(argv[1]));
+  _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
+  _sntprintf_s(service->exe, _countof(service->exe), _TRUNCATE, _T("%s"), argv[1]);
 
   /* Arguments are optional */
   size_t flagslen = 0;
   size_t s = 0;
   int i;
-  for (i = 2; i < argc; i++) flagslen += strlen(argv[i]) + 1;
+  for (i = 2; i < argc; i++) flagslen += _tcslen(argv[i]) + 1;
   if (! flagslen) flagslen = 1;
+  if (flagslen > _countof(service->flags)) {
+    print_message(stderr, NSSM_MESSAGE_FLAGS_TOO_LONG);
+    return 2;
+  }
 
-  /*
-    This probably isn't UTF8-safe and should use std::string or something
-    but it's been broken for the best part of a decade and due for a rewrite
-    anyway so it'll do as a quick-'n'-dirty fix.  Note that we don't free
-    the flags buffer but as the program exits that isn't a big problem.
-  */
   for (i = 2; i < argc; i++) {
-    size_t len = strlen(argv[i]);
-    memmove(service->flags + s, argv[i], len);
+    size_t len = _tcslen(argv[i]);
+    memmove(service->flags + s, argv[i], len * sizeof(TCHAR));
     s += len;
-    if (i < argc - 1) service->flags[s++] = ' ';
+    if (i < argc - 1) service->flags[s++] = _T(' ');
   }
 
   /* Work out directory name */
-  memmove(service->dir, service->exe, sizeof(service->dir));
+  _sntprintf_s(service->dir, _countof(service->dir), _TRUNCATE, _T("%s"), service->exe);
   strip_basename(service->dir);
 
   int ret = install_service(service);
@@ -117,12 +115,12 @@ int pre_install_service(int argc, char **argv) {
 }
 
 /* About to remove the service */
-int pre_remove_service(int argc, char **argv) {
+int pre_remove_service(int argc, TCHAR **argv) {
   /* Show dialogue box if we didn't pass service name and "confirm" */
   if (argc < 2) return nssm_gui(IDD_REMOVE, argv[0]);
-  if (str_equiv(argv[1], "confirm")) {
+  if (str_equiv(argv[1], _T("confirm"))) {
     nssm_service_t *service = alloc_nssm_service();
-    memmove(service->name, argv[0], strlen(argv[0]));
+    _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
     int ret = remove_service(service);
     cleanup_nssm_service(service);
     return ret;
@@ -144,17 +142,17 @@ int install_service(nssm_service_t *service) {
   }
 
   /* Get path of this program */
-  char path[MAX_PATH];
+  TCHAR path[MAX_PATH];
   GetModuleFileName(0, path, MAX_PATH);
 
   /* Construct command */
-  char command[CMD_LENGTH];
-  size_t pathlen = strlen(path);
+  TCHAR command[CMD_LENGTH];
+  size_t pathlen = _tcslen(path);
   if (pathlen + 1 >= VALUE_LENGTH) {
     print_message(stderr, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
     return 3;
   }
-  if (_snprintf_s(command, sizeof(command), _TRUNCATE, "\"%s\"", path) < 0) {
+  if (_sntprintf_s(command, sizeof(command), _TRUNCATE, _T("\"%s\""), path) < 0) {
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH);
     return 4;
   }
@@ -219,12 +217,12 @@ int remove_service(nssm_service_t *service) {
 }
 
 /* Service initialisation */
-void WINAPI service_main(unsigned long argc, char **argv) {
+void WINAPI service_main(unsigned long argc, TCHAR **argv) {
   nssm_service_t *service = alloc_nssm_service();
   if (! service) return;
 
-  if (_snprintf_s(service->name, sizeof(service->name), _TRUNCATE, "%s", argv[0]) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "service->name", "service_main()", 0);
+  if (_sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("service->name"), _T("service_main()"), 0);
     return;
   }
 
@@ -305,8 +303,8 @@ int monitor_service(nssm_service_t *service) {
   /* Set service status to started */
   int ret = start_service(service);
   if (ret) {
-    char code[16];
-    _snprintf_s(code, sizeof(code), _TRUNCATE, "%d", ret);
+    TCHAR code[16];
+    _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%d"), ret);
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_START_SERVICE_FAILED, service->exe, service->name, ret, 0);
     return ret;
   }
@@ -320,32 +318,32 @@ int monitor_service(nssm_service_t *service) {
   return 0;
 }
 
-char *service_control_text(unsigned long control) {
+TCHAR *service_control_text(unsigned long control) {
   switch (control) {
     /* HACK: there is no SERVICE_CONTROL_START constant */
-    case 0: return "START";
-    case SERVICE_CONTROL_STOP: return "STOP";
-    case SERVICE_CONTROL_SHUTDOWN: return "SHUTDOWN";
-    case SERVICE_CONTROL_PAUSE: return "PAUSE";
-    case SERVICE_CONTROL_CONTINUE: return "CONTINUE";
-    case SERVICE_CONTROL_INTERROGATE: return "INTERROGATE";
+    case 0: return _T("START");
+    case SERVICE_CONTROL_STOP: return _T("STOP");
+    case SERVICE_CONTROL_SHUTDOWN: return _T("SHUTDOWN");
+    case SERVICE_CONTROL_PAUSE: return _T("PAUSE");
+    case SERVICE_CONTROL_CONTINUE: return _T("CONTINUE");
+    case SERVICE_CONTROL_INTERROGATE: return _T("INTERROGATE");
     default: return 0;
   }
 }
 
-void log_service_control(char *service_name, unsigned long control, bool handled) {
-  char *text = service_control_text(control);
+void log_service_control(TCHAR *service_name, unsigned long control, bool handled) {
+  TCHAR *text = service_control_text(control);
   unsigned long event;
 
   if (! text) {
     /* "0x" + 8 x hex + NULL */
-    text = (char *) HeapAlloc(GetProcessHeap(), 0, 11);
+    text = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, 11 * sizeof(TCHAR));
     if (! text) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control()", 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("control code"), _T("log_service_control()"), 0);
       return;
     }
-    if (_snprintf_s(text, 11, _TRUNCATE, "0x%08x", control) < 0) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "control code", "log_service_control()", 0);
+    if (_sntprintf_s(text, 11, _TRUNCATE, _T("0x%08x"), control) < 0) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("control code"), _T("log_service_control()"), 0);
       HeapFree(GetProcessHeap(), 0, text);
       return;
     }
@@ -447,9 +445,9 @@ int start_service(nssm_service_t *service) {
   }
 
   /* Launch executable with arguments */
-  char cmd[CMD_LENGTH];
-  if (_snprintf_s(cmd, sizeof(cmd), _TRUNCATE, "\"%s\" %s", service->exe, service->flags) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, "command line", "start_service", 0);
+  TCHAR cmd[CMD_LENGTH];
+  if (_sntprintf_s(cmd, _countof(cmd), _TRUNCATE, _T("\"%s\" %s"), service->exe, service->flags) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("command line"), _T("start_service"), 0);
     close_output_handles(&si);
     return stop_service(service, 2, true, true);
   }
@@ -458,7 +456,11 @@ int start_service(nssm_service_t *service) {
 
   bool inherit_handles = false;
   if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
-  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, 0, service->env, service->dir, &si, &pi)) {
+  unsigned long flags = 0;
+#ifdef UNICODE
+  flags |= CREATE_UNICODE_ENVIRONMENT;
+#endif
+  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, flags, service->env, service->dir, &si, &pi)) {
     unsigned long error = GetLastError();
     if (error == ERROR_INVALID_PARAMETER && service->env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service->name, service->exe, NSSM_REG_ENV, 0);
     else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
@@ -479,10 +481,10 @@ int start_service(nssm_service_t *service) {
   */
   unsigned long delay = service->throttle_delay;
   if (delay > NSSM_SERVICE_STATUS_DEADLINE) {
-    char delay_milliseconds[16];
-    _snprintf_s(delay_milliseconds, sizeof(delay_milliseconds), _TRUNCATE, "%lu", delay);
-    char deadline_milliseconds[16];
-    _snprintf_s(deadline_milliseconds, sizeof(deadline_milliseconds), _TRUNCATE, "%lu", NSSM_SERVICE_STATUS_DEADLINE);
+    TCHAR delay_milliseconds[16];
+    _sntprintf_s(delay_milliseconds, _countof(delay_milliseconds), _TRUNCATE, _T("%lu"), delay);
+    TCHAR deadline_milliseconds[16];
+    _sntprintf_s(deadline_milliseconds, _countof(deadline_milliseconds), _TRUNCATE, _T("%lu"), NSSM_SERVICE_STATUS_DEADLINE);
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_STARTUP_DELAY_TOO_LONG, service->name, delay_milliseconds, NSSM, deadline_milliseconds, 0);
     delay = NSSM_SERVICE_STATUS_DEADLINE;
   }
@@ -560,7 +562,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* Check exit code */
   unsigned long exitcode = 0;
-  char code[16];
+  TCHAR code[16];
   GetExitCodeProcess(service->process_handle, &exitcode);
   if (exitcode == STILL_ACTIVE || get_process_exit_time(service->process_handle, &service->exit_time)) GetSystemTimeAsFileTime(&service->exit_time);
   CloseHandle(service->process_handle);
@@ -573,7 +575,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
     tree.  See below for the possible values of the why argument.
   */
   if (! why) {
-    _snprintf_s(code, sizeof(code), _TRUNCATE, "%lu", exitcode);
+    _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), exitcode);
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ENDED_SERVICE, service->exe, service->name, code, 0);
   }
 
@@ -592,11 +594,11 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* What action should we take? */
   int action = NSSM_EXIT_RESTART;
-  unsigned char action_string[ACTION_LEN];
+  TCHAR action_string[ACTION_LEN];
   bool default_action;
   if (! get_exit_action(service->name, &exitcode, action_string, &default_action)) {
     for (int i = 0; exit_action_strings[i]; i++) {
-      if (! _strnicmp((const char *) action_string, exit_action_strings[i], ACTION_LEN)) {
+      if (! _tcsnicmp((const TCHAR *) action_string, exit_action_strings[i], ACTION_LEN)) {
         action = i;
         break;
       }
@@ -643,9 +645,9 @@ void throttle_restart(nssm_service_t *service) {
 
   if (service->throttle > 7) service->throttle = 8;
 
-  char threshold[8], milliseconds[8];
-  _snprintf_s(threshold, sizeof(threshold), _TRUNCATE, "%lu", service->throttle_delay);
-  _snprintf_s(milliseconds, sizeof(milliseconds), _TRUNCATE, "%lu", ms);
+  TCHAR threshold[8], milliseconds[8];
+  _sntprintf_s(threshold, _countof(threshold), _TRUNCATE, _T("%lu"), service->throttle_delay);
+  _sntprintf_s(milliseconds, _countof(milliseconds), _TRUNCATE, _T("%lu"), ms);
   log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service->name, threshold, milliseconds, 0);
 
   if (use_critical_section) EnterCriticalSection(&service->throttle_section);
@@ -696,24 +698,24 @@ void throttle_restart(nssm_service_t *service) {
            0 if the wait completed.
           -1 on error.
 */
-int await_shutdown(nssm_service_t *service, char *function_name, unsigned long timeout) {
+int await_shutdown(nssm_service_t *service, TCHAR *function_name, unsigned long timeout) {
   unsigned long interval;
   unsigned long waithint;
   unsigned long ret;
   unsigned long waited;
-  char interval_milliseconds[16];
-  char timeout_milliseconds[16];
-  char waited_milliseconds[16];
-  char *function = function_name;
+  TCHAR interval_milliseconds[16];
+  TCHAR timeout_milliseconds[16];
+  TCHAR waited_milliseconds[16];
+  TCHAR *function = function_name;
 
   /* Add brackets to function name. */
-  size_t funclen = strlen(function_name) + 3;
-  char *func = (char *) HeapAlloc(GetProcessHeap(), 0, funclen);
+  size_t funclen = _tcslen(function_name) + 3;
+  TCHAR *func = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, funclen * sizeof(TCHAR));
   if (func) {
-    if (_snprintf_s(func, funclen, _TRUNCATE, "%s()", function_name) > -1) function = func;
+    if (_sntprintf_s(func, funclen, _TRUNCATE, _T("%s()"), function_name) > -1) function = func;
   }
 
-  _snprintf_s(timeout_milliseconds, sizeof(timeout_milliseconds), _TRUNCATE, "%lu", timeout);
+  _sntprintf_s(timeout_milliseconds, _countof(timeout_milliseconds), _TRUNCATE, _T("%lu"), timeout);
 
   waithint = service->status.dwWaitHint;
   waited = 0;
@@ -727,8 +729,8 @@ int await_shutdown(nssm_service_t *service, char *function_name, unsigned long t
     SetServiceStatus(service->status_handle, &service->status);
 
     if (waited) {
-      _snprintf_s(waited_milliseconds, sizeof(waited_milliseconds), _TRUNCATE, "%lu", waited);
-      _snprintf_s(interval_milliseconds, sizeof(interval_milliseconds), _TRUNCATE, "%lu", interval);
+      _sntprintf_s(waited_milliseconds, _countof(waited_milliseconds), _TRUNCATE, _T("%lu"), waited);
+      _sntprintf_s(interval_milliseconds, _countof(interval_milliseconds), _TRUNCATE, _T("%lu"), interval);
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SHUTDOWN, function, service->name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, 0);
     }
 

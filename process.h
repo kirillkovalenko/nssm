@@ -11,7 +11,7 @@ typedef struct {
 
 int get_process_creation_time(HANDLE, FILETIME *);
 int get_process_exit_time(HANDLE, FILETIME *);
-int check_parent(char *, PROCESSENTRY32 *, unsigned long, FILETIME *, FILETIME *);
+int check_parent(TCHAR *, PROCESSENTRY32 *, unsigned long, FILETIME *, FILETIME *);
 int CALLBACK kill_window(HWND, LPARAM);
 int kill_threads(nssm_service_t *, kill_t *);
 int kill_console(nssm_service_t *);

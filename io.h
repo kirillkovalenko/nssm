@@ -11,9 +11,9 @@
 #define NSSM_STDERR_DISPOSITION OPEN_ALWAYS
 #define NSSM_STDERR_FLAGS FILE_ATTRIBUTE_NORMAL
 
-int get_createfile_parameters(HKEY, char *, char *, unsigned long *, unsigned long, unsigned long *, unsigned long, unsigned long *, unsigned long);
-int set_createfile_parameter(HKEY, char *, char *, unsigned long);
-HANDLE append_to_file(char *, unsigned long, SECURITY_ATTRIBUTES *, unsigned long, unsigned long);
+int get_createfile_parameters(HKEY, TCHAR *, TCHAR *, unsigned long *, unsigned long, unsigned long *, unsigned long, unsigned long *, unsigned long);
+int set_createfile_parameter(HKEY, TCHAR *, TCHAR *, unsigned long);
+HANDLE append_to_file(TCHAR *, unsigned long, SECURITY_ATTRIBUTES *, unsigned long, unsigned long);
 int get_output_handles(HKEY, STARTUPINFO *);
 void close_output_handles(STARTUPINFO *);
 

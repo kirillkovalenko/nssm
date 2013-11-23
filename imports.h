@@ -12,7 +12,7 @@ typedef struct {
   WakeConditionVariable_ptr WakeConditionVariable;
 } imports_t;
 
-HMODULE get_dll(const char *, unsigned long *);
+HMODULE get_dll(const TCHAR *, unsigned long *);
 FARPROC get_import(HMODULE, const char *, unsigned long *);
 int get_imports();
 void free_imports();

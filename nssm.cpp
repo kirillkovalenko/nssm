@@ -4,23 +4,22 @@ extern unsigned long tls_index;
 extern bool is_admin;
 extern imports_t imports;
 
-/* String function */
-int str_equiv(const char *a, const char *b) {
-  int i;
-  for (i = 0; ; i++) {
-    if (tolower(b[i]) != tolower(a[i])) return 0;
-    if (! a[i]) return 1;
-  }
+/* Are two strings case-insensitively equivalent? */
+int str_equiv(const TCHAR *a, const TCHAR *b) {
+  size_t len = _tcslen(a);
+  if (_tcslen(b) != len) return 0;
+  if (_tcsnicmp(a, b, len)) return 0;
+  return 1;
 }
 
 /* Remove basename of a path. */
-void strip_basename(char *buffer) {
-  size_t len = strlen(buffer);
+void strip_basename(TCHAR *buffer) {
+  size_t len = _tcslen(buffer);
   size_t i;
-  for (i = len; i && buffer[i] != '\\' && buffer[i] != '/'; i--);
+  for (i = len; i && buffer[i] != _T('\\') && buffer[i] != _T('/'); i--);
   /* X:\ is OK. */
-  if (i && buffer[i-1] == ':') i++;
-  buffer[i] = '\0';
+  if (i && buffer[i - 1] == _T(':')) i++;
+  buffer[i] = _T('\0');
 }
 
 /* How to use me correctly */
@@ -40,21 +39,21 @@ void check_admin() {
   FreeSid(AdministratorsGroup);
 }
 
-int main(int argc, char **argv) {
+int _tmain(int argc, TCHAR **argv) {
   /* Remember if we are admin */
   check_admin();
 
   /* Elevate */
   if (argc > 1) {
     /* Valid commands are install or remove */
-    if (str_equiv(argv[1], "install")) {
+    if (str_equiv(argv[1], _T("install"))) {
       if (! is_admin) {
         print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL);
         exit(100);
       }
       exit(pre_install_service(argc - 2, argv + 2));
     }
-    if (str_equiv(argv[1], "remove")) {
+    if (str_equiv(argv[1], _T("remove"))) {
       if (! is_admin) {
         print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE);
         exit(100);

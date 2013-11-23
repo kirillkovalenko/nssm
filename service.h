@@ -17,23 +17,23 @@
 #define ACTION_LEN 16
 
 typedef struct {
-  char name[SERVICE_NAME_LENGTH];
-  char exe[EXE_LENGTH];
-  char flags[VALUE_LENGTH];
-  char dir[MAX_PATH];
-  char *env;
+  TCHAR name[SERVICE_NAME_LENGTH];
+  TCHAR exe[EXE_LENGTH];
+  TCHAR flags[VALUE_LENGTH];
+  TCHAR dir[MAX_PATH];
+  TCHAR *env;
   unsigned long envlen;
-  char *env_extra;
+  TCHAR *env_extra;
   unsigned long env_extralen;
-  char stdin_path[MAX_PATH];
+  TCHAR stdin_path[MAX_PATH];
   unsigned long stdin_sharing;
   unsigned long stdin_disposition;
   unsigned long stdin_flags;
-  char stdout_path[MAX_PATH];
+  TCHAR stdout_path[MAX_PATH];
   unsigned long stdout_sharing;
   unsigned long stdout_disposition;
   unsigned long stdout_flags;
-  char stderr_path[MAX_PATH];
+  TCHAR stderr_path[MAX_PATH];
   unsigned long stderr_sharing;
   unsigned long stderr_disposition;
   unsigned long stderr_flags;
@@ -61,17 +61,17 @@ typedef struct {
   FILETIME exit_time;
 } nssm_service_t;
 
-void WINAPI service_main(unsigned long, char **);
-char *service_control_text(unsigned long);
-void log_service_control(char *, unsigned long, bool);
+void WINAPI service_main(unsigned long, TCHAR **);
+TCHAR *service_control_text(unsigned long);
+void log_service_control(TCHAR *, unsigned long, bool);
 unsigned long WINAPI service_control_handler(unsigned long, unsigned long, void *, void *);
 
 nssm_service_t *alloc_nssm_service();
 void set_nssm_service_defaults(nssm_service_t *);
 void cleanup_nssm_service(nssm_service_t *);
 SC_HANDLE open_service_manager();
-int pre_install_service(int, char **);
-int pre_remove_service(int, char **);
+int pre_install_service(int, TCHAR **);
+int pre_remove_service(int, TCHAR **);
 int install_service(nssm_service_t *);
 int remove_service(nssm_service_t *);
 void set_service_recovery(nssm_service_t *);
@@ -80,6 +80,6 @@ int start_service(nssm_service_t *);
 int stop_service(nssm_service_t *, unsigned long, bool, bool);
 void CALLBACK end_service(void *, unsigned char);
 void throttle_restart(nssm_service_t *);
-int await_shutdown(nssm_service_t *, char *, unsigned long);
+int await_shutdown(nssm_service_t *, TCHAR *, unsigned long);
 
 #endif

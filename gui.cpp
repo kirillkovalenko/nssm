@@ -4,7 +4,7 @@ static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_I
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
-int nssm_gui(int resource, char *name) {
+int nssm_gui(int resource, TCHAR *name) {
   /* Create window */
   HWND dlg = CreateDialog(0, MAKEINTRESOURCE(resource), 0, install_dlg);
   if (! dlg) {
@@ -74,7 +74,7 @@ static inline void check_method_timeout(HWND tab, unsigned long control, unsigne
   if (translated) *timeout = configured;
 }
 
-static inline void check_io(char *name, char *buffer, size_t bufsize, unsigned long control) {
+static inline void check_io(TCHAR *name, TCHAR *buffer, size_t bufsize, unsigned long control) {
   if (! SendMessage(GetDlgItem(tablist[NSSM_TAB_IO], control), WM_GETTEXTLENGTH, 0, 0)) return;
   if (GetDlgItemText(tablist[NSSM_TAB_IO], control, buffer, (int) bufsize)) return;
   popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, name);
@@ -104,7 +104,7 @@ int install(HWND window) {
 
     /* Get startup directory. */
     if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_DIR, service->dir, sizeof(service->dir))) {
-      memmove(service->dir, service->exe, sizeof(service->dir));
+      _sntprintf_s(service->dir, _countof(service->dir), _TRUNCATE, _T("%s"), service->exe);
       strip_basename(service->dir);
     }
 
@@ -132,9 +132,9 @@ int install(HWND window) {
     if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
 
     /* Get I/O stuff. */
-    check_io("stdin", service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
-    check_io("stdout", service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
-    check_io("stderr", service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
+    check_io(_T("stdin"), service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
+    check_io(_T("stdout"), service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
+    check_io(_T("stderr"), service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
     /* Override stdout and/or stderr. */
     if (SendDlgItemMessage(tablist[NSSM_TAB_IO], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
       if (service->stdout_path[0]) service->stdout_disposition = CREATE_ALWAYS;
@@ -144,9 +144,9 @@ int install(HWND window) {
     /* Get environment. */
     unsigned long envlen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT), WM_GETTEXTLENGTH, 0, 0);
     if (envlen) {
-      char *env = (char *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, envlen + 2);
+      TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (envlen + 2) * sizeof(TCHAR));
       if (! env) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "environment", "install()");
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
         cleanup_nssm_service(service);
         return 5;
       }
@@ -161,21 +161,21 @@ int install(HWND window) {
       /* Strip CR and replace LF with NULL. */
       unsigned long newlen = 0;
       unsigned long i, j;
-      for (i = 0; i < envlen; i++) if (env[i] != '\r') newlen++;
+      for (i = 0; i < envlen; i++) if (env[i] != _T('\r')) newlen++;
       /* Must end with two NULLs. */
       newlen += 2;
 
-      char *newenv = (char *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen);
+      TCHAR *newenv = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen * sizeof(TCHAR));
       if (! newenv) {
         HeapFree(GetProcessHeap(), 0, env);
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "environment", "install()");
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
         cleanup_nssm_service(service);
         return 5;
       }
 
       for (i = 0, j = 0; i < envlen; i++) {
-        if (env[i] == '\r') continue;
-        if (env[i] == '\n') newenv[j] = '\0';
+        if (env[i] == _T('\r')) continue;
+        if (env[i] == _T('\n')) newenv[j] = _T('\0');
         else newenv[j] = env[i];
         j++;
       }
@@ -185,15 +185,19 @@ int install(HWND window) {
       envlen = newlen;
 
       /* Test the environment is valid. */
-      char path[MAX_PATH];
-      GetModuleFileName(0, path, sizeof(path));
+      TCHAR path[MAX_PATH];
+      GetModuleFileName(0, path, _countof(path));
       STARTUPINFO si;
       ZeroMemory(&si, sizeof(si));
       si.cb = sizeof(si);
       PROCESS_INFORMATION pi;
       ZeroMemory(&pi, sizeof(pi));
+      unsigned long flags = CREATE_SUSPENDED;
+#ifdef UNICODE
+      flags |= CREATE_UNICODE_ENVIRONMENT;
+#endif
 
-      if (! CreateProcess(0, path, 0, 0, 0, CREATE_SUSPENDED, env, 0, &si, &pi)) {
+      if (! CreateProcess(0, path, 0, 0, 0, flags, env, 0, &si, &pi)) {
         unsigned long error = GetLastError();
         if (error == ERROR_INVALID_PARAMETER) {
           popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
@@ -219,7 +223,7 @@ int install(HWND window) {
   /* See if it works. */
   switch (install_service(service)) {
     case 1:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "service", "install()");
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("install()"));
       cleanup_nssm_service(service);
       return 1;
 
@@ -277,7 +281,7 @@ int remove(HWND window) {
 
   switch (remove_service(service)) {
     case 1:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, "service", "remove()");
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("remove()"));
       cleanup_nssm_service(service);
       return 1;
 
@@ -302,12 +306,12 @@ int remove(HWND window) {
   return 0;
 }
 
-static char *browse_filter(int message) {
+static TCHAR *browse_filter(int message) {
   switch (message) {
-    case NSSM_GUI_BROWSE_FILTER_APPLICATIONS: return "*.exe;*.bat;*.cmd";
-    case NSSM_GUI_BROWSE_FILTER_DIRECTORIES: return ".";
+    case NSSM_GUI_BROWSE_FILTER_APPLICATIONS: return _T("*.exe;*.bat;*.cmd");
+    case NSSM_GUI_BROWSE_FILTER_DIRECTORIES: return _T(".");
     case NSSM_GUI_BROWSE_FILTER_ALL_FILES: /* Fall through. */
-    default: return "*.*";
+    default: return _T("*.*");
   }
 }
 
@@ -321,7 +325,7 @@ UINT_PTR CALLBACK browse_hook(HWND dlg, UINT message, WPARAM w, LPARAM l) {
 }
 
 /* Browse for application */
-void browse(HWND window, char *current, unsigned long flags, ...) {
+void browse(HWND window, TCHAR *current, unsigned long flags, ...) {
   if (! window) return;
 
   va_list arg;
@@ -332,7 +336,7 @@ void browse(HWND window, char *current, unsigned long flags, ...) {
   OPENFILENAME ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
-  ofn.lpstrFilter = (char *) HeapAlloc(GetProcessHeap(), 0, bufsize);
+  ofn.lpstrFilter = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, bufsize * sizeof(TCHAR));
   /* XXX: Escaping nulls with FormatMessage is tricky */
   if (ofn.lpstrFilter) {
     ZeroMemory((void *) ofn.lpstrFilter, bufsize);
@@ -340,23 +344,23 @@ void browse(HWND window, char *current, unsigned long flags, ...) {
     /* "Applications" + NULL + "*.exe" + NULL */
     va_start(arg, flags);
     while (i = va_arg(arg, int)) {
-      char *localised = message_string(i);
-      _snprintf_s((char *) ofn.lpstrFilter + len, bufsize, _TRUNCATE, localised);
-      len += strlen(localised) + 1;
+      TCHAR *localised = message_string(i);
+      _sntprintf_s((TCHAR *) ofn.lpstrFilter + len, bufsize, _TRUNCATE, localised);
+      len += _tcslen(localised) + 1;
       LocalFree(localised);
-      char *filter = browse_filter(i);
-      _snprintf_s((char *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, "%s", filter);
-      len += strlen(filter) + 1;
+      TCHAR *filter = browse_filter(i);
+      _sntprintf_s((TCHAR *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, _T("%s"), filter);
+      len += _tcslen(filter) + 1;
     }
     va_end(arg);
     /* Remainder of the buffer is already zeroed */
   }
-  ofn.lpstrFile = new char[MAX_PATH];
+  ofn.lpstrFile = new TCHAR[MAX_PATH];
   if (flags & OFN_NOVALIDATE) {
     /* Directory hack. */
-    _snprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, ":%s:", message_string(NSSM_GUI_BROWSE_FILTER_DIRECTORIES));
+    _sntprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, _T(":%s:"), message_string(NSSM_GUI_BROWSE_FILTER_DIRECTORIES));
   }
-  else _snprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, "%s", current);
+  else _sntprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, _T("%s"), current);
   ofn.lpstrTitle = message_string(NSSM_GUI_BROWSE_TITLE);
   ofn.nMaxFile = MAX_PATH;
   ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | flags;
@@ -379,7 +383,7 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
     /* Button was pressed or control was controlled. */
     case WM_COMMAND:
       HWND dlg;
-      char buffer[MAX_PATH];
+      TCHAR buffer[MAX_PATH];
 
       switch (LOWORD(w)) {
         /* Browse for application. */
@@ -455,14 +459,14 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
       /* Application tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_APPLICATION);
-      tab.cchTextMax = (int) strlen(tab.pszText);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_APPLICATION, (LPARAM) &tab);
       tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_APPLICATION], SW_SHOW);
 
       /* Shutdown tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);
-      tab.cchTextMax = (int) strlen(tab.pszText);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_SHUTDOWN, (LPARAM) &tab);
       tablist[NSSM_TAB_SHUTDOWN] = CreateDialog(0, MAKEINTRESOURCE(IDD_SHUTDOWN), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_SHUTDOWN], SW_HIDE);
@@ -478,7 +482,7 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
       /* Restart tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_EXIT);
-      tab.cchTextMax = (int) strlen(tab.pszText);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_EXIT, (LPARAM) &tab);
       tablist[NSSM_TAB_EXIT] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPEXIT), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_EXIT], SW_HIDE);
@@ -494,14 +498,14 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
       /* I/O tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_IO);
-      tab.cchTextMax = (int) strlen(tab.pszText) + 1;
+      tab.cchTextMax = (int) _tcslen(tab.pszText) + 1;
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_IO, (LPARAM) &tab);
       tablist[NSSM_TAB_IO] = CreateDialog(0, MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_IO], SW_HIDE);
 
       /* Environment tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_ENVIRONMENT);
-      tab.cchTextMax = (int) strlen(tab.pszText) + 1;
+      tab.cchTextMax = (int) _tcslen(tab.pszText) + 1;
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_ENVIRONMENT, (LPARAM) &tab);
       tablist[NSSM_TAB_ENVIRONMENT] = CreateDialog(0, MAKEINTRESOURCE(IDD_ENVIRONMENT), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_ENVIRONMENT], SW_HIDE);

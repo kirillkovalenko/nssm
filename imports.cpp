@@ -9,7 +9,7 @@ imports_t imports;
   absolutely need.  If we later add some indispensible imports we can
   return non-zero here to force an application exit.
 */
-HMODULE get_dll(const char *dll, unsigned long *error) {
+HMODULE get_dll(const TCHAR *dll, unsigned long *error) {
   *error = 0;
 
   HMODULE ret = LoadLibrary(dll);
@@ -38,7 +38,7 @@ int get_imports() {
 
   ZeroMemory(&imports, sizeof(imports));
 
-  imports.kernel32 = get_dll("kernel32.dll", &error);
+  imports.kernel32 = get_dll(_T("kernel32.dll"), &error);
   if (imports.kernel32) {
     imports.AttachConsole = (AttachConsole_ptr) get_import(imports.kernel32, "AttachConsole", &error);
     if (! imports.AttachConsole) {

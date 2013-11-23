@@ -5,6 +5,7 @@
 #include <shlwapi.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <tchar.h>
 #include <windows.h>
 #include "service.h"
 #include "event.h"
@@ -15,13 +16,13 @@
 #include "io.h"
 #include "gui.h"
 
-int str_equiv(const char *, const char *);
-void strip_basename(char *);
+int str_equiv(const TCHAR *, const TCHAR *);
+void strip_basename(TCHAR *);
 
-#define NSSM "nssm"
-#define NSSM_VERSION "2.21"
+#define NSSM _T("nssm")
+#define NSSM_VERSION _T("2.21")
 #define NSSM_VERSIONINFO 2,21,0,0
-#define NSSM_DATE "2013-11-24"
+#define NSSM_DATE _T("2013-11-24")
 
 /*
   Throttle the restart of the service if it stops before this many

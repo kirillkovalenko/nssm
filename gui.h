@@ -6,7 +6,7 @@
 #include <commctrl.h>
 #include "resource.h"
 
-int nssm_gui(int, char *);
+int nssm_gui(int, TCHAR *);
 void centre_window(HWND);
 int install(HWND);
 int remove(HWND);

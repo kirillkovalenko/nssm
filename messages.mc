@@ -137,6 +137,18 @@ Language = Italian
 Il path completo verso %s è troppo lungo!
 .
 
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_FLAGS_TOO_LONG
+Severity = Informational
+Language = English
+The program flags are too long!
+.
+Language = French
+The program flags are too long!
+.
+Language = Italian
+The program flags are too long!
+.
 
 MessageId = +1
 SymbolicName = NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH
