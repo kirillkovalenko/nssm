@@ -32,6 +32,26 @@ SC_HANDLE open_service_manager() {
   return ret;
 }
 
+/* Set default values which aren't zero. */
+void set_nssm_service_defaults(nssm_service_t *service) {
+  if (! service) return;
+
+  service->stdin_sharing = NSSM_STDIN_SHARING;
+  service->stdin_disposition = NSSM_STDIN_DISPOSITION;
+  service->stdin_flags = NSSM_STDIN_FLAGS;
+  service->stdout_sharing = NSSM_STDOUT_SHARING;
+  service->stdout_disposition = NSSM_STDOUT_DISPOSITION;
+  service->stdout_flags = NSSM_STDOUT_FLAGS;
+  service->stderr_sharing = NSSM_STDERR_SHARING;
+  service->stderr_disposition = NSSM_STDERR_DISPOSITION;
+  service->stderr_flags = NSSM_STDERR_FLAGS;
+  service->throttle_delay = NSSM_RESET_THROTTLE_RESTART;
+  service->stop_method = ~0;
+  service->kill_console_delay = NSSM_KILL_CONSOLE_GRACE_PERIOD;
+  service->kill_window_delay = NSSM_KILL_WINDOW_GRACE_PERIOD;
+  service->kill_threads_delay = NSSM_KILL_THREADS_GRACE_PERIOD;
+}
+
 /* Allocate and zero memory for a service. */
 nssm_service_t *alloc_nssm_service() {
   nssm_service_t *service = (nssm_service_t *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(nssm_service_t));
@@ -63,6 +83,7 @@ int pre_install_service(int argc, char **argv) {
     return 1;
   }
 
+  set_nssm_service_defaults(service);
   memmove(service->name, argv[0], strlen(argv[0]));
   memmove(service->exe, argv[1], strlen(argv[1]));
 

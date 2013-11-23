@@ -67,6 +67,7 @@ void log_service_control(char *, unsigned long, bool);
 unsigned long WINAPI service_control_handler(unsigned long, unsigned long, void *, void *);
 
 nssm_service_t *alloc_nssm_service();
+void set_nssm_service_defaults(nssm_service_t *);
 void cleanup_nssm_service(nssm_service_t *);
 SC_HANDLE open_service_manager();
 int pre_install_service(int, char **);

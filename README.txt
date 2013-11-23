@@ -323,6 +323,7 @@ Thanks to Eric Cheldelin for the inspiration to generate a Control-C event
 on shutdown.
 Thanks to Brian Baxter for suggesting how to escape quotes from the command prompt.
 Thanks to Russ Holmann for suggesting that the shutdown timeout be configurable.
+Thanks to Paul Spause for spotting a bug with default registry entries.
 
 Licence
 -------
