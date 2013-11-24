@@ -110,7 +110,7 @@ int install(HWND window) {
 
     /* Get flags. */
     if (SendMessage(GetDlgItem(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
-      if (! GetDlgItemText(window, IDC_FLAGS, service->flags, sizeof(service->flags))) {
+      if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS, service->flags, sizeof(service->flags))) {
         popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
         return 4;
       }

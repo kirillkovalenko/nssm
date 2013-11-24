@@ -1,3 +1,8 @@
+Changes since 2.20
+-----------------
+  * Services installed from the GUI no longer have incorrect
+    AppParameters set in the registry.
+
 Changes since 2.19
 -----------------
   * Services installed from the commandline without using the
