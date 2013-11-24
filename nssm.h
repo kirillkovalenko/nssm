@@ -19,9 +19,9 @@ int str_equiv(const char *, const char *);
 void strip_basename(char *);
 
 #define NSSM "nssm"
-#define NSSM_VERSION "2.20"
-#define NSSM_VERSIONINFO 2,20,0,0
-#define NSSM_DATE "2013-11-23"
+#define NSSM_VERSION "2.21"
+#define NSSM_VERSIONINFO 2,21,0,0
+#define NSSM_DATE "2013-11-24"
 
 /*
   Throttle the restart of the service if it stops before this many
