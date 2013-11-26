@@ -142,20 +142,8 @@ int install_service(nssm_service_t *service) {
   }
 
   /* Get path of this program */
-  TCHAR path[MAX_PATH];
-  GetModuleFileName(0, path, MAX_PATH);
-
-  /* Construct command */
-  TCHAR command[CMD_LENGTH];
-  size_t pathlen = _tcslen(path);
-  if (pathlen + 1 >= VALUE_LENGTH) {
-    print_message(stderr, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
-    return 3;
-  }
-  if (_sntprintf_s(command, sizeof(command), _TRUNCATE, _T("\"%s\""), path) < 0) {
-    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY_FOR_IMAGEPATH);
-    return 4;
-  }
+  TCHAR command[MAX_PATH];
+  GetModuleFileName(0, command, _countof(command));
 
   /* Create the service */
   service->handle = CreateService(services, service->name, service->name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
