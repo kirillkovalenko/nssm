@@ -17,5 +17,6 @@ int kill_threads(nssm_service_t *, kill_t *);
 int kill_console(nssm_service_t *);
 int kill_process(nssm_service_t *, HANDLE, unsigned long, unsigned long);
 void kill_process_tree(nssm_service_t *, unsigned long, unsigned long, unsigned long);
+int test_environment(TCHAR *);
 
 #endif
