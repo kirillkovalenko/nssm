@@ -185,29 +185,12 @@ int install(HWND window) {
       envlen = newlen;
 
       /* Test the environment is valid. */
-      TCHAR path[MAX_PATH];
-      GetModuleFileName(0, path, _countof(path));
-      STARTUPINFO si;
-      ZeroMemory(&si, sizeof(si));
-      si.cb = sizeof(si);
-      PROCESS_INFORMATION pi;
-      ZeroMemory(&pi, sizeof(pi));
-      unsigned long flags = CREATE_SUSPENDED;
-#ifdef UNICODE
-      flags |= CREATE_UNICODE_ENVIRONMENT;
-#endif
-
-      if (! CreateProcess(0, path, 0, 0, 0, flags, env, 0, &si, &pi)) {
-        unsigned long error = GetLastError();
-        if (error == ERROR_INVALID_PARAMETER) {
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
-          HeapFree(GetProcessHeap(), 0, env);
-          envlen = 0;
-        }
+      if (test_environment(env)) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
+        HeapFree(GetProcessHeap(), 0, env);
         cleanup_nssm_service(service);
         return 5;
       }
-      TerminateProcess(pi.hProcess, 0);
 
       if (SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
         service->env = env;

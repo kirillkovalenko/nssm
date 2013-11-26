@@ -449,11 +449,15 @@ int start_service(nssm_service_t *service) {
   flags |= CREATE_UNICODE_ENVIRONMENT;
 #endif
   if (! CreateProcess(0, cmd, 0, 0, inherit_handles, flags, service->env, service->dir, &si, &pi)) {
+    unsigned long exitcode = 3;
     unsigned long error = GetLastError();
-    if (error == ERROR_INVALID_PARAMETER && service->env) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service->name, service->exe, NSSM_REG_ENV, 0);
+    if (error == ERROR_INVALID_PARAMETER && service->env) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service->name, service->exe, NSSM_REG_ENV, 0);
+      if (test_environment(service->env)) exitcode = 4;
+    }
     else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
     close_output_handles(&si);
-    return stop_service(service, 3, true, true);
+    return stop_service(service, exitcode, true, true);
   }
   service->process_handle = pi.hProcess;
   service->pid = pi.dwProcessId;
