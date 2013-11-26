@@ -551,12 +551,14 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   /* Check exit code */
   unsigned long exitcode = 0;
   TCHAR code[16];
-  GetExitCodeProcess(service->process_handle, &exitcode);
-  if (exitcode == STILL_ACTIVE || get_process_exit_time(service->process_handle, &service->exit_time)) GetSystemTimeAsFileTime(&service->exit_time);
-  CloseHandle(service->process_handle);
+  if (service->process_handle) {
+    GetExitCodeProcess(service->process_handle, &exitcode);
+    if (exitcode == STILL_ACTIVE || get_process_exit_time(service->process_handle, &service->exit_time)) GetSystemTimeAsFileTime(&service->exit_time);
+    CloseHandle(service->process_handle);
+  }
+  else GetSystemTimeAsFileTime(&service->exit_time);
 
   service->process_handle = 0;
-  service->pid = 0;
 
   /*
     Log that the service ended BEFORE logging about killing the process
@@ -569,7 +571,8 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* Clean up. */
   if (exitcode == STILL_ACTIVE) exitcode = 0;
-  kill_process_tree(service, service->pid, exitcode, service->pid);
+  if (service->pid) kill_process_tree(service, service->pid, exitcode, service->pid);
+  service->pid = 0;
 
   /*
     The why argument is true if our wait timed out or false otherwise.
