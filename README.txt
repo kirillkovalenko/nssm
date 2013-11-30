@@ -294,11 +294,14 @@ To remove the server:
 
 Building NSSM from source
 -------------------------
-NSSM is known to compile with Visual Studio 6, Visual Studio 2005 and Visual
-Studio 2008.
+NSSM is known to compile with Visual Studio 2008.  Older Visual Studio
+releases may or may not work.
 
 NSSM will also compile with Visual Studio 2010 but the resulting executable
-will not run on versions of Windows older than XP SP2.
+will not run on versions of Windows older than XP SP2.  If you require
+compatiblity with older Windows releases you should change the Platform
+Toolset to v90 in the General section of the project's Configuration
+Properties.
 
 
 Credits
