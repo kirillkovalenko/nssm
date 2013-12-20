@@ -121,7 +121,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
   /* stderr */
   if (get_createfile_parameters(key, NSSM_REG_STDERR, path, &sharing, NSSM_STDERR_SHARING, &disposition, NSSM_STDERR_DISPOSITION, &flags, NSSM_STDERR_FLAGS)) return 6;
   if (path[0]) {
-    /* Same as stdin? */
+    /* Same as stdout? */
     if (str_equiv(path, stdout_path)) {
       /* Two handles to the same file will create a race. */
       if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {

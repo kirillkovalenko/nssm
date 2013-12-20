@@ -387,12 +387,21 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
     }
   }
 
+  /* Change to startup directory in case stdout/stderr are relative paths. */
+  TCHAR cwd[MAX_PATH];
+  GetCurrentDirectory(_countof(cwd), cwd);
+  SetCurrentDirectory(service->dir);
+
   /* Try to get stdout and stderr */
   if (get_output_handles(key, si)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
     RegCloseKey(key);
+    SetCurrentDirectory(cwd);
     return 5;
   }
+
+  /* Change back in case the startup directory needs to be deleted. */
+  SetCurrentDirectory(cwd);
 
   /* Try to get throttle restart delay */
   override_milliseconds(service->name, key, NSSM_REG_THROTTLE, &service->throttle_delay, NSSM_RESET_THROTTLE_RESTART, NSSM_EVENT_BOGUS_THROTTLE);
