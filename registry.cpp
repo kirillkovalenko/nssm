@@ -385,7 +385,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
         envlen = _tcslen(env) + 1;
         for (s = env; *s && *s != _T('='); s++);
         if (*s == _T('=')) *s++ = _T('\0');
-        if (! SetEnvironmentVariable(env, s)) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED, env, s, error_string(GetLastError()));
+        if (! SetEnvironmentVariable(env, s)) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED, env, s, error_string(GetLastError()), 0);
         env += envlen;
       }
     }

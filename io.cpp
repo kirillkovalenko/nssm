@@ -73,7 +73,7 @@ HANDLE append_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *a
 
   unsigned long error = GetLastError();
   if (error != ERROR_FILE_NOT_FOUND) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(error));
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(error), 0);
     return (HANDLE) 0;
   }
 
@@ -196,7 +196,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
     if (str_equiv(path, stdout_path)) {
       /* Two handles to the same file will create a race. */
       if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()));
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
         return 7;
       }
     }
@@ -204,7 +204,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       if (service->rotate_files) rotate_file(service->name, path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
       si->hStdError = append_to_file(path, sharing, &attributes, disposition, flags);
       if (! si->hStdError) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()));
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()), 0);
         return 8;
       }
       SetEndOfFile(si->hStdError);

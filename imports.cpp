@@ -15,7 +15,7 @@ HMODULE get_dll(const TCHAR *dll, unsigned long *error) {
   HMODULE ret = LoadLibrary(dll);
   if (! ret) {
     *error = GetLastError();
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_LOADLIBRARY_FAILED, dll, error_string(*error));
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_LOADLIBRARY_FAILED, dll, error_string(*error), 0);
   }
 
   return ret;
@@ -27,7 +27,7 @@ FARPROC get_import(HMODULE library, const char *function, unsigned long *error) 
   FARPROC ret = GetProcAddress(library, function);
   if (! ret) {
     *error = GetLastError();
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function, error_string(*error));
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function, error_string(*error), 0);
   }
 
   return ret;
