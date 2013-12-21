@@ -7,11 +7,12 @@
 #define IDD_INSTALL                   102
 #define IDD_REMOVE            103
 #define IDD_APPLICATION            104
-#define IDD_IO            105
-#define IDD_ROTATION        106
-#define IDD_APPEXIT            107
-#define IDD_SHUTDOWN            108
-#define IDD_ENVIRONMENT            109
+#define IDD_DETAILS            105
+#define IDD_IO            106
+#define IDD_ROTATION        107
+#define IDD_APPEXIT            108
+#define IDD_SHUTDOWN            109
+#define IDD_ENVIRONMENT            110
 #define IDC_PATH                        1000
 #define IDC_TAB1                        1001
 #define IDC_CANCEL                      1002
@@ -44,14 +45,17 @@
 #define IDC_ROTATE_SECONDS              1030
 #define IDC_ROTATE_BYTES_LOW_ENABLED    1031
 #define IDC_ROTATE_BYTES_LOW            1032
+#define IDC_DISPLAYNAME                 1033
+#define IDC_DESCRIPTION                 1034
+#define IDC_STARTUP                     1035
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        110
+#define _APS_NEXT_RESOURCE_VALUE        111
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1033
+#define _APS_NEXT_CONTROL_VALUE         1036
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

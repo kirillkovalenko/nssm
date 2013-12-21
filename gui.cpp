@@ -1,6 +1,6 @@
 #include "nssm.h"
 
-static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
@@ -116,6 +116,25 @@ int install(HWND window) {
       }
     }
 
+    /* Get details. */
+    if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME), WM_GETTEXTLENGTH, 0, 0)) {
+      if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME, service->displayname, _countof(service->displayname))) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DISPLAYNAME);
+        return 5;
+      }
+    }
+
+    if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION), WM_GETTEXTLENGTH, 0, 0)) {
+      if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION, service->description, _countof(service->description))) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DESCRIPTION);
+        return 5;
+      }
+    }
+
+    HWND combo = GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_STARTUP);
+    service->startup = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
+    if (service->startup == CB_ERR) service->startup = 0;
+
     /* Get stop method stuff. */
     check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
     check_stop_method(service, NSSM_STOP_METHOD_WINDOW, IDC_METHOD_WINDOW);
@@ -127,7 +146,7 @@ int install(HWND window) {
 
     /* Get exit action stuff. */
     check_method_timeout(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
-    HWND combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
+    combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
     service->default_exit_action = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
     if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
 
@@ -470,6 +489,21 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_APPLICATION, (LPARAM) &tab);
       tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_APPLICATION], SW_SHOW);
+
+      /* Details tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_DETAILS);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_DETAILS, (LPARAM) &tab);
+      tablist[NSSM_TAB_DETAILS] = CreateDialog(0, MAKEINTRESOURCE(IDD_DETAILS), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_DETAILS], SW_HIDE);
+
+      /* Set defaults. */
+      combo = GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_STARTUP);
+      SendMessage(combo, CB_INSERTSTRING, NSSM_STARTUP_AUTOMATIC, (LPARAM) message_string(NSSM_GUI_STARTUP_AUTOMATIC));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_STARTUP_DELAYED, (LPARAM) message_string(NSSM_GUI_STARTUP_DELAYED));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_STARTUP_MANUAL, (LPARAM) message_string(NSSM_GUI_STARTUP_MANUAL));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_STARTUP_DISABLED, (LPARAM) message_string(NSSM_GUI_STARTUP_DISABLED));
+      SendMessage(combo, CB_SETCURSEL, NSSM_STARTUP_AUTOMATIC, 0);
 
       /* Shutdown tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);

@@ -297,6 +297,32 @@ Nessuna opzione valida specificata!
 .
 
 MessageId = +1
+SymbolicName = NSSM_GUI_INVALID_DISPLAYNAME
+Severity = Informational
+Language = English
+Invalid displayname!
+.
+Language = French
+Invalid displayname!
+.
+Language = Italian
+Invalid displayname!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_INVALID_DESCRIPTION
+Severity = Informational
+Language = English
+Invalid description!
+.
+Language = French
+Invalid description!
+.
+Language = Italian
+Invalid description!
+.
+
+MessageId = +1
 SymbolicName = NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH
 Severity = Informational
 Language = English
@@ -472,6 +498,19 @@ Applicazione%0
 .
 
 MessageId = +1
+SymbolicName = NSSM_GUI_TAB_DETAILS
+Severity = Informational
+Language = English
+Details%0
+.
+Language = French
+Details%0
+.
+Language = Italian
+Details%0
+.
+
+MessageId = +1
 SymbolicName = NSSM_GUI_TAB_SHUTDOWN
 Severity = Informational
 Language = English
@@ -534,6 +573,58 @@ Environnement%0
 .
 Language = Italian
 Ambiente%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_STARTUP_AUTOMATIC
+Severity = Informational
+Language = English
+Automatic%0
+.
+Language = French
+Automatic%0
+.
+Language = Italian
+Automatic%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_STARTUP_DELAYED
+Severity = Informational
+Language = English
+Automatic (Delayed Start)%0
+.
+Language = French
+Automatic (Delayed Start)%0
+.
+Language = Italian
+Automatic (Delayed Start)%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_STARTUP_MANUAL
+Severity = Informational
+Language = English
+Manual%0
+.
+Language = French
+Manual%0
+.
+Language = Italian
+Manual%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_STARTUP_DISABLED
+Severity = Informational
+Language = English
+Disabled%0
+.
+Language = French
+Disabled%0
+.
+Language = Italian
+Disabled%0
 .
 
 MessageId = +1
@@ -1239,7 +1330,7 @@ Il servizio %1 ha ricevuto un messaggio di controllo di servizio sconosciuto %2,
 .
 
 MessageId = +1
-SymbolicName = NSSM_EVENT_CHANGESERVICECONFIG2_FAILED
+SymbolicName = NSSM_EVENT_SERVICE_CONFIG_FAILURE_ACTIONS_FAILED
 Severity = Informational
 Language = English
 Error configuring service failure actions for service %1.  The service will not be subject to recovery actions if it exits gracefully with a non-zero exit code.
@@ -1577,4 +1668,42 @@ Language = Italian
 Failed to rotate output file %2 for service %1.
 %3 failed for file %4:
 %5
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_SERVICE_CONFIG_DESCRIPTION_FAILED
+Severity = Informational
+Language = English
+Error setting description for service %1.
+ChangeServiceConfig2() failed:
+%2
+.
+Language = French
+Error setting description for service %1.
+ChangeServiceConfig2() failed:
+%2
+.
+Language = Italian
+Error setting description for service %1.
+ChangeServiceConfig2() failed:
+%2
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_SERVICE_CONFIG_DELAYED_AUTO_START_INFO_FAILED
+Severity = Informational
+Language = English
+Error configuring delayed startup for service %1.  The service will start automatically.
+ChangeServiceConfig2() failed:
+%2
+.
+Language = French
+Error configuring delayed startup for service %1.  The service will start automatically.
+ChangeServiceConfig2() failed:
+%2
+.
+Language = Italian
+Error configuring delayed startup for service %1.  The service will start automatically.
+ChangeServiceConfig2() failed:
+%2
 .

@@ -6,6 +6,9 @@ Changes since 2.21
   * Unqualified path names are now relative to the
     application startup directory when redirecting I/O.
 
+  * NSSM can now set the service display name, description
+    and startup type.
+
 Changes since 2.20
 ------------------
   * Services installed from the GUI no longer have incorrect

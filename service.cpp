@@ -145,12 +145,46 @@ int install_service(nssm_service_t *service) {
   TCHAR command[MAX_PATH];
   GetModuleFileName(0, command, _countof(command));
 
+  /* Startup type. */
+  unsigned long startup;
+  switch (service->startup) {
+    case NSSM_STARTUP_MANUAL: startup = SERVICE_DEMAND_START; break;
+    case NSSM_STARTUP_DISABLED: startup = SERVICE_DISABLED; break;
+    default: startup = SERVICE_AUTO_START;
+  }
+
+  /* Display name. */
+  if (! service->displayname[0]) _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), service->name);
+
   /* Create the service */
-  service->handle = CreateService(services, service->name, service->name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
+  service->handle = CreateService(services, service->name, service->displayname, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, startup, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
   if (! service->handle) {
     print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
     CloseServiceHandle(services);
     return 5;
+  }
+
+  if (service->description[0]) {
+    SERVICE_DESCRIPTION description;
+    ZeroMemory(&description, sizeof(description));
+    description.lpDescription = service->description;
+    if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, &description)) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DESCRIPTION_FAILED, service->name, error_string(GetLastError()), 0);
+    }
+  }
+
+  if (service->startup == NSSM_STARTUP_DELAYED) {
+    SERVICE_DELAYED_AUTO_START_INFO delayed;
+    ZeroMemory(&delayed, sizeof(delayed));
+    delayed.fDelayedAutostart = 1;
+    /* Delayed startup isn't supported until Vista. */
+    if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, &delayed)) {
+      unsigned long error = GetLastError();
+      /* Pre-Vista we expect to fail with ERROR_INVALID_LEVEL */
+      if (error != ERROR_INVALID_LEVEL) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DELAYED_AUTO_START_INFO_FAILED, service->name, error_string(error), 0);
+      }
+    }
   }
 
   /* Now we need to put the parameters into the registry */
@@ -282,7 +316,7 @@ void set_service_recovery(nssm_service_t *service) {
     unsigned long error = GetLastError();
     /* Pre-Vista we expect to fail with ERROR_INVALID_LEVEL */
     if (error != ERROR_INVALID_LEVEL) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CHANGESERVICECONFIG2_FAILED, service->name, error_string(error), 0);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_FAILURE_ACTIONS_FAILED, service->name, error_string(error), 0);
     }
   }
 }

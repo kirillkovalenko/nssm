@@ -55,6 +55,12 @@ void strip_basename(TCHAR *);
 #define NSSM_STOP_METHOD_THREADS (1 << 2)
 #define NSSM_STOP_METHOD_TERMINATE (1 << 3)
 
+/* Startup types. */
+#define NSSM_STARTUP_AUTOMATIC 0
+#define NSSM_STARTUP_DELAYED 1
+#define NSSM_STARTUP_MANUAL 2
+#define NSSM_STARTUP_DISABLED 3
+
 /* Exit actions. */
 #define NSSM_EXIT_RESTART 0
 #define NSSM_EXIT_IGNORE 1

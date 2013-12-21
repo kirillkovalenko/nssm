@@ -13,11 +13,15 @@
 #define KEY_LENGTH 255
 #define VALUE_LENGTH 16383
 #define SERVICE_NAME_LENGTH KEY_LENGTH - 55
+#define SERVICE_DISPLAYNAME_LENGTH 256
 
 #define ACTION_LEN 16
 
 typedef struct {
   TCHAR name[SERVICE_NAME_LENGTH];
+  TCHAR displayname[SERVICE_DISPLAYNAME_LENGTH];
+  TCHAR description[VALUE_LENGTH];
+  unsigned long startup;
   TCHAR exe[EXE_LENGTH];
   TCHAR flags[VALUE_LENGTH];
   TCHAR dir[MAX_PATH];
