@@ -74,11 +74,11 @@ static inline void check_method_timeout(HWND tab, unsigned long control, unsigne
   if (translated) *timeout = configured;
 }
 
-static inline void check_io(TCHAR *name, TCHAR *buffer, size_t bufsize, unsigned long control) {
+static inline void check_io(TCHAR *name, TCHAR *buffer, unsigned long len, unsigned long control) {
   if (! SendMessage(GetDlgItem(tablist[NSSM_TAB_IO], control), WM_GETTEXTLENGTH, 0, 0)) return;
-  if (GetDlgItemText(tablist[NSSM_TAB_IO], control, buffer, (int) bufsize)) return;
+  if (GetDlgItemText(tablist[NSSM_TAB_IO], control, buffer, (int) len)) return;
   popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, name);
-  ZeroMemory(buffer, bufsize);
+  ZeroMemory(buffer, len * sizeof(TCHAR));
 }
 
 /* Install the service. */
@@ -90,27 +90,27 @@ int install(HWND window) {
     set_nssm_service_defaults(service);
 
     /* Get service name. */
-    if (! GetDlgItemText(window, IDC_NAME, service->name, sizeof(service->name))) {
+    if (! GetDlgItemText(window, IDC_NAME, service->name, _countof(service->name))) {
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
       cleanup_nssm_service(service);
       return 2;
     }
 
     /* Get executable name */
-    if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->exe, sizeof(service->exe))) {
+    if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->exe, _countof(service->exe))) {
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
       return 3;
     }
 
     /* Get startup directory. */
-    if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_DIR, service->dir, sizeof(service->dir))) {
+    if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_DIR, service->dir, _countof(service->dir))) {
       _sntprintf_s(service->dir, _countof(service->dir), _TRUNCATE, _T("%s"), service->exe);
       strip_basename(service->dir);
     }
 
     /* Get flags. */
     if (SendMessage(GetDlgItem(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
-      if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS, service->flags, sizeof(service->flags))) {
+      if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS, service->flags, _countof(service->flags))) {
         popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
         return 4;
       }
@@ -132,9 +132,9 @@ int install(HWND window) {
     if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
 
     /* Get I/O stuff. */
-    check_io(_T("stdin"), service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
-    check_io(_T("stdout"), service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
-    check_io(_T("stderr"), service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
+    check_io(_T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
+    check_io(_T("stdout"), service->stdout_path, _countof(service->stdout_path), IDC_STDOUT);
+    check_io(_T("stderr"), service->stderr_path, _countof(service->stderr_path), IDC_STDERR);
 
     /* Override stdout and/or stderr. */
     if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
@@ -261,7 +261,7 @@ int remove(HWND window) {
   nssm_service_t *service = alloc_nssm_service();
   if (service) {
     /* Get service name */
-    if (! GetDlgItemText(window, IDC_NAME, service->name, sizeof(service->name))) {
+    if (! GetDlgItemText(window, IDC_NAME, service->name, _countof(service->name))) {
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
       cleanup_nssm_service(service);
       return 2;
@@ -385,12 +385,12 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
         /* Browse for application. */
         case IDC_BROWSE:
           dlg = GetDlgItem(tab, IDC_PATH);
-          GetDlgItemText(tab, IDC_PATH, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_PATH, buffer, _countof(buffer));
           browse(dlg, buffer, OFN_FILEMUSTEXIST, NSSM_GUI_BROWSE_FILTER_APPLICATIONS, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
           /* Fill in startup directory if it wasn't already specified. */
-          GetDlgItemText(tab, IDC_DIR, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_DIR, buffer, _countof(buffer));
           if (! buffer[0]) {
-            GetDlgItemText(tab, IDC_PATH, buffer, sizeof(buffer));
+            GetDlgItemText(tab, IDC_PATH, buffer, _countof(buffer));
             strip_basename(buffer);
             SetDlgItemText(tab, IDC_DIR, buffer);
           }
@@ -399,26 +399,26 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
           /* Browse for startup directory. */
         case IDC_BROWSE_DIR:
           dlg = GetDlgItem(tab, IDC_DIR);
-          GetDlgItemText(tab, IDC_DIR, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_DIR, buffer, _countof(buffer));
           browse(dlg, buffer, OFN_NOVALIDATE, NSSM_GUI_BROWSE_FILTER_DIRECTORIES, 0);
           break;
 
         /* Browse for stdin. */
         case IDC_BROWSE_STDIN:
           dlg = GetDlgItem(tab, IDC_STDIN);
-          GetDlgItemText(tab, IDC_STDIN, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_STDIN, buffer, _countof(buffer));
           browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
           break;
 
         /* Browse for stdout. */
         case IDC_BROWSE_STDOUT:
           dlg = GetDlgItem(tab, IDC_STDOUT);
-          GetDlgItemText(tab, IDC_STDOUT, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_STDOUT, buffer, _countof(buffer));
           browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
           /* Fill in stderr if it wasn't already specified. */
-          GetDlgItemText(tab, IDC_STDERR, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_STDERR, buffer, _countof(buffer));
           if (! buffer[0]) {
-            GetDlgItemText(tab, IDC_STDOUT, buffer, sizeof(buffer));
+            GetDlgItemText(tab, IDC_STDOUT, buffer, _countof(buffer));
             SetDlgItemText(tab, IDC_STDERR, buffer);
           }
           break;
@@ -426,7 +426,7 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
         /* Browse for stderr. */
         case IDC_BROWSE_STDERR:
           dlg = GetDlgItem(tab, IDC_STDERR);
-          GetDlgItemText(tab, IDC_STDERR, buffer, sizeof(buffer));
+          GetDlgItemText(tab, IDC_STDERR, buffer, _countof(buffer));
           browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
           break;
 
