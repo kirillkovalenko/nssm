@@ -1,6 +1,6 @@
 #include "nssm.h"
 
-static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
@@ -135,10 +135,22 @@ int install(HWND window) {
     check_io(_T("stdin"), service->stdin_path, sizeof(service->stdin_path), IDC_STDIN);
     check_io(_T("stdout"), service->stdout_path, sizeof(service->stdout_path), IDC_STDOUT);
     check_io(_T("stderr"), service->stderr_path, sizeof(service->stderr_path), IDC_STDERR);
+
     /* Override stdout and/or stderr. */
-    if (SendDlgItemMessage(tablist[NSSM_TAB_IO], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
       if (service->stdout_path[0]) service->stdout_disposition = CREATE_ALWAYS;
       if (service->stderr_path[0]) service->stderr_disposition = CREATE_ALWAYS;
+    }
+
+    /* Get rotation stuff. */
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      service->rotate_files = true;
+    }
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS_ENABLED, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      check_method_timeout(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
+    }
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW_ENABLED, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      check_method_timeout(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
     }
 
     /* Get environment. */
@@ -367,6 +379,7 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
     case WM_COMMAND:
       HWND dlg;
       TCHAR buffer[MAX_PATH];
+      unsigned long state;
 
       switch (LOWORD(w)) {
         /* Browse for application. */
@@ -415,6 +428,17 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
           dlg = GetDlgItem(tab, IDC_STDERR);
           GetDlgItemText(tab, IDC_STDERR, buffer, sizeof(buffer));
           browse(dlg, buffer, 0, NSSM_GUI_BROWSE_FILTER_ALL_FILES, 0);
+          break;
+
+        /* Rotation. */
+        case IDC_ROTATE:
+        case IDC_ROTATE_SECONDS_ENABLED:
+        case IDC_ROTATE_BYTES_LOW_ENABLED:
+          if (SendDlgItemMessage(tab, LOWORD(w), BM_GETCHECK, 0, 0) & BST_CHECKED) state = BST_CHECKED;
+          else state = BST_UNCHECKED;
+          SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_SETCHECK, state, 0);
+          SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS_ENABLED, BM_SETCHECK, state, 0);
+          SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW_ENABLED, BM_SETCHECK, state, 0);
           break;
       }
       return 1;
@@ -485,6 +509,17 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_IO, (LPARAM) &tab);
       tablist[NSSM_TAB_IO] = CreateDialog(0, MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_IO], SW_HIDE);
+
+      /* Rotation tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_ROTATION);
+      tab.cchTextMax = (int) _tcslen(tab.pszText) + 1;
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_ROTATION, (LPARAM) &tab);
+      tablist[NSSM_TAB_ROTATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_ROTATION), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_ROTATION], SW_HIDE);
+
+      /* Set defaults. */
+      SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, 0, 0);
+      SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, 0, 0);
 
       /* Environment tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_ENVIRONMENT);

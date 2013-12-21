@@ -511,6 +511,19 @@ I/O%0
 .
 
 MessageId = +1
+SymbolicName = NSSM_GUI_TAB_ROTATION
+Severity = Informational
+Language = English
+File rotation%0
+.
+Language = French
+File rotation%0
+.
+Language = Italian
+File rotation%0
+.
+
+MessageId = +1
 SymbolicName = NSSM_GUI_TAB_ENVIRONMENT
 Severity = Informational
 Language = English
@@ -1545,4 +1558,23 @@ SetEnvironmentVariable(%1=%2) a échoué:
 .
 Language = Italian
 Chiamata a SetEnvironmentVariable(%1=%2) fallita:
+.
+
+MessageId = +1
+SymbolicName = NSSM_EVENT_ROTATE_FILE_FAILED
+Severity = Error
+Language = English
+Failed to rotate output file %2 for service %1.
+%3 failed for file %4:
+%5
+.
+Language = French
+Failed to rotate output file %2 for service %1.
+%3 failed for file %4:
+%5
+.
+Language = Italian
+Failed to rotate output file %2 for service %1.
+%3 failed for file %4:
+%5
 .

@@ -53,6 +53,8 @@ Since version 2.19, NSSM can add to the service's environment by setting
 AppEnvironmentExtra in place of or in addition to the srvany-compatible
 AppEnvironment.
 
+Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
+
 
 Usage
 -----
@@ -234,6 +236,32 @@ work.  Remember, however, that the path must be accessible to the user
 running the service.
 
 
+File rotation
+-------------
+When using I/O redirection, NSSM can rotate existing output files prior to
+opening stdout and/or stderr.  An existing file will be renamed with a
+suffix based on the file's last write time, to millisecond precision.  For
+example, the file nssm.log might be rotated to nssm-20131221T113939.457.log.
+
+NSSM will look in the registry under
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters for REG_DWORD
+entries which control how rotation happens.
+
+If AppRotateFiles is missing or set to 0, rotation is disabled.  Any non-zero
+value enables rotation.
+
+If AppRotateSeconds is non-zero, a file will not be rotated if its last write
+time is less than the given number of seconds in the past.
+
+If AppRotateBytes is non-zero, a file will not be rotated if it is smaller
+than the given number of bytes.  64-bit file sizes can be handled by setting
+a non-zero value of AppRotateBytesHigh.
+
+Rotation is independent of the CreateFile() parameters used to open the files.
+They will be rotated regardless of whether NSSM would otherwise have appended
+or replaced them.
+
+
 Environment variables
 ---------------------
 NSSM can replace or append to the managed application's environment.  Two
@@ -328,6 +356,7 @@ Thanks to Brian Baxter for suggesting how to escape quotes from the command prom
 Thanks to Russ Holmann for suggesting that the shutdown timeout be configurable.
 Thanks to Paul Spause for spotting a bug with default registry entries.
 Thanks to BUGHUNTER for spotting more GUI bugs.
+Thanks to Doug Watson for suggesting file rotation.
 
 Licence
 -------

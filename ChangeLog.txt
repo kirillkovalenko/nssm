@@ -1,3 +1,11 @@
+Changes since 2.21
+-----------------
+  * NSSM can now optionally rotate existing files when
+    redirecting I/O.
+
+  * Unqualified path names are now relative to the
+    application startup directory when redirecting I/O.
+
 Changes since 2.20
 -----------------
   * Services installed from the GUI no longer have incorrect

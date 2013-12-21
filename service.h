@@ -37,6 +37,10 @@ typedef struct {
   unsigned long stderr_sharing;
   unsigned long stderr_disposition;
   unsigned long stderr_flags;
+  bool rotate_files;
+  unsigned long rotate_seconds;
+  unsigned long rotate_bytes_low;
+  unsigned long rotate_bytes_high;
   unsigned long default_exit_action;
   unsigned long throttle_delay;
   unsigned long stop_method;

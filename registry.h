@@ -19,6 +19,10 @@
 #define NSSM_REG_STDIO_SHARING _T("ShareMode")
 #define NSSM_REG_STDIO_DISPOSITION _T("CreationDisposition")
 #define NSSM_REG_STDIO_FLAGS _T("FlagsAndAttributes")
+#define NSSM_REG_ROTATE _T("AppRotateFiles")
+#define NSSM_REG_ROTATE_SECONDS _T("AppRotateSeconds")
+#define NSSM_REG_ROTATE_BYTES_LOW _T("AppRotateBytes")
+#define NSSM_REG_ROTATE_BYTES_HIGH _T("AppRotateBytesHigh")
 #define NSSM_STDIO_LENGTH 29
 
 int create_messages();

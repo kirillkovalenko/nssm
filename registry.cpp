@@ -86,6 +86,10 @@ int create_parameters(nssm_service_t *service) {
     if (service->stderr_disposition != NSSM_STDERR_DISPOSITION) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_DISPOSITION, service->stderr_disposition);
     if (service->stderr_flags != NSSM_STDERR_FLAGS) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_FLAGS, service->stderr_flags);
   }
+  if (service->rotate_files) set_number(key, NSSM_REG_ROTATE, 1);
+  if (service->rotate_seconds) set_number(key, NSSM_REG_ROTATE_SECONDS, service->rotate_seconds);
+  if (service->rotate_bytes_low) set_number(key, NSSM_REG_ROTATE_BYTES_LOW, service->rotate_bytes_low);
+  if (service->rotate_bytes_high) set_number(key, NSSM_REG_ROTATE_BYTES_HIGH, service->rotate_bytes_high);
 
   /* Environment */
   if (service->env) {
@@ -387,13 +391,24 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
     }
   }
 
+  /* Try to get file rotation settings - may fail. */
+  unsigned long rotate_files;
+  if (get_number(key, NSSM_REG_ROTATE, &rotate_files, false) == 1) {
+    if (rotate_files) service->rotate_files = true;
+    else service->rotate_files = false;
+  }
+  else service->rotate_files = false;
+  if (get_number(key, NSSM_REG_ROTATE_SECONDS, &service->rotate_seconds, false) != 1) service->rotate_seconds = 0;
+  if (get_number(key, NSSM_REG_ROTATE_BYTES_LOW, &service->rotate_bytes_low, false) != 1) service->rotate_bytes_low = 0;
+  if (get_number(key, NSSM_REG_ROTATE_BYTES_HIGH, &service->rotate_bytes_high, false) != 1) service->rotate_bytes_high = 0;
+
   /* Change to startup directory in case stdout/stderr are relative paths. */
   TCHAR cwd[MAX_PATH];
   GetCurrentDirectory(_countof(cwd), cwd);
   SetCurrentDirectory(service->dir);
 
   /* Try to get stdout and stderr */
-  if (get_output_handles(key, si)) {
+  if (get_output_handles(service, key, si)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
     RegCloseKey(key);
     SetCurrentDirectory(cwd);

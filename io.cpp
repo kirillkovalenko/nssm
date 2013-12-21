@@ -81,7 +81,77 @@ HANDLE append_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *a
   return CreateFile(path, FILE_WRITE_DATA, sharing, attributes, disposition, flags, 0);
 }
 
-int get_output_handles(HKEY key, STARTUPINFO *si) {
+void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsigned long low, unsigned long high) {
+  unsigned long error;
+
+  /* Now. */
+  SYSTEMTIME st;
+  GetSystemTime(&st);
+
+  BY_HANDLE_FILE_INFORMATION info;
+
+  /* Try to open the file to check if it exists and to get attributes. */
+  HANDLE file = CreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+  if (file) {
+    /* Get file attributes. */
+    if (! GetFileInformationByHandle(file, &info)) {
+      /* Reuse current time for rotation timestamp. */
+      seconds = low = high = 0;
+      SystemTimeToFileTime(&st, &info.ftLastWriteTime);
+    }
+
+    CloseHandle(file);
+  }
+  else {
+    error = GetLastError();
+    if (error == ERROR_FILE_NOT_FOUND) return;
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, service_name, path, _T("CreateFile()"), path, error_string(error), 0);
+    /* Reuse current time for rotation timestamp. */
+    seconds = low = high = 0;
+    SystemTimeToFileTime(&st, &info.ftLastWriteTime);
+  }
+
+  /* Check file age. */
+  if (seconds) {
+    FILETIME ft;
+    SystemTimeToFileTime(&st, &ft);
+
+    ULARGE_INTEGER s;
+    s.LowPart = ft.dwLowDateTime;
+    s.HighPart = ft.dwHighDateTime;
+    s.QuadPart -= seconds * 10000000LL;
+    ft.dwLowDateTime = s.LowPart;
+    ft.dwHighDateTime = s.HighPart;
+    if (CompareFileTime(&info.ftLastWriteTime, &ft) > 0) return;
+  }
+
+  /* Check file size. */
+  if (low || high) {
+    if (info.nFileSizeHigh < high) return;
+    if (info.nFileSizeHigh == high && info.nFileSizeLow < low) return;
+  }
+
+  /* Get new filename. */
+  FileTimeToSystemTime(&info.ftLastWriteTime, &st);
+
+  TCHAR buffer[MAX_PATH];
+  memmove(buffer, path, sizeof(buffer));
+  TCHAR *ext = PathFindExtension(buffer);
+  TCHAR extension[MAX_PATH];
+  _sntprintf_s(extension, _countof(extension), _TRUNCATE, _T("-%04u%02u%02uT%02u%02u%02u.%03u%s"), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds, ext);
+  *ext = _T('\0');
+  TCHAR rotated[MAX_PATH];
+  _sntprintf_s(rotated, _countof(rotated), _TRUNCATE, _T("%s%s"), buffer, extension);
+
+  /* Rotate. */
+  if (MoveFile(path, rotated)) return;
+  error = GetLastError();
+
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, service_name, path, _T("MoveFile()"), rotated, error_string(error), 0);
+  return;
+}
+
+int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   TCHAR path[MAX_PATH];
   TCHAR stdout_path[MAX_PATH];
   unsigned long sharing, disposition, flags;
@@ -112,6 +182,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
       return 4;
     }
 
+    if (service->rotate_files) rotate_file(service->name, path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
     si->hStdOutput = append_to_file(path, sharing, &attributes, disposition, flags);
     if (! si->hStdOutput) return 5;
     set_flags = true;
@@ -130,6 +201,7 @@ int get_output_handles(HKEY key, STARTUPINFO *si) {
       }
     }
     else {
+      if (service->rotate_files) rotate_file(service->name, path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
       si->hStdError = append_to_file(path, sharing, &attributes, disposition, flags);
       if (! si->hStdError) {
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()));
