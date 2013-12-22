@@ -1,6 +1,6 @@
 #include "nssm.h"
 
-static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
@@ -49,7 +49,7 @@ void centre_window(HWND window) {
 
   /* Find window size */
   if (! GetWindowRect(window, &size)) return;
-  
+
   /* Find desktop window */
   desktop = GetDesktopWindow();
   if (! desktop) return;
@@ -78,6 +78,12 @@ static inline void set_timeout_enabled(unsigned long control, unsigned long depe
   unsigned char enabled = 0;
   if (SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], control, BM_GETCHECK, 0, 0) & BST_CHECKED) enabled = 1;
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_SHUTDOWN], dependent), enabled);
+}
+
+static inline void set_logon_enabled(unsigned char enabled) {
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), enabled);
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), enabled);
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), enabled);
 }
 
 static inline void set_rotation_enabled(unsigned char enabled) {
@@ -145,6 +151,112 @@ int install(HWND window) {
     HWND combo = GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_STARTUP);
     service->startup = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
     if (service->startup == CB_ERR) service->startup = 0;
+
+    /* Get logon stuff. */
+    if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+        service->type |= SERVICE_INTERACTIVE_PROCESS;
+      }
+    }
+    else {
+      /* Username. */
+      service->usernamelen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), WM_GETTEXTLENGTH, 0, 0);
+      if (! service->usernamelen) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_USERNAME);
+        return 6;
+      }
+      service->usernamelen++;
+
+      service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
+      if (! service->username) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
+        return 6;
+      }
+      if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username, (int) service->usernamelen)) {
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_USERNAME);
+        return 6;
+      }
+
+      /* Password. */
+      service->passwordlen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), WM_GETTEXTLENGTH, 0, 0);
+      if (! service->passwordlen) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+        return 6;
+      }
+      if (SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), WM_GETTEXTLENGTH, 0, 0) != service->passwordlen) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+        return 6;
+      }
+      service->passwordlen++;
+
+      /* Temporary buffer for password validation. */
+      TCHAR *password = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->passwordlen * sizeof(TCHAR));
+      if (! password) {
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password confirmation"), _T("install()"));
+        return 6;
+      }
+
+      /* Actual password buffer. */
+      service->password = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->passwordlen * sizeof(TCHAR));
+      if (! service->password) {
+        HeapFree(GetProcessHeap(), 0, password);
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password"), _T("install()"));
+        return 6;
+      }
+
+      /* Get first password. */
+      if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1, service->password, (int) service->passwordlen)) {
+        HeapFree(GetProcessHeap(), 0, password);
+        SecureZeroMemory(service->password, service->passwordlen);
+        HeapFree(GetProcessHeap(), 0, service->password);
+        service->password = 0;
+        service->passwordlen = 0;
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
+        return 6;
+      }
+
+      /* Get confirmation. */
+      if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2, password, (int) service->passwordlen)) {
+        SecureZeroMemory(password, service->passwordlen);
+        HeapFree(GetProcessHeap(), 0, password);
+        SecureZeroMemory(service->password, service->passwordlen);
+        HeapFree(GetProcessHeap(), 0, service->password);
+        service->password = 0;
+        service->passwordlen = 0;
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
+        return 6;
+      }
+
+      /* Compare. */
+      if (_tcsncmp(password, service->password, service->passwordlen)) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+        SecureZeroMemory(password, service->passwordlen);
+        HeapFree(GetProcessHeap(), 0, password);
+        SecureZeroMemory(service->password, service->passwordlen);
+        HeapFree(GetProcessHeap(), 0, service->password);
+        service->password = 0;
+        service->passwordlen = 0;
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        return 6;
+      }
+    }
 
     /* Get stop method stuff. */
     check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
@@ -429,6 +541,15 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
           browse(dlg, buffer, OFN_NOVALIDATE, NSSM_GUI_BROWSE_FILTER_DIRECTORIES, 0);
           break;
 
+        /* Log on. */
+        case IDC_LOCALSYSTEM:
+          set_logon_enabled(0);
+          break;
+
+        case IDC_ACCOUNT:
+          set_logon_enabled(1);
+          break;
+
         /* Shutdown methods. */
         case IDC_METHOD_CONSOLE:
           set_timeout_enabled(LOWORD(w), IDC_KILL_CONSOLE);
@@ -520,6 +641,17 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(combo, CB_INSERTSTRING, NSSM_STARTUP_MANUAL, (LPARAM) message_string(NSSM_GUI_STARTUP_MANUAL));
       SendMessage(combo, CB_INSERTSTRING, NSSM_STARTUP_DISABLED, (LPARAM) message_string(NSSM_GUI_STARTUP_DISABLED));
       SendMessage(combo, CB_SETCURSEL, NSSM_STARTUP_AUTOMATIC, 0);
+
+      /* Logon tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_LOGON);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_LOGON, (LPARAM) &tab);
+      tablist[NSSM_TAB_LOGON] = CreateDialog(0, MAKEINTRESOURCE(IDD_LOGON), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_LOGON], SW_HIDE);
+
+      /* Set defaults. */
+      CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
+      set_logon_enabled(0);
 
       /* Shutdown tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);

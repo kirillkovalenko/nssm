@@ -297,6 +297,58 @@ Nessuna opzione valida specificata!
 .
 
 MessageId = +1
+SymbolicName = NSSM_GUI_MISSING_USERNAME
+Severity = Informational
+Language = English
+Missing account name!
+.
+Language = French
+Missing account name!
+.
+Language = Italian
+Missing account name!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_INVALID_USERNAME
+Severity = Informational
+Language = English
+Invalid account name!
+.
+Language = French
+Invalid account name!
+.
+Language = Italian
+Invalid account name!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_MISSING_PASSWORD
+Severity = Informational
+Language = English
+Missing or mismatched password(s)!
+.
+Language = French
+Missing or mismatched password(s)!
+.
+Language = Italian
+Missing or mismatched password(s)!
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_INVALID_PASSWORD
+Severity = Informational
+Language = English
+Invalid password!
+.
+Language = French
+Invalid password!
+.
+Language = Italian
+Invalid password!
+.
+
+MessageId = +1
 SymbolicName = NSSM_GUI_INVALID_DISPLAYNAME
 Severity = Informational
 Language = English
@@ -508,6 +560,19 @@ Details%0
 .
 Language = Italian
 Details%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_LOGON
+Severity = Informational
+Language = English
+Log on%0
+.
+Language = French
+Log on%0
+.
+Language = Italian
+Log on%0
 .
 
 MessageId = +1

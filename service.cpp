@@ -36,6 +36,7 @@ SC_HANDLE open_service_manager() {
 void set_nssm_service_defaults(nssm_service_t *service) {
   if (! service) return;
 
+  service->type = SERVICE_WIN32_OWN_PROCESS;
   service->stdin_sharing = NSSM_STDIN_SHARING;
   service->stdin_disposition = NSSM_STDIN_DISPOSITION;
   service->stdin_flags = NSSM_STDIN_FLAGS;
@@ -62,6 +63,11 @@ nssm_service_t *alloc_nssm_service() {
 /* Free memory for a service. */
 void cleanup_nssm_service(nssm_service_t *service) {
   if (! service) return;
+  if (service->username) HeapFree(GetProcessHeap(), 0, service->username);
+  if (service->password) {
+    SecureZeroMemory(service->password, service->passwordlen);
+    HeapFree(GetProcessHeap(), 0, service->password);
+  }
   if (service->env) HeapFree(GetProcessHeap(), 0, service->env);
   if (service->env_extra) HeapFree(GetProcessHeap(), 0, service->env_extra);
   if (service->handle) CloseServiceHandle(service->handle);
@@ -145,6 +151,13 @@ int install_service(nssm_service_t *service) {
   TCHAR command[MAX_PATH];
   GetModuleFileName(0, command, _countof(command));
 
+  /*
+    The only two valid flags for service type are SERVICE_WIN32_OWN_PROCESS
+    and SERVICE_INTERACTIVE_PROCESS.
+  */
+  service->type &= SERVICE_INTERACTIVE_PROCESS;
+  service->type |= SERVICE_WIN32_OWN_PROCESS;
+
   /* Startup type. */
   unsigned long startup;
   switch (service->startup) {
@@ -157,7 +170,7 @@ int install_service(nssm_service_t *service) {
   if (! service->displayname[0]) _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), service->name);
 
   /* Create the service */
-  service->handle = CreateService(services, service->name, service->displayname, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, startup, SERVICE_ERROR_NORMAL, command, 0, 0, 0, 0, 0);
+  service->handle = CreateService(services, service->name, service->displayname, SC_MANAGER_ALL_ACCESS, service->type, startup, SERVICE_ERROR_NORMAL, command, 0, 0, 0, service->username, service->password);
   if (! service->handle) {
     print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
     CloseServiceHandle(services);

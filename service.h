@@ -22,6 +22,11 @@ typedef struct {
   TCHAR displayname[SERVICE_DISPLAYNAME_LENGTH];
   TCHAR description[VALUE_LENGTH];
   unsigned long startup;
+  TCHAR *username;
+  size_t usernamelen;
+  TCHAR *password;
+  size_t passwordlen;
+  unsigned long type;
   TCHAR exe[EXE_LENGTH];
   TCHAR flags[VALUE_LENGTH];
   TCHAR dir[MAX_PATH];

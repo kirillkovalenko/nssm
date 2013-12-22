@@ -55,8 +55,8 @@ AppEnvironment.
 
 Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 
-Since version 2.22, NSSM can set service display name, description and startup
-type.
+Since version 2.22, NSSM can set service display name, description, startup
+type and log on details.
 
 
 Usage
