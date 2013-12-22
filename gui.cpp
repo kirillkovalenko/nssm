@@ -68,10 +68,21 @@ static inline void check_stop_method(nssm_service_t *service, unsigned long meth
   service->stop_method &= ~method;
 }
 
-static inline void check_method_timeout(HWND tab, unsigned long control, unsigned long *timeout) {
+static inline void check_number(HWND tab, unsigned long control, unsigned long *timeout) {
   BOOL translated;
   unsigned long configured = GetDlgItemInt(tab, control, &translated, 0);
   if (translated) *timeout = configured;
+}
+
+static inline void set_timeout_enabled(unsigned long control, unsigned long dependent) {
+  unsigned char enabled = 0;
+  if (SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], control, BM_GETCHECK, 0, 0) & BST_CHECKED) enabled = 1;
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_SHUTDOWN], dependent), enabled);
+}
+
+static inline void set_rotation_enabled(unsigned char enabled) {
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS), enabled);
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW), enabled);
 }
 
 static inline void check_io(TCHAR *name, TCHAR *buffer, unsigned long len, unsigned long control) {
@@ -140,12 +151,12 @@ int install(HWND window) {
     check_stop_method(service, NSSM_STOP_METHOD_WINDOW, IDC_METHOD_WINDOW);
     check_stop_method(service, NSSM_STOP_METHOD_THREADS, IDC_METHOD_THREADS);
     check_stop_method(service, NSSM_STOP_METHOD_TERMINATE, IDC_METHOD_TERMINATE);
-    check_method_timeout(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, &service->kill_console_delay);
-    check_method_timeout(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, &service->kill_window_delay);
-    check_method_timeout(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, &service->kill_threads_delay);
+    check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, &service->kill_console_delay);
+    check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, &service->kill_window_delay);
+    check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, &service->kill_threads_delay);
 
     /* Get exit action stuff. */
-    check_method_timeout(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
+    check_number(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
     combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
     service->default_exit_action = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
     if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
@@ -164,12 +175,8 @@ int install(HWND window) {
     /* Get rotation stuff. */
     if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
       service->rotate_files = true;
-    }
-    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS_ENABLED, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-      check_method_timeout(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
-    }
-    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW_ENABLED, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-      check_method_timeout(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
+      check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
+      check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
     }
 
     /* Get environment. */
@@ -398,7 +405,7 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
     case WM_COMMAND:
       HWND dlg;
       TCHAR buffer[MAX_PATH];
-      unsigned long state;
+      unsigned char enabled;
 
       switch (LOWORD(w)) {
         /* Browse for application. */
@@ -415,11 +422,24 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
           }
           break;
 
-          /* Browse for startup directory. */
+        /* Browse for startup directory. */
         case IDC_BROWSE_DIR:
           dlg = GetDlgItem(tab, IDC_DIR);
           GetDlgItemText(tab, IDC_DIR, buffer, _countof(buffer));
           browse(dlg, buffer, OFN_NOVALIDATE, NSSM_GUI_BROWSE_FILTER_DIRECTORIES, 0);
+          break;
+
+        /* Shutdown methods. */
+        case IDC_METHOD_CONSOLE:
+          set_timeout_enabled(LOWORD(w), IDC_KILL_CONSOLE);
+          break;
+
+        case IDC_METHOD_WINDOW:
+          set_timeout_enabled(LOWORD(w), IDC_KILL_WINDOW);
+          break;
+
+        case IDC_METHOD_THREADS:
+          set_timeout_enabled(LOWORD(w), IDC_KILL_THREADS);
           break;
 
         /* Browse for stdin. */
@@ -451,13 +471,9 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
 
         /* Rotation. */
         case IDC_ROTATE:
-        case IDC_ROTATE_SECONDS_ENABLED:
-        case IDC_ROTATE_BYTES_LOW_ENABLED:
-          if (SendDlgItemMessage(tab, LOWORD(w), BM_GETCHECK, 0, 0) & BST_CHECKED) state = BST_CHECKED;
-          else state = BST_UNCHECKED;
-          SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_SETCHECK, state, 0);
-          SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS_ENABLED, BM_SETCHECK, state, 0);
-          SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW_ENABLED, BM_SETCHECK, state, 0);
+          if (SendDlgItemMessage(tab, LOWORD(w), BM_GETCHECK, 0, 0) & BST_CHECKED) enabled = 1;
+          else enabled = 0;
+          set_rotation_enabled(enabled);
           break;
       }
       return 1;
@@ -554,6 +570,7 @@ INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       /* Set defaults. */
       SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, 0, 0);
       SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, 0, 0);
+      set_rotation_enabled(0);
 
       /* Environment tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_ENVIRONMENT);

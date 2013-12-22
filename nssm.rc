@@ -146,7 +146,7 @@ FONT 8, "MS Sans Serif"
 {
     GROUPBOX        "Throttling", IDC_STATIC, 7, 7, 251, 25
     LTEXT           "Delay restart if application runs for less than", IDC_STATIC, 13, 18, 137, 8, SS_LEFT
-    EDITTEXT        IDC_THROTTLE, 152, 16, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_THROTTLE, 155, 16, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "ms", IDC_STATIC, 186, 18, 10, 8, SS_LEFT
     GROUPBOX        "Restart", IDC_STATIC, 7, 33, 251, 42
     LTEXT           "Action to take when application exits other\nthan in response to a controlled service\nshutdown:", IDC_STATIC, 14, 42, 134, 24, SS_LEFT
@@ -178,10 +178,10 @@ FONT 8, "MS Sans Serif"
     GROUPBOX        "File rotation", IDC_STATIC, 7, 7, 251, 68
     AUTOCHECKBOX    "Replace existing Output and/or Error files", IDC_TRUNCATE, 13, 18, 145, 8
     AUTOCHECKBOX    "Rotate files", IDC_ROTATE, 13, 32, 51, 8
-    AUTOCHECKBOX    "Restrict rotation to files older than", IDC_ROTATE_SECONDS_ENABLED, 13, 46, 121, 8
+    LTEXT           "Restrict rotation to files older than", IDC_STATIC, 25, 46, 121, 8
     EDITTEXT        IDC_ROTATE_SECONDS, 140, 44, 29, 12, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "s", IDC_STATIC, 171, 46, 8, 8, SS_LEFT
-    AUTOCHECKBOX    "Restrict rotation to files bigger than", IDC_ROTATE_BYTES_LOW_ENABLED, 13, 60, 125, 8
+    LTEXT           "Restrict rotation to files bigger than", IDC_STATIC, 25, 60, 125, 8
     EDITTEXT        IDC_ROTATE_BYTES_LOW, 140, 58, 49, 12, ES_AUTOHSCROLL | ES_NUMBER
     LTEXT           "kB", IDC_STATIC, 191, 60, 8, 8, SS_LEFT
 }
