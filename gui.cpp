@@ -81,6 +81,7 @@ static inline void set_timeout_enabled(unsigned long control, unsigned long depe
 }
 
 static inline void set_logon_enabled(unsigned char enabled) {
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_INTERACT), ! enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), enabled);
