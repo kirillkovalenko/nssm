@@ -152,9 +152,6 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
 }
 
 int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
-  TCHAR path[MAX_PATH];
-  TCHAR stdout_path[MAX_PATH];
-  unsigned long sharing, disposition, flags;
   bool set_flags = false;
 
   /* Standard security attributes allowing inheritance. */
@@ -163,49 +160,60 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   attributes.bInheritHandle = true;
 
   /* stdin */
-  if (get_createfile_parameters(key, NSSM_REG_STDIN, path, &sharing, NSSM_STDIN_SHARING, &disposition, NSSM_STDIN_DISPOSITION, &flags, NSSM_STDIN_FLAGS)) return 1;
-  if (path[0]) {
-    si->hStdInput = CreateFile(path, FILE_READ_DATA, sharing, &attributes, disposition, flags, 0);
+  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
+    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
+    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
+    return 1;
+  }
+  if (si && service->stdin_path[0]) {
+    si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, &attributes, service->stdin_disposition, service->stdin_flags, 0);
     if (! si->hStdInput) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()));
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
       return 2;
     }
     set_flags = true;
   }
 
   /* stdout */
-  if (get_createfile_parameters(key, NSSM_REG_STDOUT, path, &sharing, NSSM_STDOUT_SHARING, &disposition, NSSM_STDOUT_DISPOSITION, &flags, NSSM_STDOUT_FLAGS)) return 3;
-  if (path[0]) {
-    /* Remember path for comparison with stderr. */
-    if (_sntprintf_s(stdout_path, _countof(stdout_path), _TRUNCATE, _T("%s"), path) < 0) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("stdout_path"), _T("get_output_handles"), 0);
-      return 4;
-    }
-
-    if (service->rotate_files) rotate_file(service->name, path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
-    si->hStdOutput = append_to_file(path, sharing, &attributes, disposition, flags);
-    if (! si->hStdOutput) return 5;
+  if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS)) {
+    service->stdout_sharing = service->stdout_disposition = service->stdout_flags = 0;
+    ZeroMemory(service->stdout_path, _countof(service->stdout_path) * sizeof(TCHAR));
+    return 3;
+  }
+  if (si && service->stdout_path[0]) {
+    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
+    si->hStdOutput = append_to_file(service->stdout_path, service->stdout_sharing, &attributes, service->stdout_disposition, service->stdout_flags);
+    if (! si->hStdOutput) return 4;
     set_flags = true;
   }
-  else ZeroMemory(stdout_path, sizeof(stdout_path));
 
   /* stderr */
-  if (get_createfile_parameters(key, NSSM_REG_STDERR, path, &sharing, NSSM_STDERR_SHARING, &disposition, NSSM_STDERR_DISPOSITION, &flags, NSSM_STDERR_FLAGS)) return 6;
-  if (path[0]) {
+  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stdout_sharing, NSSM_STDERR_SHARING, &service->stdout_disposition, NSSM_STDERR_DISPOSITION, &service->stdout_flags, NSSM_STDERR_FLAGS)) {
+    service->stderr_sharing = service->stderr_disposition = service->stderr_flags = 0;
+    ZeroMemory(service->stderr_path, _countof(service->stderr_path) * sizeof(TCHAR));
+    return 5;
+  }
+  if (service->stderr_path[0]) {
     /* Same as stdout? */
-    if (str_equiv(path, stdout_path)) {
-      /* Two handles to the same file will create a race. */
-      if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
-        return 7;
+    if (str_equiv(service->stderr_path, service->stdout_path)) {
+      service->stderr_sharing = service->stdout_sharing;
+      service->stderr_disposition = service->stdout_disposition;
+      service->stderr_flags = service->stdout_flags;
+
+      if (si) {
+        /* Two handles to the same file will create a race. */
+        if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
+          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
+          return 6;
+        }
       }
     }
-    else {
-      if (service->rotate_files) rotate_file(service->name, path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
-      si->hStdError = append_to_file(path, sharing, &attributes, disposition, flags);
+    else if (si) {
+      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
+      si->hStdError = append_to_file(service->stderr_path, service->stdout_sharing, &attributes, service->stdout_disposition, service->stdout_flags);
       if (! si->hStdError) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()), 0);
-        return 8;
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stderr_path, error_string(GetLastError()), 0);
+        return 7;
       }
       SetEndOfFile(si->hStdError);
     }
@@ -218,7 +226,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
     We need to set the startup_info flags to make the new handles
     inheritable by the new process.
   */
-  si->dwFlags |= STARTF_USESTDHANDLES;
+  if (si) si->dwFlags |= STARTF_USESTDHANDLES;
 
   return 0;
 }

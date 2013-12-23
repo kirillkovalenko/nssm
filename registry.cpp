@@ -357,36 +357,38 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   /* Environment variables to add to existing rather than replace - may fail. */
   set_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
 
-  if (service->env_extra) {
-    /* Append these to any other environment variables set. */
-    if (service->env) {
-      /* Append extra variables to configured variables. */
-      unsigned long envlen = service->envlen + service->env_extralen - 1;
-      TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, envlen);
-      if (env) {
-        memmove(env, service->env, service->envlen - sizeof(TCHAR));
-        /* envlen is in bytes. */
-        memmove(env + (service->envlen / sizeof(TCHAR)) - 1, service->env_extra, service->env_extralen);
+  if (si) {
+    if (service->env_extra) {
+      /* Append these to any other environment variables set. */
+      if (service->env) {
+        /* Append extra variables to configured variables. */
+        unsigned long envlen = service->envlen + service->env_extralen - 1;
+        TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, envlen);
+        if (env) {
+          memmove(env, service->env, service->envlen - sizeof(TCHAR));
+          /* envlen is in bytes. */
+          memmove(env + (service->envlen / sizeof(TCHAR)) - 1, service->env_extra, service->env_extralen);
 
-        HeapFree(GetProcessHeap(), 0, service->env);
-        service->env = env;
-        service->envlen = envlen;
+          HeapFree(GetProcessHeap(), 0, service->env);
+          service->env = env;
+          service->envlen = envlen;
+        }
+        else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("get_parameters()"), 0);
       }
-      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("get_parameters()"), 0);
-    }
-    else {
-      /* Append extra variables to our environment. */
-      TCHAR *env, *s;
-      size_t envlen, len;
+      else {
+        /* Append extra variables to our environment. */
+        TCHAR *env, *s;
+        size_t envlen, len;
 
-      env = service->env_extra;
-      len = 0;
-      while (*env) {
-        envlen = _tcslen(env) + 1;
-        for (s = env; *s && *s != _T('='); s++);
-        if (*s == _T('=')) *s++ = _T('\0');
-        if (! SetEnvironmentVariable(env, s)) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED, env, s, error_string(GetLastError()), 0);
-        env += envlen;
+        env = service->env_extra;
+        len = 0;
+        while (*env) {
+          envlen = _tcslen(env) + 1;
+          for (s = env; *s && *s != _T('='); s++);
+          if (*s == _T('=')) *s++ = _T('\0');
+          if (! SetEnvironmentVariable(env, s)) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED, env, s, error_string(GetLastError()), 0);
+          env += envlen;
+        }
       }
     }
   }
