@@ -80,17 +80,17 @@ void cleanup_nssm_service(nssm_service_t *service) {
 
 /* About to install the service */
 int pre_install_service(int argc, TCHAR **argv) {
-  /* Show the dialogue box if we didn't give the service name and path */
-  if (argc < 2) return nssm_gui(IDD_INSTALL, argv[0]);
-
   nssm_service_t *service = alloc_nssm_service();
+  set_nssm_service_defaults(service);
+  if (argc) _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
+
+  /* Show the dialogue box if we didn't give the service name and path */
+  if (argc < 2) return nssm_gui(IDD_INSTALL, service);
+
   if (! service) {
     print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("pre_install_service()"));
     return 1;
   }
-
-  set_nssm_service_defaults(service);
-  _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
   _sntprintf_s(service->exe, _countof(service->exe), _TRUNCATE, _T("%s"), argv[1]);
 
   /* Arguments are optional */
@@ -122,11 +122,13 @@ int pre_install_service(int argc, TCHAR **argv) {
 
 /* About to remove the service */
 int pre_remove_service(int argc, TCHAR **argv) {
+  nssm_service_t *service = alloc_nssm_service();
+  set_nssm_service_defaults(service);
+  if (argc) _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
+
   /* Show dialogue box if we didn't pass service name and "confirm" */
-  if (argc < 2) return nssm_gui(IDD_REMOVE, argv[0]);
+  if (argc < 2) return nssm_gui(IDD_REMOVE, service);
   if (str_equiv(argv[1], _T("confirm"))) {
-    nssm_service_t *service = alloc_nssm_service();
-    _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
     int ret = remove_service(service);
     cleanup_nssm_service(service);
     return ret;

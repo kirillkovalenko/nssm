@@ -4,9 +4,9 @@ static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_S
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
-int nssm_gui(int resource, TCHAR *name) {
+int nssm_gui(int resource, nssm_service_t *service) {
   /* Create window */
-  HWND dlg = CreateDialog(0, MAKEINTRESOURCE(resource), 0, install_dlg);
+  HWND dlg = CreateDialogParam(0, MAKEINTRESOURCE(resource), 0, nssm_dlg, (LPARAM) service);
   if (! dlg) {
     popup_message(MB_OK, NSSM_GUI_CREATEDIALOG_FAILED, error_string(GetLastError()));
     return 1;
@@ -17,8 +17,8 @@ int nssm_gui(int resource, TCHAR *name) {
   ShowWindow(dlg, SW_SHOW);
 
   /* Set service name if given */
-  if (name) {
-    SetDlgItemText(dlg, IDC_NAME, name);
+  if (service->name[0]) {
+    SetDlgItemText(dlg, IDC_NAME, service->name);
     /* No point making user click remove if the name is already entered */
     if (resource == IDD_REMOVE) {
       HWND button = GetDlgItem(dlg, IDC_REMOVE);
@@ -604,7 +604,7 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
 }
 
 /* Install/remove dialogue callback */
-INT_PTR CALLBACK install_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
+INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
   switch (message) {
     /* Creating the dialogue */
     case WM_INITDIALOG:
