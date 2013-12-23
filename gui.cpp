@@ -12,6 +12,9 @@ int nssm_gui(int resource, nssm_service_t *service) {
     return 1;
   }
 
+  /* Remember what the window is for. */
+  SetWindowLongPtr(dlg, GWLP_USERDATA, (LONG_PTR) resource);
+
   /* Display the window */
   centre_window(dlg);
   ShowWindow(dlg, SW_SHOW);
@@ -27,6 +30,126 @@ int nssm_gui(int resource, nssm_service_t *service) {
         SendMessage(button, WM_LBUTTONUP, 0, 0);
       }
     }
+  }
+
+  if (resource == IDD_EDIT) {
+    /* We'll need the service handle later. */
+    SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR) service);
+
+    /* Service name can't be edited. */
+    EnableWindow(GetDlgItem(dlg, IDC_NAME), 0);
+    SetFocus(GetDlgItem(dlg, IDOK));
+
+    /* Set existing details. */
+    HWND combo;
+
+    /* Application tab. */
+    if (service->native) SetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->image);
+    else SetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->exe);
+    SetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_DIR, service->dir);
+    SetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS, service->flags);
+
+    /* Details tab. */
+    SetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME, service->displayname);
+    SetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION, service->description);
+    combo = GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_STARTUP);
+    SendMessage(combo, CB_SETCURSEL, service->startup, 0);
+
+    /* Log on tab. */
+    if (service->username) {
+      CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_ACCOUNT);
+      SetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_INTERACT), 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), 1);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), 1);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), 1);
+    }
+    else {
+      CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
+      if (service->type & SERVICE_INTERACTIVE_PROCESS) SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_SETCHECK, BST_CHECKED, 0);
+    }
+
+    /* Shutdown tab. */
+    if (! (service->stop_method & NSSM_STOP_METHOD_CONSOLE)) {
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_CONSOLE, BM_SETCHECK, BST_UNCHECKED, 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE), 0);
+    }
+    SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, service->kill_console_delay, 0);
+    if (! (service->stop_method & NSSM_STOP_METHOD_WINDOW)) {
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_WINDOW, BM_SETCHECK, BST_UNCHECKED, 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW), 0);
+    }
+    SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, service->kill_window_delay, 0);
+    if (! (service->stop_method & NSSM_STOP_METHOD_THREADS)) {
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_THREADS, BM_SETCHECK, BST_UNCHECKED, 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS), 0);
+    }
+    SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, service->kill_threads_delay, 0);
+    if (! (service->stop_method & NSSM_STOP_METHOD_TERMINATE)) {
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_TERMINATE, BM_SETCHECK, BST_UNCHECKED, 0);
+    }
+
+    /* Restart tab. */
+    SetDlgItemInt(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, service->throttle_delay, 0);
+    combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
+    SendMessage(combo, CB_SETCURSEL, service->default_exit_action, 0);
+
+    /* I/O tab. */
+    SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDIN, service->stdin_path);
+    SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDOUT, service->stdout_path);
+    SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDERR, service->stderr_path);
+
+    /* Rotation tab. */
+    if (service->stdout_disposition == CREATE_ALWAYS) SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_SETCHECK, BST_CHECKED, 0);
+    if (service->rotate_files) {
+      SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_SETCHECK, BST_CHECKED, 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS), 1);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW), 1);
+    }
+    SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, service->rotate_seconds, 0);
+    if (! service->rotate_bytes_high) SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, service->rotate_bytes_low, 0);
+
+    /* Check if advanced settings are in use. */
+    if (service->stdout_disposition ^ service->stderr_disposition || service->stdout_disposition & ~CREATE_ALWAYS || service->stderr_disposition & ~CREATE_ALWAYS) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_STDIO);
+    if (service->rotate_bytes_high) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ROTATE_BYTES);
+
+    /* Environment tab. */
+    TCHAR *env;
+    unsigned long envlen;
+    if (service->env_extralen) {
+      SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_SETCHECK, BST_CHECKED, 0);
+      env = service->env_extra;
+      envlen = service->env_extralen;
+    }
+    else {
+      env = service->env;
+      envlen = service->envlen;
+    }
+
+    if (envlen) {
+      /* Replace NULL with CRLF. Leave NULL NULL as the end marker. */
+      unsigned long i, j;
+      unsigned long newlen = envlen;
+      for (i = 0; i < envlen; i++) if (! env[i] && env[i + 1]) newlen++;
+
+      TCHAR *formatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen * sizeof(TCHAR));
+      if (formatted) {
+        for (i = 0, j = 0; i < envlen; i++) {
+          formatted[j] = env[i];
+          if (! env[i]) {
+            if (env[i + 1]) {
+              formatted[j] = _T('\r');
+              formatted[++j] = _T('\n');
+            }
+          }
+          j++;
+        }
+        SetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, formatted);
+        HeapFree(GetProcessHeap(), 0, formatted);
+      }
+      else popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("nssm_dlg()"));
+    }
+    if (service->envlen && service->env_extralen) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ENVIRONMENT);
   }
 
   /* Go! */
@@ -99,22 +222,26 @@ static inline void check_io(TCHAR *name, TCHAR *buffer, unsigned long len, unsig
   ZeroMemory(buffer, len * sizeof(TCHAR));
 }
 
-/* Install the service. */
-int install(HWND window) {
-  if (! window) return 1;
+/* Set service parameters. */
+int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service) {
+  if (! service) return 1;
 
-  nssm_service_t *service = alloc_nssm_service();
-  if (service) {
-    set_nssm_service_defaults(service);
+  set_nssm_service_defaults(service);
 
-    /* Get service name. */
-    if (! GetDlgItemText(window, IDC_NAME, service->name, _countof(service->name))) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
-      cleanup_nssm_service(service);
-      return 2;
-    }
+  if (orig_service) {
+    service->native = orig_service->native;
+    service->handle = orig_service->handle;
+  }
 
-    /* Get executable name */
+  /* Get service name. */
+  if (! GetDlgItemText(window, IDC_NAME, service->name, _countof(service->name))) {
+    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
+    cleanup_nssm_service(service);
+    return 2;
+  }
+
+  /* Get executable name */
+  if (! service->native) {
     if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->exe, _countof(service->exe))) {
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
       return 3;
@@ -133,54 +260,74 @@ int install(HWND window) {
         return 4;
       }
     }
+  }
 
-    /* Get details. */
-    if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME), WM_GETTEXTLENGTH, 0, 0)) {
-      if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME, service->displayname, _countof(service->displayname))) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DISPLAYNAME);
-        return 5;
-      }
+  /* Get details. */
+  if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME), WM_GETTEXTLENGTH, 0, 0)) {
+    if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME, service->displayname, _countof(service->displayname))) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DISPLAYNAME);
+      return 5;
+    }
+  }
+
+  if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION), WM_GETTEXTLENGTH, 0, 0)) {
+    if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION, service->description, _countof(service->description))) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DESCRIPTION);
+      return 5;
+    }
+  }
+
+  HWND combo = GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_STARTUP);
+  service->startup = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
+  if (service->startup == CB_ERR) service->startup = 0;
+
+  /* Get logon stuff. */
+  if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+    if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      service->type |= SERVICE_INTERACTIVE_PROCESS;
+    }
+    if (service->username) HeapFree(GetProcessHeap(), 0, service->username);
+    service->username = 0;
+    service->usernamelen = 0;
+    if (service->password) {
+      SecureZeroMemory(service->password, service->passwordlen);
+      HeapFree(GetProcessHeap(), 0, service->password);
+    }
+    service->password = 0;
+    service->passwordlen = 0;
+  }
+  else {
+    /* Username. */
+    service->usernamelen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), WM_GETTEXTLENGTH, 0, 0);
+    if (! service->usernamelen) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_USERNAME);
+      return 6;
+    }
+    service->usernamelen++;
+
+    service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
+    if (! service->username) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
+      return 6;
+    }
+    if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username, (int) service->usernamelen)) {
+      HeapFree(GetProcessHeap(), 0, service->username);
+      service->username = 0;
+      service->usernamelen = 0;
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_USERNAME);
+      return 6;
     }
 
-    if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION), WM_GETTEXTLENGTH, 0, 0)) {
-      if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION, service->description, _countof(service->description))) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DESCRIPTION);
-        return 5;
-      }
+    /*
+      Special case LOCALSYSTEM.
+      Ignore the password if we're editing and the username hasn't changed.
+    */
+    if (str_equiv(service->username, NSSM_LOCALSYSTEM_ACCOUNT)) {
+      HeapFree(GetProcessHeap(), 0, service->username);
+      service->username = 0;
+      service->usernamelen = 0;
     }
-
-    HWND combo = GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_STARTUP);
-    service->startup = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
-    if (service->startup == CB_ERR) service->startup = 0;
-
-    /* Get logon stuff. */
-    if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-      if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-        service->type |= SERVICE_INTERACTIVE_PROCESS;
-      }
-    }
-    else {
-      /* Username. */
-      service->usernamelen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), WM_GETTEXTLENGTH, 0, 0);
-      if (! service->usernamelen) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_USERNAME);
-        return 6;
-      }
-      service->usernamelen++;
-
-      service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
-      if (! service->username) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
-        return 6;
-      }
-      if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username, (int) service->usernamelen)) {
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_USERNAME);
-        return 6;
-      }
-
+    else if (! orig_service || ! orig_service->username || ! str_equiv(service->username, orig_service->username)) {
       /* Password. */
       service->passwordlen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), WM_GETTEXTLENGTH, 0, 0);
       if (! service->passwordlen) {
@@ -258,100 +405,116 @@ int install(HWND window) {
         return 6;
       }
     }
+  }
 
-    /* Get stop method stuff. */
-    check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
-    check_stop_method(service, NSSM_STOP_METHOD_WINDOW, IDC_METHOD_WINDOW);
-    check_stop_method(service, NSSM_STOP_METHOD_THREADS, IDC_METHOD_THREADS);
-    check_stop_method(service, NSSM_STOP_METHOD_TERMINATE, IDC_METHOD_TERMINATE);
-    check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, &service->kill_console_delay);
-    check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, &service->kill_window_delay);
-    check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, &service->kill_threads_delay);
+  /* Remaining tabs are only for services we manage. */
+  if (service->native) return 0;
 
-    /* Get exit action stuff. */
-    check_number(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
-    combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
-    service->default_exit_action = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
-    if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
+  /* Get stop method stuff. */
+  check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
+  check_stop_method(service, NSSM_STOP_METHOD_WINDOW, IDC_METHOD_WINDOW);
+  check_stop_method(service, NSSM_STOP_METHOD_THREADS, IDC_METHOD_THREADS);
+  check_stop_method(service, NSSM_STOP_METHOD_TERMINATE, IDC_METHOD_TERMINATE);
+  check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, &service->kill_console_delay);
+  check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, &service->kill_window_delay);
+  check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, &service->kill_threads_delay);
 
-    /* Get I/O stuff. */
-    check_io(_T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
-    check_io(_T("stdout"), service->stdout_path, _countof(service->stdout_path), IDC_STDOUT);
-    check_io(_T("stderr"), service->stderr_path, _countof(service->stderr_path), IDC_STDERR);
+  /* Get exit action stuff. */
+  check_number(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
+  combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
+  service->default_exit_action = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
+  if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
 
-    /* Override stdout and/or stderr. */
-    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-      if (service->stdout_path[0]) service->stdout_disposition = CREATE_ALWAYS;
-      if (service->stderr_path[0]) service->stderr_disposition = CREATE_ALWAYS;
+  /* Get I/O stuff. */
+  check_io(_T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
+  check_io(_T("stdout"), service->stdout_path, _countof(service->stdout_path), IDC_STDOUT);
+  check_io(_T("stderr"), service->stderr_path, _countof(service->stderr_path), IDC_STDERR);
+
+  /* Override stdout and/or stderr. */
+  if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+    if (service->stdout_path[0]) service->stdout_disposition = CREATE_ALWAYS;
+    if (service->stderr_path[0]) service->stderr_disposition = CREATE_ALWAYS;
+  }
+
+  /* Get rotation stuff. */
+  if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+    service->rotate_files = true;
+    check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
+    check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
+  }
+
+  /* Get environment. */
+  unsigned long envlen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT), WM_GETTEXTLENGTH, 0, 0);
+  if (envlen) {
+    TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (envlen + 2) * sizeof(TCHAR));
+    if (! env) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
+      cleanup_nssm_service(service);
+      return 5;
     }
 
-    /* Get rotation stuff. */
-    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-      service->rotate_files = true;
-      check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
-      check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
-    }
-
-    /* Get environment. */
-    unsigned long envlen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT), WM_GETTEXTLENGTH, 0, 0);
-    if (envlen) {
-      TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (envlen + 2) * sizeof(TCHAR));
-      if (! env) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
-        cleanup_nssm_service(service);
-        return 5;
-      }
-
-      if (! GetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, env, envlen + 1)) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
-        HeapFree(GetProcessHeap(), 0, env);
-        cleanup_nssm_service(service);
-        return 5;
-      }
-
-      /* Strip CR and replace LF with NULL. */
-      unsigned long newlen = 0;
-      unsigned long i, j;
-      for (i = 0; i < envlen; i++) if (env[i] != _T('\r')) newlen++;
-      /* Must end with two NULLs. */
-      newlen += 2;
-
-      TCHAR *newenv = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen * sizeof(TCHAR));
-      if (! newenv) {
-        HeapFree(GetProcessHeap(), 0, env);
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
-        cleanup_nssm_service(service);
-        return 5;
-      }
-
-      for (i = 0, j = 0; i < envlen; i++) {
-        if (env[i] == _T('\r')) continue;
-        if (env[i] == _T('\n')) newenv[j] = _T('\0');
-        else newenv[j] = env[i];
-        j++;
-      }
-
+    if (! GetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, env, envlen + 1)) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
       HeapFree(GetProcessHeap(), 0, env);
-      env = newenv;
-      envlen = newlen;
-
-      /* Test the environment is valid. */
-      if (test_environment(env)) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
-        HeapFree(GetProcessHeap(), 0, env);
-        cleanup_nssm_service(service);
-        return 5;
-      }
-
-      if (SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
-        service->env = env;
-        service->envlen = envlen;
-      }
-      else {
-        service->env_extra = env;
-        service->env_extralen = envlen;
-      }
+      cleanup_nssm_service(service);
+      return 5;
     }
+
+    /* Strip CR and replace LF with NULL. */
+    unsigned long newlen = 0;
+    unsigned long i, j;
+    for (i = 0; i < envlen; i++) if (env[i] != _T('\r')) newlen++;
+    /* Must end with two NULLs. */
+    newlen += 2;
+
+    TCHAR *newenv = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen * sizeof(TCHAR));
+    if (! newenv) {
+      HeapFree(GetProcessHeap(), 0, env);
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
+      cleanup_nssm_service(service);
+      return 5;
+    }
+
+    for (i = 0, j = 0; i < envlen; i++) {
+      if (env[i] == _T('\r')) continue;
+      if (env[i] == _T('\n')) newenv[j] = _T('\0');
+      else newenv[j] = env[i];
+      j++;
+    }
+
+    HeapFree(GetProcessHeap(), 0, env);
+    env = newenv;
+    envlen = newlen;
+
+    /* Test the environment is valid. */
+    if (test_environment(env)) {
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
+      HeapFree(GetProcessHeap(), 0, env);
+      cleanup_nssm_service(service);
+      return 5;
+    }
+
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+      service->env = env;
+      service->envlen = envlen;
+    }
+    else {
+      service->env_extra = env;
+      service->env_extralen = envlen;
+    }
+  }
+
+  return 0;
+}
+
+/* Install the service. */
+int install(HWND window) {
+  if (! window) return 1;
+
+  nssm_service_t *service = alloc_nssm_service();
+  if (service) {
+    int ret = configure(window, service, 0);
+    if (ret) return ret;
   }
 
   /* See if it works. */
@@ -436,6 +599,42 @@ int remove(HWND window) {
   }
 
   popup_message(MB_OK, NSSM_MESSAGE_SERVICE_REMOVED, service->name);
+  cleanup_nssm_service(service);
+  return 0;
+}
+
+int edit(HWND window, nssm_service_t *orig_service) {
+  if (! window) return 1;
+
+  nssm_service_t *service = alloc_nssm_service();
+  if (service) {
+    int ret = configure(window, service, orig_service);
+    if (ret) return ret;
+  }
+
+  switch (edit_service(service, true)) {
+    case 1:
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("edit()"));
+      cleanup_nssm_service(service);
+      return 1;
+
+    case 3:
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
+      cleanup_nssm_service(service);
+      return 3;
+
+    case 4:
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
+      cleanup_nssm_service(service);
+      return 4;
+
+    case 6:
+      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_EDIT_PARAMETERS_FAILED);
+      cleanup_nssm_service(service);
+      return 6;
+  }
+
+  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_EDITED, service->name);
   cleanup_nssm_service(service);
   return 0;
 }
@@ -606,9 +805,13 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
 
 /* Install/remove dialogue callback */
 INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
+  nssm_service_t *service;
+
   switch (message) {
     /* Creating the dialogue */
     case WM_INITDIALOG:
+      service = (nssm_service_t *) l;
+
       SetFocus(GetDlgItem(window, IDC_NAME));
 
       HWND tabs;
@@ -621,11 +824,19 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       ZeroMemory(&tab, sizeof(tab));
       tab.mask = TCIF_TEXT;
 
+      selected_tab = 0;
+
       /* Application tab. */
-      tab.pszText = message_string(NSSM_GUI_TAB_APPLICATION);
+      if (service->native) tab.pszText = message_string(NSSM_GUI_TAB_NATIVE);
+      else tab.pszText = message_string(NSSM_GUI_TAB_APPLICATION);
       tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_APPLICATION, (LPARAM) &tab);
-      tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
+      if (service->native) {
+        tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_NATIVE), window, tab_dlg);
+        EnableWindow(tablist[NSSM_TAB_APPLICATION], 0);
+        EnableWindow(GetDlgItem(tablist[NSSM_TAB_APPLICATION], IDC_PATH), 0);
+      }
+      else tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_APPLICATION], SW_SHOW);
 
       /* Details tab. */
@@ -653,6 +864,9 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       /* Set defaults. */
       CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
       set_logon_enabled(0);
+
+      /* Remaining tabs are only for services we manage. */
+      if (service->native) return 1;
 
       /* Shutdown tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);
@@ -712,8 +926,6 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tablist[NSSM_TAB_ENVIRONMENT] = CreateDialog(0, MAKEINTRESOURCE(IDD_ENVIRONMENT), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_ENVIRONMENT], SW_HIDE);
 
-      selected_tab = 0;
-
       return 1;
 
     /* Tab change. */
@@ -732,12 +944,8 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
           selection = (int) SendMessage(tabs, TCM_GETCURSEL, 0, 0);
           if (selection != selected_tab) {
             ShowWindow(tablist[selected_tab], SW_HIDE);
-            /*
-              XXX: Sets focus to the service name which isn't ideal but is
-                   better than leaving it in another tab.
-            */
             ShowWindow(tablist[selection], SW_SHOWDEFAULT);
-            SetFocus(tablist[selection]);
+            SetFocus(GetDlgItem(window, IDOK));
             selected_tab = selection;
           }
           return 1;
@@ -750,7 +958,10 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       switch (LOWORD(w)) {
         /* OK button */
         case IDOK:
-          if (! install(window)) PostQuitMessage(0);
+          if ((int) GetWindowLongPtr(window, GWLP_USERDATA) == IDD_EDIT) {
+            if (! edit(window, (nssm_service_t *) GetWindowLongPtr(window, DWLP_USER))) PostQuitMessage(0);
+          }
+          else if (! install(window)) PostQuitMessage(0);
           break;
 
         /* Cancel button */

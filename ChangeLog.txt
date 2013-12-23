@@ -1,5 +1,7 @@
 Changes since 2.21
 ------------------
+  * Existing services can now be edited using the GUI.
+
   * NSSM can now optionally rotate existing files when
     redirecting I/O.
 

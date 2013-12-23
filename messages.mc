@@ -21,6 +21,10 @@ To install a service without confirmation:
 
         nssm install <servicename> <app> [<args>]
 
+To show service editing GUI:
+
+        nssm edit <servicename>
+
 To show service removal GUI:
 
         nssm remove [<servicename>]
@@ -86,6 +90,19 @@ L'installazione di un servizio richiede privilegi di amministratore.
 .
 
 MessageId = +1
+SymbolicName = NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT
+Severity = Informational
+Language = English
+Administrator access is needed to edit a service.
+.
+Language = French
+Les droits d'administrateur sont requis pour éditer un service.
+.
+Language = Italian
+L'edizione di un servizio richiede privilegi di amministratore.
+.
+
+MessageId = +1
 SymbolicName = NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE
 Severity = Informational
 Language = English
@@ -122,6 +139,67 @@ Erreur à l'ouverture du gestionnaire de services!
 .
 Language = Italian
 Errore apertura Service Manager!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED
+Severity = Informational
+Language = English
+Error querying service %s!
+QueryServiceConfig(): %s%0
+.
+Language = French
+Error querying service %s!
+QueryServiceConfig(): %s%0
+.
+Language = Italian
+Error querying service %s!
+QueryServiceConfig(): %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED
+Severity = Informational
+Language = English
+Error querying service %s!
+QueryServiceConfig2(%s): %s%0
+.
+Language = French
+Error querying service %s!
+QueryServiceConfig2(%s): %s%0
+.
+Language = Italian
+Error querying service %s!
+QueryServiceConfig2(%s): %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_INVALID_SERVICE
+Severity = Informational
+Language = English
+Service "%s" is not a valid %s service!
+Executable is %s%0
+.
+Language = French
+Service "%s" is not a valid %s service!
+Executable is %s%0
+.
+Language = Italian
+Service "%s" is not a valid %s service!
+Executable is %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_CANNOT_EDIT
+Severity = Informational
+Language = English
+Service "%s" is not a %s service!
+.
+Language = French
+Service "%s" is not a %s service!
+.
+Language = Italian
+Service "%s" is not a %s service!
 .
 
 MessageId = +1
@@ -174,6 +252,22 @@ Erreur à la création du service!
 .
 Language = Italian
 Errore creazione servizio!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED
+Severity = Informational
+Language = English
+Error editing service!
+ChangeServiceConfig(): %s%0
+.
+Language = French
+Erreur à l'édition du service!
+ChangeServiceConfig(): %s%0
+.
+Language = Italian
+Errore edizione servizio!
+ChangeServiceConfig(): %s%0
 .
 
 MessageId = +1
@@ -239,6 +333,19 @@ Le service "%s" a été désinstallé avec succès!
 .
 Language = Italian
 Servizio "%s" rimosso correttamente!
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_SERVICE_EDITED
+Severity = Informational
+Language = English
+Service "%s" edited successfully!
+.
+Language = French
+Le service "%s" a été édité avec succès!
+.
+Language = Italian
+Servizio "%s" edizione correttamente!
 .
 
 MessageId = +1
@@ -437,6 +544,19 @@ Eliminazione servizio in corso...
 .
 
 MessageId = +1
+SymbolicName = NSSM_GUI_EDIT_PARAMETERS_FAILED
+Severity = Informational
+Language = English
+Couldn't set startup parameters for the service!
+.
+Language = French
+Impossible de régler les paramètres de démarrage pour le service!
+.
+Language = Italian
+Impossibile impostare i parametri di avvio per il servizio!
+.
+
+MessageId = +1
 SymbolicName = NSSM_GUI_ASK_REMOVE_SERVICE
 Severity = Informational
 Language = English
@@ -547,6 +667,19 @@ Application%0
 .
 Language = Italian
 Applicazione%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_TAB_NATIVE
+Severity = Informational
+Language = English
+Service%0
+.
+Language = French
+Service%0
+.
+Language = Italian
+Servizio%0
 .
 
 MessageId = +1
@@ -742,6 +875,66 @@ Fake crash (pre-Vista)%0
 .
 Language = Italian
 Fake crash (pre-Vista)%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_WARN_STDIO
+Severity = Informational
+Language = English
+The service is configured with I/O redirection settings which cannot be
+represented by this GUI's simplified set of options.  Check the registry
+after editing the service to confirm its I/O redirection settings.
+.
+Language = French
+The service is configured with I/O redirection settings which cannot be
+represented by this GUI's simplified set of options.  Check the registry
+after editing the service to confirm its I/O redirection settings.
+.
+Language = Italian
+The service is configured with I/O redirection settings which cannot be
+represented by this GUI's simplified set of options.  Check the registry
+after editing the service to confirm its I/O redirection settings.
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_WARN_ROTATE_BYTES
+Severity = Informational
+Language = English
+The service is configured with a 64-bit file size threshold for file
+rotation.  This GUI can only display 32-bit settings.  Check the registry
+after editing the service to confirm its file rotation settings.
+.
+Language = French
+The service is configured with a 64-bit file size threshold for file
+rotation.  This GUI can only display 32-bit settings.  Check the registry
+after editing the service to confirm its file rotation settings.
+.
+Language = Italian
+The service is configured with a 64-bit file size threshold for file
+rotation.  This GUI can only display 32-bit settings.  Check the registry
+after editing the service to confirm its file rotation settings.
+.
+
+MessageId = +1
+SymbolicName = NSSM_GUI_WARN_ENVIRONMENT
+Severity = Informational
+Language = English
+The service is configured with a srvany-compatible environment block
+for the application as well as an extra environment block.  This GUI
+can only display one such block.  Editing the service will result in
+one of the environment blocks being deleted.
+.
+Language = French
+The service is configured with a srvany-compatible environment block
+for the application as well as an extra environment block.  This GUI
+can only display one such block.  Editing the service will result in
+one of the environment blocks being deleted.
+.
+Language = Italian
+The service is configured with a srvany-compatible environment block
+for the application as well as an extra environment block.  This GUI
+can only display one such block.  Editing the service will result in
+one of the environment blocks being deleted.
 .
 
 MessageId = 1001

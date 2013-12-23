@@ -1,5 +1,7 @@
 #include "nssm.h"
 
+extern const TCHAR *exit_action_strings[];
+
 bool is_admin;
 bool use_critical_section;
 
@@ -120,6 +122,172 @@ int pre_install_service(int argc, TCHAR **argv) {
   return ret;
 }
 
+/* About to edit the service. */
+int pre_edit_service(int argc, TCHAR **argv) {
+  /* Require service name. */
+  if (argc < 1) return usage(1);
+
+  nssm_service_t *service = alloc_nssm_service();
+  _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
+
+  /* Open service manager */
+  SC_HANDLE services = open_service_manager();
+  if (! services) {
+    print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+    return 2;
+  }
+
+  /* Try to open the service */
+  service->handle = OpenService(services, service->name, SC_MANAGER_ALL_ACCESS);
+  if (! service->handle) {
+    CloseServiceHandle(services);
+    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
+    return 3;
+  }
+
+  /* Get system details. */
+  unsigned long bufsize;
+  unsigned long error;
+  QUERY_SERVICE_CONFIG *qsc;
+
+  QueryServiceConfig(service->handle, 0, 0, &bufsize);
+  error = GetLastError();
+  if (error == ERROR_INSUFFICIENT_BUFFER) {
+    qsc = (QUERY_SERVICE_CONFIG *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bufsize);
+    if (! qsc) {
+      print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("QUERY_SERVICE_CONFIG"), _T("pre_edit_service()"), 0);
+      return 4;
+    }
+  }
+  else {
+    CloseHandle(service->handle);
+    CloseServiceHandle(services);
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED, service->name, error_string(error), 0);
+    return 4;
+  }
+
+  if (! QueryServiceConfig(service->handle, qsc, bufsize, &bufsize)) {
+    HeapFree(GetProcessHeap(), 0, qsc);
+    CloseHandle(service->handle);
+    CloseServiceHandle(services);
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED, service->name, error_string(GetLastError()), 0);
+    return 4;
+  }
+
+  service->type = qsc->dwServiceType;
+  if (! (service->type & SERVICE_WIN32_OWN_PROCESS)) {
+    HeapFree(GetProcessHeap(), 0, qsc);
+    CloseHandle(service->handle);
+    CloseServiceHandle(services);
+    print_message(stderr, NSSM_MESSAGE_CANNOT_EDIT, service->name, _T("SERVICE_WIN32_OWN_PROCESS"), 0);
+    return 3;
+  }
+
+  switch (qsc->dwStartType) {
+    case SERVICE_DEMAND_START: service->startup = NSSM_STARTUP_MANUAL; break;
+    case SERVICE_DISABLED: service->startup = NSSM_STARTUP_DISABLED; break;
+    default: service->startup = NSSM_STARTUP_AUTOMATIC;
+  }
+  if (! str_equiv(qsc->lpServiceStartName, NSSM_LOCALSYSTEM_ACCOUNT)) {
+    size_t len = _tcslen(qsc->lpServiceStartName);
+    service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
+    if (service->username) {
+      memmove(service->username, qsc->lpServiceStartName, (len + 1) * sizeof(TCHAR));
+      service->usernamelen = (unsigned long) len;
+    }
+    else {
+      HeapFree(GetProcessHeap(), 0, qsc);
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("username"), _T("pre_edit_service()"));
+      return 4;
+    }
+  }
+  _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), qsc->lpDisplayName);
+
+  /* Remember the executable in case it isn't NSSM. */
+  _sntprintf_s(service->image, _countof(service->image), _TRUNCATE, _T("%s"), qsc->lpBinaryPathName);
+  HeapFree(GetProcessHeap(), 0, qsc);
+
+  /* Get extended system details. */
+  if (service->startup == NSSM_STARTUP_AUTOMATIC) {
+    QueryServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, 0, 0, &bufsize);
+    error = GetLastError();
+    if (error == ERROR_INSUFFICIENT_BUFFER) {
+      SERVICE_DELAYED_AUTO_START_INFO *info = (SERVICE_DELAYED_AUTO_START_INFO *) HeapAlloc(GetProcessHeap(), 0, bufsize);
+      if (! info) {
+        CloseHandle(service->handle);
+        CloseServiceHandle(services);
+        print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("SERVICE_DELAYED_AUTO_START_INFO"), _T("pre_edit_service()"));
+        return 5;
+      }
+
+      if (QueryServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, (unsigned char *) info, bufsize, &bufsize)) {
+        if (info->fDelayedAutostart) service->startup = NSSM_STARTUP_DELAYED;
+      }
+      else {
+        error = GetLastError();
+        if (error != ERROR_INVALID_LEVEL) {
+          CloseHandle(service->handle);
+          CloseServiceHandle(services);
+          print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
+          return 5;
+        }
+      }
+    }
+    else if (error != ERROR_INVALID_LEVEL) {
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_DELAYED_AUTO_START_INFO"), error_string(error));
+      return 5;
+    }
+  }
+
+  QueryServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, 0, 0, &bufsize);
+  error = GetLastError();
+  if (error == ERROR_INSUFFICIENT_BUFFER) {
+    SERVICE_DESCRIPTION *description = (SERVICE_DESCRIPTION *) HeapAlloc(GetProcessHeap(), 0, bufsize);
+    if (! description) {
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("SERVICE_CONFIG_DESCRIPTION"), _T("pre_edit_service()"));
+      return 6;
+    }
+
+    if (QueryServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, (unsigned char *) description, bufsize, &bufsize)) {
+     if (description->lpDescription) _sntprintf_s(service->description, _countof(service->description), _TRUNCATE, _T("%s"), description->lpDescription);
+      HeapFree(GetProcessHeap(), 0, description);
+    }
+    else {
+      HeapFree(GetProcessHeap(), 0, description);
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
+      return 6;
+    }
+  }
+  else {
+    CloseHandle(service->handle);
+    CloseServiceHandle(services);
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
+    return 6;
+  }
+
+  /* Get NSSM details. */
+  get_parameters(service, 0);
+
+  CloseServiceHandle(services);
+
+  if (! service->exe[0]) {
+    print_message(stderr, NSSM_MESSAGE_INVALID_SERVICE, service->name, NSSM, service->image);
+    service->native = true;
+  }
+
+  nssm_gui(IDD_EDIT, service);
+
+  return 0;
+}
+
 /* About to remove the service */
 int pre_remove_service(int argc, TCHAR **argv) {
   nssm_service_t *service = alloc_nssm_service();
@@ -150,8 +318,33 @@ int install_service(nssm_service_t *service) {
   }
 
   /* Get path of this program */
-  TCHAR command[MAX_PATH];
-  GetModuleFileName(0, command, _countof(command));
+  GetModuleFileName(0, service->image, _countof(service->image));
+
+  /* Create the service - settings will be changed in edit_service() */
+  service->handle = CreateService(services, service->name, service->name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, service->image, 0, 0, 0, 0, 0);
+  if (! service->handle) {
+    print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
+    CloseServiceHandle(services);
+    return 5;
+  }
+
+  if (edit_service(service, false)) {
+    DeleteService(service->handle);
+    CloseServiceHandle(services);
+    return 6;
+  }
+
+  print_message(stdout, NSSM_MESSAGE_SERVICE_INSTALLED, service->name);
+
+  /* Cleanup */
+  CloseServiceHandle(services);
+
+  return 0;
+}
+
+/* Edit the service. */
+int edit_service(nssm_service_t *service, bool editing) {
+  if (! service) return 1;
 
   /*
     The only two valid flags for service type are SERVICE_WIN32_OWN_PROCESS
@@ -171,51 +364,59 @@ int install_service(nssm_service_t *service) {
   /* Display name. */
   if (! service->displayname[0]) _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), service->name);
 
-  /* Create the service */
-  service->handle = CreateService(services, service->name, service->displayname, SC_MANAGER_ALL_ACCESS, service->type, startup, SERVICE_ERROR_NORMAL, command, 0, 0, 0, service->username, service->password);
-  if (! service->handle) {
-    print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
-    CloseServiceHandle(services);
+  /*
+    Username must be NULL if we aren't changing or an account name.
+    We must explicitly user LOCALSYSTEM to change it when we are editing.
+    Password must be NULL if we aren't changing, a password or "".
+    Empty passwords are valid but we won't allow them in the GUI.
+  */
+  TCHAR *username = 0;
+  TCHAR *password = 0;
+  if (service->usernamelen) {
+    username = service->username;
+    if (service->passwordlen) password = service->password;
+    else password = _T("");
+  }
+  else if (editing) username = NSSM_LOCALSYSTEM_ACCOUNT;
+
+  if (! ChangeServiceConfig(service->handle, service->type, startup, SERVICE_NO_CHANGE, 0, 0, 0, 0, username, password, service->displayname)) {
+    print_message(stderr, NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED, error_string(GetLastError()));
     return 5;
   }
 
-  if (service->description[0]) {
+  if (service->description[0] || editing) {
     SERVICE_DESCRIPTION description;
     ZeroMemory(&description, sizeof(description));
-    description.lpDescription = service->description;
+    if (service->description[0]) description.lpDescription = service->description;
+    else description.lpDescription = 0;
     if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, &description)) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DESCRIPTION_FAILED, service->name, error_string(GetLastError()), 0);
     }
   }
 
-  if (service->startup == NSSM_STARTUP_DELAYED) {
-    SERVICE_DELAYED_AUTO_START_INFO delayed;
-    ZeroMemory(&delayed, sizeof(delayed));
-    delayed.fDelayedAutostart = 1;
-    /* Delayed startup isn't supported until Vista. */
-    if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, &delayed)) {
-      unsigned long error = GetLastError();
-      /* Pre-Vista we expect to fail with ERROR_INVALID_LEVEL */
-      if (error != ERROR_INVALID_LEVEL) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DELAYED_AUTO_START_INFO_FAILED, service->name, error_string(error), 0);
-      }
+  SERVICE_DELAYED_AUTO_START_INFO delayed;
+  ZeroMemory(&delayed, sizeof(delayed));
+  if (service->startup == NSSM_STARTUP_DELAYED) delayed.fDelayedAutostart = 1;
+  else delayed.fDelayedAutostart = 0;
+  /* Delayed startup isn't supported until Vista. */
+  if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, &delayed)) {
+    unsigned long error = GetLastError();
+    /* Pre-Vista we expect to fail with ERROR_INVALID_LEVEL */
+    if (error != ERROR_INVALID_LEVEL) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DELAYED_AUTO_START_INFO_FAILED, service->name, error_string(error), 0);
     }
   }
 
-  /* Now we need to put the parameters into the registry */
-  if (create_parameters(service)) {
-    print_message(stderr, NSSM_MESSAGE_CREATE_PARAMETERS_FAILED);
-    DeleteService(service->handle);
-    CloseServiceHandle(services);
-    return 6;
+  /* Don't mess with parameters which aren't ours. */
+  if (! service->native) {
+    /* Now we need to put the parameters into the registry */
+    if (create_parameters(service, editing)) {
+      print_message(stderr, NSSM_MESSAGE_CREATE_PARAMETERS_FAILED);
+      return 6;
+    }
+
+    set_service_recovery(service);
   }
-
-  set_service_recovery(service);
-
-  print_message(stdout, NSSM_MESSAGE_SERVICE_INSTALLED, service->name);
-
-  /* Cleanup */
-  CloseServiceHandle(services);
 
   return 0;
 }
@@ -295,7 +496,7 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
 
   if (is_admin) {
     /* Try to create the exit action parameters; we don't care if it fails */
-    create_exit_action(service->name, exit_action_strings[0]);
+    create_exit_action(service->name, exit_action_strings[0], false);
 
     SC_HANDLE services = open_service_manager();
     if (services) {

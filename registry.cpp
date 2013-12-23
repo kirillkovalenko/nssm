@@ -28,7 +28,7 @@ int create_messages() {
   return 0;
 }
 
-int create_parameters(nssm_service_t *service) {
+int create_parameters(nssm_service_t *service, bool editing) {
   /* Get registry */
   TCHAR registry[KEY_LENGTH];
   if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY, service->name) < 0) {
@@ -63,33 +63,54 @@ int create_parameters(nssm_service_t *service) {
   /* Other non-default parameters. May fail. */
   unsigned long stop_method_skip = ~service->stop_method;
   if (stop_method_skip) set_number(key, NSSM_REG_STOP_METHOD_SKIP, stop_method_skip);
-  if (service->default_exit_action < NSSM_NUM_EXIT_ACTIONS) create_exit_action(service->name, exit_action_strings[service->default_exit_action]);
+  else if (editing) RegDeleteValue(key, NSSM_REG_STOP_METHOD_SKIP);
+  if (service->default_exit_action < NSSM_NUM_EXIT_ACTIONS) create_exit_action(service->name, exit_action_strings[service->default_exit_action], editing);
   if (service->throttle_delay != NSSM_RESET_THROTTLE_RESTART) set_number(key, NSSM_REG_THROTTLE, service->throttle_delay);
+  else if (editing) RegDeleteValue(key, NSSM_REG_THROTTLE);
   if (service->kill_console_delay != NSSM_KILL_CONSOLE_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, service->kill_console_delay);
+  else if (editing) RegDeleteValue(key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD);
   if (service->kill_window_delay != NSSM_KILL_WINDOW_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, service->kill_window_delay);
+  else if (editing) RegDeleteValue(key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD);
   if (service->kill_threads_delay != NSSM_KILL_THREADS_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, service->kill_threads_delay);
-  if (service->stdin_path[0]) {
-    set_expand_string(key, NSSM_REG_STDIN, service->stdin_path);
+  else if (editing) RegDeleteValue(key, NSSM_REG_KILL_THREADS_GRACE_PERIOD);
+  if (service->stdin_path[0] || editing) {
+    if (service->stdin_path[0]) set_expand_string(key, NSSM_REG_STDIN, service->stdin_path);
+    else if (editing) RegDeleteValue(key, NSSM_REG_STDIN);
     if (service->stdin_sharing != NSSM_STDIN_SHARING) set_createfile_parameter(key, NSSM_REG_STDIN, NSSM_REG_STDIO_SHARING, service->stdin_sharing);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDIN, NSSM_REG_STDIO_SHARING);
     if (service->stdin_disposition != NSSM_STDIN_DISPOSITION) set_createfile_parameter(key, NSSM_REG_STDIN, NSSM_REG_STDIO_DISPOSITION, service->stdin_disposition);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDIN, NSSM_REG_STDIO_DISPOSITION);
     if (service->stdin_flags != NSSM_STDIN_FLAGS) set_createfile_parameter(key, NSSM_REG_STDIN, NSSM_REG_STDIO_FLAGS, service->stdin_flags);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDIN, NSSM_REG_STDIO_FLAGS);
   }
-  if (service->stdout_path[0]) {
-    set_expand_string(key, NSSM_REG_STDOUT, service->stdout_path);
+  if (service->stdout_path[0] || editing) {
+    if (service->stdout_path[0]) set_expand_string(key, NSSM_REG_STDOUT, service->stdout_path);
+    else if (editing) RegDeleteValue(key, NSSM_REG_STDOUT);
     if (service->stdout_sharing != NSSM_STDOUT_SHARING) set_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_SHARING, service->stdout_sharing);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_SHARING);
     if (service->stdout_disposition != NSSM_STDOUT_DISPOSITION) set_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_DISPOSITION, service->stdout_disposition);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_DISPOSITION);
     if (service->stdout_flags != NSSM_STDOUT_FLAGS) set_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_FLAGS, service->stdout_flags);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_FLAGS);
   }
-  if (service->stderr_path[0]) {
-    set_expand_string(key, NSSM_REG_STDERR, service->stderr_path);
+  if (service->stderr_path[0] || editing) {
+    if (service->stderr_path[0]) set_expand_string(key, NSSM_REG_STDERR, service->stderr_path);
+    else if (editing) RegDeleteValue(key, NSSM_REG_STDERR);
     if (service->stderr_sharing != NSSM_STDERR_SHARING) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_SHARING, service->stderr_sharing);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_SHARING);
     if (service->stderr_disposition != NSSM_STDERR_DISPOSITION) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_DISPOSITION, service->stderr_disposition);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_DISPOSITION);
     if (service->stderr_flags != NSSM_STDERR_FLAGS) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_FLAGS, service->stderr_flags);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_FLAGS);
   }
   if (service->rotate_files) set_number(key, NSSM_REG_ROTATE, 1);
+  else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE);
   if (service->rotate_seconds) set_number(key, NSSM_REG_ROTATE_SECONDS, service->rotate_seconds);
+  else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_SECONDS);
   if (service->rotate_bytes_low) set_number(key, NSSM_REG_ROTATE_BYTES_LOW, service->rotate_bytes_low);
+  else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_BYTES_LOW);
   if (service->rotate_bytes_high) set_number(key, NSSM_REG_ROTATE_BYTES_HIGH, service->rotate_bytes_high);
+  else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_BYTES_HIGH);
 
   /* Environment */
   if (service->env) {
@@ -97,11 +118,13 @@ int create_parameters(nssm_service_t *service) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_ENV, error_string(GetLastError()), 0);
     }
   }
+  else if (editing) RegDeleteValue(key, NSSM_REG_ENV);
   if (service->env_extra) {
     if (RegSetValueEx(key, NSSM_REG_ENV_EXTRA, 0, REG_MULTI_SZ, (const unsigned char *) service->env_extra, (unsigned long) service->env_extralen * sizeof(TCHAR)) != ERROR_SUCCESS) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_ENV_EXTRA, error_string(GetLastError()), 0);
     }
   }
+  else if (editing) RegDeleteValue(key, NSSM_REG_ENV_EXTRA);
 
   /* Close registry. */
   RegCloseKey(key);
@@ -109,7 +132,7 @@ int create_parameters(nssm_service_t *service) {
   return 0;
 }
 
-int create_exit_action(TCHAR *service_name, const TCHAR *action_string) {
+int create_exit_action(TCHAR *service_name, const TCHAR *action_string, bool editing) {
   /* Get registry */
   TCHAR registry[KEY_LENGTH];
   if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY _T("\\%s"), service_name, NSSM_REG_EXIT) < 0) {
@@ -126,7 +149,7 @@ int create_exit_action(TCHAR *service_name, const TCHAR *action_string) {
   }
 
   /* Do nothing if the key already existed */
-  if (disposition == REG_OPENED_EXISTING_KEY) {
+  if (disposition == REG_OPENED_EXISTING_KEY && ! editing) {
     RegCloseKey(key);
     return 0;
   }
@@ -451,6 +474,19 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   override_milliseconds(service->name, key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, &service->kill_console_delay, NSSM_KILL_CONSOLE_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_CONSOLE_GRACE_PERIOD);
   override_milliseconds(service->name, key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, &service->kill_window_delay, NSSM_KILL_WINDOW_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_WINDOW_GRACE_PERIOD);
   override_milliseconds(service->name, key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, &service->kill_threads_delay, NSSM_KILL_THREADS_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_THREADS_GRACE_PERIOD);
+
+  /* Try to get default exit action. */
+  bool default_action;
+  service->default_exit_action = NSSM_EXIT_RESTART;
+  TCHAR action_string[ACTION_LEN];
+  if (! get_exit_action(service->name, 0, action_string, &default_action)) {
+    for (int i = 0; exit_action_strings[i]; i++) {
+      if (! _tcsnicmp((const TCHAR *) action_string, exit_action_strings[i], ACTION_LEN)) {
+        service->default_exit_action = i;
+        break;
+      }
+    }
+  }
 
   /* Close registry */
   RegCloseKey(key);

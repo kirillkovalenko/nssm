@@ -17,7 +17,10 @@
 
 #define ACTION_LEN 16
 
+#define NSSM_LOCALSYSTEM_ACCOUNT _T("LocalSystem")
+
 typedef struct {
+  bool native;
   TCHAR name[SERVICE_NAME_LENGTH];
   TCHAR displayname[SERVICE_DISPLAYNAME_LENGTH];
   TCHAR description[VALUE_LENGTH];
@@ -27,6 +30,7 @@ typedef struct {
   TCHAR *password;
   size_t passwordlen;
   unsigned long type;
+  TCHAR image[MAX_PATH];
   TCHAR exe[EXE_LENGTH];
   TCHAR flags[VALUE_LENGTH];
   TCHAR dir[MAX_PATH];
@@ -85,8 +89,10 @@ void cleanup_nssm_service(nssm_service_t *);
 SC_HANDLE open_service_manager();
 int pre_install_service(int, TCHAR **);
 int pre_remove_service(int, TCHAR **);
+int pre_edit_service(int, TCHAR **);
 int install_service(nssm_service_t *);
 int remove_service(nssm_service_t *);
+int edit_service(nssm_service_t *, bool);
 void set_service_recovery(nssm_service_t *);
 int monitor_service(nssm_service_t *);
 int start_service(nssm_service_t *);

@@ -26,8 +26,8 @@
 #define NSSM_STDIO_LENGTH 29
 
 int create_messages();
-int create_parameters(nssm_service_t *);
-int create_exit_action(TCHAR *, const TCHAR *);
+int create_parameters(nssm_service_t *, bool);
+int create_exit_action(TCHAR *, const TCHAR *, bool);
 int set_environment(TCHAR *, HKEY, TCHAR *, TCHAR **, unsigned long *);
 int expand_parameter(HKEY, TCHAR *, TCHAR *, unsigned long, bool, bool);
 int expand_parameter(HKEY, TCHAR *, TCHAR *, unsigned long, bool);

@@ -58,6 +58,8 @@ Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 Since version 2.22, NSSM can set service display name, description, startup
 type and log on details.
 
+Since version 2.22, NSSM can edit existing services with the GUI.
+
 
 Usage
 -----
@@ -279,6 +281,21 @@ Each entry in the list should be of the form KEY=VALUE.  It is possible to
 omit the VALUE but the = symbol is mandatory.
 
 srvany only supports AppEnvironment.
+
+
+Managing services using the GUI
+-------------------------------
+NSSM can edit the settings of existing services with the same GUI that is
+used to install them.  Run
+
+    nssm edit <servicename>
+
+to bring up the GUI.
+
+NSSM offers limited editing capabilities for services other than those which
+run NSSM itself.  When NSSM is asked to edit a service which does not have
+the App* registry settings described above, the GUI will allow editing only
+system settings such as the service display name and description.
 
 
 Removing services using the GUI

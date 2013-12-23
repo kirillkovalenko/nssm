@@ -6,14 +6,16 @@
 #define IDI_NSSM                        101
 #define IDD_INSTALL                     102
 #define IDD_REMOVE                      103
-#define IDD_APPLICATION                 104
-#define IDD_DETAILS                     105
-#define IDD_LOGON                       106
-#define IDD_IO                          107
-#define IDD_ROTATION                    108
-#define IDD_APPEXIT                     109
-#define IDD_SHUTDOWN                    110
-#define IDD_ENVIRONMENT                 111
+#define IDD_EDIT                        104
+#define IDD_APPLICATION                 105
+#define IDD_DETAILS                     106
+#define IDD_LOGON                       107
+#define IDD_IO                          108
+#define IDD_ROTATION                    109
+#define IDD_APPEXIT                     110
+#define IDD_SHUTDOWN                    111
+#define IDD_ENVIRONMENT                 112
+#define IDD_NATIVE                      113
 #define IDC_PATH                        1000
 #define IDC_TAB1                        1001
 #define IDC_CANCEL                      1002
@@ -58,7 +60,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        112
+#define _APS_NEXT_RESOURCE_VALUE        114
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1040
 #define _APS_NEXT_SYMED_VALUE           101

@@ -45,13 +45,20 @@ int _tmain(int argc, TCHAR **argv) {
 
   /* Elevate */
   if (argc > 1) {
-    /* Valid commands are install or remove */
+    /* Valid commands are install, edit or remove */
     if (str_equiv(argv[1], _T("install"))) {
       if (! is_admin) {
         print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL);
         exit(100);
       }
       exit(pre_install_service(argc - 2, argv + 2));
+    }
+    if (str_equiv(argv[1], _T("edit"))) {
+      if (! is_admin) {
+        print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT);
+        exit(100);
+      }
+      exit(pre_edit_service(argc - 2, argv + 2));
     }
     if (str_equiv(argv[1], _T("remove"))) {
       if (! is_admin) {

@@ -18,6 +18,7 @@
 
 int str_equiv(const TCHAR *, const TCHAR *);
 void strip_basename(TCHAR *);
+int usage(int);
 
 #define NSSM _T("nssm")
 #define NSSM_VERSION _T("2.21")
