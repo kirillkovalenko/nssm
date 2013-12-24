@@ -13,6 +13,7 @@
 
 int get_createfile_parameters(HKEY, TCHAR *, TCHAR *, unsigned long *, unsigned long, unsigned long *, unsigned long, unsigned long *, unsigned long);
 int set_createfile_parameter(HKEY, TCHAR *, TCHAR *, unsigned long);
+int delete_createfile_parameter(HKEY, TCHAR *, TCHAR *);
 HANDLE append_to_file(TCHAR *, unsigned long, SECURITY_ATTRIBUTES *, unsigned long, unsigned long);
 void rotate_file(TCHAR *, TCHAR *, unsigned long, unsigned long, unsigned long);
 int get_output_handles(nssm_service_t *, HKEY, STARTUPINFO *);

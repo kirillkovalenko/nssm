@@ -61,6 +61,18 @@ int set_createfile_parameter(HKEY key, TCHAR *prefix, TCHAR *suffix, unsigned lo
   return set_number(key, value, number);
 }
 
+int delete_createfile_parameter(HKEY key, TCHAR *prefix, TCHAR *suffix) {
+  TCHAR value[NSSM_STDIO_LENGTH];
+
+  if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s%s"), prefix, suffix) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, suffix, _T("delete_createfile_parameter()"), 0);
+    return 1;
+  }
+
+  if (RegDeleteValue(key, value)) return 0;
+  return 1;
+}
+
 HANDLE append_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
   HANDLE ret;
 
