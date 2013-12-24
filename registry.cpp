@@ -150,6 +150,7 @@ int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   /* Dummy test to find buffer size */
   unsigned long ret = RegQueryValueEx(key, value, 0, &type, NULL, envlen);
   if (ret != ERROR_SUCCESS) {
+    *env = 0;
     *envlen = 0;
     /* The service probably doesn't have any environment configured */
     if (ret == ERROR_FILE_NOT_FOUND) return 0;
@@ -158,6 +159,8 @@ int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   }
 
   if (type != REG_MULTI_SZ) {
+    *env = 0;
+    *envlen = 0;
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE, value, service_name, 0);
     return 2;
   }
@@ -170,6 +173,7 @@ int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
 
   *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, *envlen);
   if (! *env) {
+    *envlen = 0;
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, _T("set_environment()"), 0);
     return 3;
   }
@@ -177,10 +181,10 @@ int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   /* Actually get the strings */
   ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) *env, envlen);
   if (ret != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, *env);
     *env = 0;
     *envlen = 0;
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     return 4;
   }
 
