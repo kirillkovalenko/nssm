@@ -73,15 +73,15 @@ int popup_message(unsigned int type, unsigned long id, ...) {
 
   TCHAR *format = message_string(id);
   if (! format) {
-    return MessageBox(0, _T("Message %lu was supposed to go here!"), NSSM, MB_OK | MB_ICONEXCLAMATION);
+    return MessageBox(0, _T("The message which was supposed to go here is missing!"), NSSM, MB_OK | MB_ICONEXCLAMATION);
   }
 
-  TCHAR blurb[256];
+  TCHAR blurb[512];
   va_start(arg, id);
-  if (_vsntprintf_s(blurb, sizeof(blurb), _TRUNCATE, format, arg) < 0) {
+  if (_vsntprintf_s(blurb, _countof(blurb), _TRUNCATE, format, arg) < 0) {
     va_end(arg);
     LocalFree(format);
-    return MessageBox(0, _T("Message %lu was supposed to go here!"), NSSM, MB_OK | MB_ICONEXCLAMATION);
+    return MessageBox(0, _T("the message which was supposed to go here is too big!"), NSSM, MB_OK | MB_ICONEXCLAMATION);
   }
   va_end(arg);
 
