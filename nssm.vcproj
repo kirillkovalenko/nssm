@@ -30,6 +30,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
+				Description="Setting version information"
+				CommandLine="version.cmd"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -122,6 +124,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
+				Description="Setting version information"
+				CommandLine="version.cmd"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -215,6 +219,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
+				Description="Setting version information"
+				CommandLine="version.cmd"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -306,6 +312,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
+				Description="Setting version information"
+				CommandLine="version.cmd"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"

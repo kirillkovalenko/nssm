@@ -21,9 +21,7 @@ void strip_basename(TCHAR *);
 int usage(int);
 
 #define NSSM _T("nssm")
-#define NSSM_VERSION _T("2.21")
-#define NSSM_VERSIONINFO 2,21,0,0
-#define NSSM_DATE _T("2013-11-24")
+#include "version.h"
 
 /*
   Throttle the restart of the service if it stops before this many
