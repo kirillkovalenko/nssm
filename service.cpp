@@ -205,6 +205,10 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
   _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), qsc->lpDisplayName);
 
+  /* Get the canonical service name. We open it case insensitively. */
+  bufsize = _countof(service->name);
+  GetServiceKeyName(services, service->displayname, service->name, &bufsize);
+
   /* Remember the executable in case it isn't NSSM. */
   _sntprintf_s(service->image, _countof(service->image), _TRUNCATE, _T("%s"), qsc->lpBinaryPathName);
   HeapFree(GetProcessHeap(), 0, qsc);
@@ -439,6 +443,12 @@ int remove_service(nssm_service_t *service) {
     CloseServiceHandle(services);
     return 3;
   }
+
+  /* Get the canonical service name. We open it case insensitively. */
+  unsigned long bufsize = _countof(service->displayname);
+  GetServiceDisplayName(services, service->name, service->displayname, &bufsize);
+  bufsize = _countof(service->name);
+  GetServiceKeyName(services, service->displayname, service->name, &bufsize);
 
   /* Try to delete the service */
   if (! DeleteService(service->handle)) {
