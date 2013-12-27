@@ -262,23 +262,33 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION NSSM_VERSIONINFO
- PRODUCTVERSION NSSM_VERSIONINFO
- FILEFLAGSMASK 0x17L
+    FILEVERSION NSSM_VERSIONINFO
+    PRODUCTVERSION NSSM_VERSIONINFO
+    FILEFLAGSMASK VS_FF_DEBUG | VS_FF_PRERELEASE
 #ifdef _DEBUG
- FILEFLAGS 0x1L
+    FILEFLAGS NSSM_FILEFLAGS | VS_FF_DEBUG
 #else
- FILEFLAGS 0x0L
+    FILEFLAGS NSSM_FILEFLAGS
 #endif
- FILEOS 0x4L
- FILETYPE 0x1L
- FILESUBTYPE 0x0L
+    FILEOS VOS__WINDOWS32
+    FILETYPE VFT_APP
+    FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "Comments", "http://nssm.cc/"
+            VALUE "FileDescription", "The non-sucking service manager"
+            VALUE "FileVersion", NSSM_VERSION
+            VALUE "LegalCopyright", "(c) Iain Patterson"
+            VALUE "ProductName", "NSSM"
+            VALUE "ProductVersion", NSSM_VERSION
+        END
     END
     BLOCK "VarFileInfo"
     BEGIN
+        VALUE "Translation", LANG_ENGLISH, SUBLANG_ENGLISH_US, LANG_FRENCH, SUBLANG_FRENCH, LANG_ITALIAN, SUBLANG_ITALIAN
     END
 END
 
@@ -370,37 +380,6 @@ FONT 8, "MS Sans Serif"
     EDITTEXT        IDC_PATH, 70, 16, 184, 12, ES_AUTOHSCROLL, WS_EX_ACCEPTFILES
 }
 
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// DESIGNINFO
-//
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Version
-//
-
-VS_VERSION_INFO VERSIONINFO
- FILEVERSION NSSM_VERSIONINFO
- PRODUCTVERSION NSSM_VERSIONINFO
- FILEFLAGSMASK 0x17L
-#ifdef _DEBUG
- FILEFLAGS 0x1L
-#else
- FILEFLAGS 0x0L
-#endif
- FILEOS 0x4L
- FILETYPE 0x1L
- FILESUBTYPE 0x0L
-BEGIN
-    BLOCK "StringFileInfo"
-    BEGIN
-    END
-    BLOCK "VarFileInfo"
-    BEGIN
-    END
-END
 
 #endif    // French resources
 /////////////////////////////////////////////////////////////////////////////
@@ -538,32 +517,6 @@ BEGIN
     END
 END
 #endif    // APSTUDIO_INVOKED
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Version
-//
-
-VS_VERSION_INFO VERSIONINFO
- FILEVERSION NSSM_VERSIONINFO
- PRODUCTVERSION NSSM_VERSIONINFO
- FILEFLAGSMASK 0x17L
-#ifdef _DEBUG
- FILEFLAGS 0x1L
-#else
- FILEFLAGS 0x0L
-#endif
- FILEOS 0x4L
- FILETYPE 0x1L
- FILESUBTYPE 0x0L
-BEGIN
-    BLOCK "StringFileInfo"
-    BEGIN
-    END
-    BLOCK "VarFileInfo"
-    BEGIN
-    END
-END
 
 #endif    // Italian (Italy) resources
 /////////////////////////////////////////////////////////////////////////////

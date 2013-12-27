@@ -21,13 +21,27 @@ set version=%version:~0,-1%
 set minor=%version:*.=%
 call set major=%%version:.%minor%=%%
 
+@rem Build flags.
+set flags=0L
+
 @rem Don't include n and commit if we match a tag exactly.
-if "%n%" == "0" set description=%major%.%minor%
+if "%n%" == "0" (set description=%major%.%minor%) else set flags=VS_FF_PRERELEASE
+@rem Maybe we couldn't get the git tag.
+if "%commit%" == "prerelease" set flags=VS_FF_PRERELEASE
 
 @rem Ignore the build number if this isn't Jenkins.
 if "%BUILD_NUMBER%" == "" set BUILD_NUMBER=0
+
+@rem Copyright year provided by Jenkins.
+if "%BUILD_ID%" == "" (set year=) else (
+  set md=%BUILD_ID:*-=%
+  call set year=%%BUILD_ID:%md%=%%
+  set year=%year:~0,-1%
+)
 
 @rem Create version.h.
 @echo>version.h #define NSSM_VERSION _T("%description%")
 @echo>>version.h #define NSSM_VERSIONINFO %major%,%minor%,%n%,%BUILD_NUMBER%
 @echo>>version.h #define NSSM_DATE _T("%DATE%")
+@echo>>version.h #define NSSM_FILEFLAGS %flags%
+@echo>>version.h #define NSSM_COPYRIGHT _T("(c) 2003-%year% Iain Patterson")
