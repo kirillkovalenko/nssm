@@ -32,9 +32,9 @@ FARPROC get_import(HMODULE library, const char *function, unsigned long *error) 
     size_t buflen;
     mbstowcs_s(&buflen, NULL, 0, function, _TRUNCATE);
     function_name = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, buflen * sizeof(TCHAR));
-    if (function_name) mbstowcs_s(&buflen, function_name, buflen, function, _TRUNCATE);
+    if (function_name) mbstowcs_s(&buflen, function_name, buflen * sizeof(TCHAR), function, _TRUNCATE);
 #else
-    function_name = function;
+    function_name = (TCHAR *) function;
 #endif
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function_name, error_string(*error), 0);
 #ifdef UNICODE
