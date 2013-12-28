@@ -1,5 +1,8 @@
 #include "nssm.h"
 
+/* This is explicitly a wide string. */
+#define NSSM_LOGON_AS_SERVICE_RIGHT L"SeServiceLogonRight"
+
 extern const TCHAR *exit_action_strings[];
 
 bool is_admin;
@@ -32,6 +35,152 @@ SC_HANDLE open_service_manager() {
   }
 
   return ret;
+}
+
+static int grant_logon_as_service(const TCHAR *username) {
+  if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
+
+  /* Open Policy object. */
+  LSA_OBJECT_ATTRIBUTES attributes;
+  ZeroMemory(&attributes, sizeof(attributes));
+
+  LSA_HANDLE policy;
+
+  NTSTATUS status = LsaOpenPolicy(0, &attributes, POLICY_ALL_ACCESS, &policy);
+  if (status) {
+    print_message(stderr, NSSM_MESSAGE_LSAOPENPOLICY_FAILED, error_string(LsaNtStatusToWinError(status)));
+    return 1;
+  }
+
+  /* Look up SID for the account. */
+  LSA_UNICODE_STRING lsa_username;
+#ifdef UNICODE
+  lsa_username.Buffer = (wchar_t *) username;
+  lsa_username.Length = (unsigned short) _tcslen(username) * sizeof(TCHAR);
+  lsa_username.MaximumLength = lsa_username.Length + sizeof(TCHAR);
+#else
+  size_t buflen;
+  mbstowcs_s(&buflen, NULL, 0, username, _TRUNCATE);
+  lsa_username.MaximumLength = buflen * sizeof(wchar_t);
+  lsa_username.Length = lsa_username.MaximumLength - sizeof(wchar_t);
+  lsa_username.Buffer = (wchar_t *) HeapAlloc(GetProcessHeap(), 0, lsa_username.MaximumLength);
+  if (lsa_username.Buffer) mbstowcs_s(&buflen, lsa_username.Buffer, lsa_username.MaximumLength, username, _TRUNCATE);
+  else {
+    LsaClose(policy);
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("LSA_UNICODE_STRING"), _T("grant_logon_as_service()"));
+    return 2;
+  }
+#endif
+
+  LSA_REFERENCED_DOMAIN_LIST *translated_domains;
+  LSA_TRANSLATED_SID *translated_sid;
+  status = LsaLookupNames(policy, 1, &lsa_username, &translated_domains, &translated_sid);
+#ifndef UNICODE
+  HeapFree(GetProcessHeap(), 0, lsa_username.Buffer);
+#endif
+  if (status) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_sid);
+    LsaClose(policy);
+    print_message(stderr, NSSM_MESSAGE_LSALOOKUPNAMES_FAILED, username, error_string(LsaNtStatusToWinError(status)));
+    return 3;
+  }
+
+  if (translated_sid->Use != SidTypeUser) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_sid);
+    LsaClose(policy);
+    print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
+    return 4;
+  }
+
+  LSA_TRUST_INFORMATION *trust = &translated_domains->Domains[translated_sid->DomainIndex];
+  if (! trust || ! IsValidSid(trust->Sid)) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_sid);
+    LsaClose(policy);
+    print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
+    return 4;
+  }
+
+  /* GetSidSubAuthority*() return pointers! */
+  unsigned char *n = GetSidSubAuthorityCount(trust->Sid);
+
+  /* Convert translated SID to SID. */
+  SID *sid = (SID *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, GetSidLengthRequired(*n + 1));
+  if (! sid) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_sid);
+    LsaClose(policy);
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SID"), _T("grant_logon_as_service"));
+    return 4;
+  }
+
+  unsigned long error;
+  if (! InitializeSid(sid, GetSidIdentifierAuthority(trust->Sid), *n + 1)) {
+    error = GetLastError();
+    HeapFree(GetProcessHeap(), 0, sid);
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_sid);
+    LsaClose(policy);
+    print_message(stderr, NSSM_MESSAGE_INITIALIZESID_FAILED, username, error_string(error));
+    return 5;
+  }
+
+  for (unsigned char i = 0; i <= *n; i++) {
+    unsigned long *sub = GetSidSubAuthority(sid, i);
+    if (i < *n) *sub = *GetSidSubAuthority(trust->Sid, i);
+    else *sub = translated_sid->RelativeId;
+  }
+
+  LsaFreeMemory(translated_domains);
+  LsaFreeMemory(translated_sid);
+
+  /* Check if the SID has the "Log on as a service" right. */
+  LSA_UNICODE_STRING lsa_right;
+  lsa_right.Buffer = NSSM_LOGON_AS_SERVICE_RIGHT;
+  lsa_right.Length = (unsigned short) wcslen(lsa_right.Buffer) * sizeof(wchar_t);
+  lsa_right.MaximumLength = lsa_right.Length + sizeof(wchar_t);
+
+  LSA_UNICODE_STRING *rights;
+  unsigned long count = ~0;
+  status = LsaEnumerateAccountRights(policy, sid, &rights, &count);
+  if (status) {
+    /*
+      If the account has no rights set LsaEnumerateAccountRights() will return
+      STATUS_OBJECT_NAME_NOT_FOUND and set count to 0.
+    */
+    error = LsaNtStatusToWinError(status);
+    if (error != ERROR_FILE_NOT_FOUND) {
+      HeapFree(GetProcessHeap(), 0, sid);
+      LsaClose(policy);
+      print_message(stderr, NSSM_MESSAGE_LSAENUMERATEACCOUNTRIGHTS_FAILED, username, error_string(error));
+      return 4;
+    }
+  }
+
+  for (unsigned long i = 0; i < count; i++) {
+    if (rights[i].Length != lsa_right.Length) continue;
+    if (_wcsnicmp(rights[i].Buffer, lsa_right.Buffer, lsa_right.MaximumLength)) continue;
+    /* The SID has the right. */
+    HeapFree(GetProcessHeap(), 0, sid);
+    LsaFreeMemory(rights);
+    LsaClose(policy);
+    return 0;
+  }
+  LsaFreeMemory(rights);
+
+  /* Add the right. */
+  status = LsaAddAccountRights(policy, sid, &lsa_right, 1);
+  HeapFree(GetProcessHeap(), 0, sid);
+  LsaClose(policy);
+  if (status) {
+    print_message(stderr, NSSM_MESSAGE_LSAADDACCOUNTRIGHTS_FAILED, error_string(LsaNtStatusToWinError(status)));
+    return 5;
+  }
+
+  print_message(stdout, NSSM_MESSAGE_GRANTED_LOGON_AS_SERVICE, username);
+  return 0;
 }
 
 /* Set default values which aren't zero. */
@@ -382,6 +531,11 @@ int edit_service(nssm_service_t *service, bool editing) {
     else password = _T("");
   }
   else if (editing) username = NSSM_LOCALSYSTEM_ACCOUNT;
+
+  if (grant_logon_as_service(username)) {
+    print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
+    return 5;
+  }
 
   if (! ChangeServiceConfig(service->handle, service->type, startup, SERVICE_NO_CHANGE, 0, 0, 0, 0, username, password, service->displayname)) {
     print_message(stderr, NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED, error_string(GetLastError()));

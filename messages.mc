@@ -268,6 +268,106 @@ Errore creazione servizio!
 .
 
 MessageId = +1
+SymbolicName = NSSM_MESSAGE_GRANTED_LOGON_AS_SERVICE
+Severity = Informational
+Language = English
+The "Log on as a service" right was granted to account %s!%0
+.
+Language = French
+The "Log on as a service" right was granted to account %s!%0
+.
+Language = Italian
+The "Log on as a service" right was granted to account %s!%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED
+Severity = Informational
+Language = English
+Failed to grant the "Log on as a service" right to account %s!%0
+.
+Language = French
+Failed to grant the "Log on as a service" right to account %s!%0
+.
+Language = Italian
+Failed to grant the "Log on as a service" right to account %s!%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_LSAOPENPOLICY_FAILED
+Severity = Informational
+Language = English
+LsaOpenPolicy(): %s%0
+.
+Language = French
+LsaOpenPolicy(): %s%0
+.
+Language = Italian
+LsaOpenPolicy(): %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_LSALOOKUPNAMES_FAILED
+Severity = Informational
+Language = English
+Failed to look up the SID for username %s!
+LsaLookupNames(): %s%0
+.
+Language = French
+Failed to look up the SID for username %s!
+LsaLookupNames(): %s%0
+.
+Language = Italian
+Failed to look up the SID for username %s!
+LsaLookupNames(): %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_INITIALIZESID_FAILED
+Severity = Informational
+Language = English
+Failed to initialise the SID for username %s!
+InitializeSid(): %s%0
+.
+Language = French
+Failed to initialise the SID for username %s!
+InitializeSid(): %s%0
+.
+Language = Italian
+Failed to initialise the SID for username %s!
+InitializeSid(): %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_LSAENUMERATEACCOUNTRIGHTS_FAILED
+Severity = Informational
+Language = English
+Failed to check if %s has the "Log on as a service" right!
+LsaEnumerateAccountRights(): %s%0
+.
+Language = French
+Failed to check if %s has the "Log on as a service" right!
+LsaEnumerateAccountRights(): %s%0
+.
+Language = Italian
+Failed to check if %s has the "Log on as a service" right!
+LsaEnumerateAccountRights(): %s%0
+.
+
+MessageId = +1
+SymbolicName = NSSM_MESSAGE_LSAADDACCOUNTRIGHTS_FAILED
+Severity = Informational
+Language = English
+LsaAddAccountRights(): %s%0
+.
+Language = French
+LsaAddAccountRights(): %s%0
+.
+Language = Italian
+LsaAddAccountRights(): %s%0
+.
+
+MessageId = +1
 SymbolicName = NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED
 Severity = Informational
 Language = English

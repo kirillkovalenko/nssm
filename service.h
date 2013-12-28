@@ -1,6 +1,8 @@
 #ifndef SERVICE_H
 #define SERVICE_H
 
+#include <ntsecapi.h>
+
 /*
   MSDN says the commandline in CreateProcess() is limited to 32768 characters
   and the application name to MAX_PATH.
