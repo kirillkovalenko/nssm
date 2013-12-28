@@ -90,7 +90,7 @@ int pre_install_service(int argc, TCHAR **argv) {
   if (argc < 2) return nssm_gui(IDD_INSTALL, service);
 
   if (! service) {
-    print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("pre_install_service()"));
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("service"), _T("pre_install_service()"));
     return 1;
   }
   _sntprintf_s(service->exe, _countof(service->exe), _TRUNCATE, _T("%s"), argv[1]);
@@ -155,7 +155,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   if (error == ERROR_INSUFFICIENT_BUFFER) {
     qsc = (QUERY_SERVICE_CONFIG *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bufsize);
     if (! qsc) {
-      print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("QUERY_SERVICE_CONFIG"), _T("pre_edit_service()"), 0);
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("QUERY_SERVICE_CONFIG"), _T("pre_edit_service()"), 0);
       return 4;
     }
   }
@@ -199,7 +199,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
       HeapFree(GetProcessHeap(), 0, qsc);
       CloseHandle(service->handle);
       CloseServiceHandle(services);
-      print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("username"), _T("pre_edit_service()"));
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("username"), _T("pre_edit_service()"));
       return 4;
     }
   }
@@ -222,7 +222,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
       if (! info) {
         CloseHandle(service->handle);
         CloseServiceHandle(services);
-        print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("SERVICE_DELAYED_AUTO_START_INFO"), _T("pre_edit_service()"));
+        print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SERVICE_DELAYED_AUTO_START_INFO"), _T("pre_edit_service()"));
         return 5;
       }
 
@@ -254,7 +254,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
     if (! description) {
       CloseHandle(service->handle);
       CloseServiceHandle(services);
-      print_message(stderr, NSSM_EVENT_OUT_OF_MEMORY, _T("SERVICE_CONFIG_DESCRIPTION"), _T("pre_edit_service()"));
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SERVICE_CONFIG_DESCRIPTION"), _T("pre_edit_service()"));
       return 6;
     }
 

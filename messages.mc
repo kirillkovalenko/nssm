@@ -129,6 +129,19 @@ Per rimuovere un servizio da riga di comando: nssm remove <servicename> confirm
 .
 
 MessageId = +1
+SymbolicName = NSSM_MESSAGE_OUT_OF_MEMORY
+Severity = Error
+Language = English
+Out of memory for %s in %s!%0
+.
+Language = French
+Mémoire insuffisante pour %s dans %s!%0
+.
+Language = Italian
+Memoria insufficiente per %s in %s!%0
+.
+
+MessageId = +1
 SymbolicName = NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED
 Severity = Informational
 Language = English
