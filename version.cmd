@@ -40,8 +40,11 @@ if "%BUILD_ID%" == "" (set year=) else (
 )
 
 @rem Create version.h.
-@echo>version.h #define NSSM_VERSION _T("%description%")
-@echo>>version.h #define NSSM_VERSIONINFO %major%,%minor%,%n%,%BUILD_NUMBER%
-@echo>>version.h #define NSSM_DATE _T("%DATE%")
-@echo>>version.h #define NSSM_FILEFLAGS %flags%
-@echo>>version.h #define NSSM_COPYRIGHT _T("(c) 2003-%year% Iain Patterson")
+@echo>version.h.new #define NSSM_VERSION _T("%description%")
+@echo>>version.h.new #define NSSM_VERSIONINFO %major%,%minor%,%n%,%BUILD_NUMBER%
+@echo>>version.h.new #define NSSM_DATE _T("%DATE%")
+@echo>>version.h.new #define NSSM_FILEFLAGS %flags%
+@echo>>version.h.new #define NSSM_COPYRIGHT _T("(c) 2003-%year% Iain Patterson")
+
+fc version.h version.h.new >NUL: 2>NUL:
+if %ERRORLEVEL% == 0 (del version.h.new) else (move /y version.h.new version.h)
