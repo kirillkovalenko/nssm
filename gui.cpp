@@ -327,82 +327,86 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
       service->username = 0;
       service->usernamelen = 0;
     }
-    else if (! orig_service || ! orig_service->username || ! str_equiv(service->username, orig_service->username)) {
+    else {
       /* Password. */
       service->passwordlen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), WM_GETTEXTLENGTH, 0, 0);
-      if (! service->passwordlen) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
-        return 6;
-      }
-      if (SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), WM_GETTEXTLENGTH, 0, 0) != service->passwordlen) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
-        return 6;
-      }
-      service->passwordlen++;
+      size_t passwordlen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), WM_GETTEXTLENGTH, 0, 0);
 
-      /* Temporary buffer for password validation. */
-      TCHAR *password = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->passwordlen * sizeof(TCHAR));
-      if (! password) {
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password confirmation"), _T("install()"));
-        return 6;
-      }
+      if (! orig_service || ! orig_service->username || ! str_equiv(service->username, orig_service->username) || service->passwordlen || passwordlen) {
+        if (! service->passwordlen) {
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+          return 6;
+        }
+        if (passwordlen != service->passwordlen) {
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+          return 6;
+        }
+        service->passwordlen++;
 
-      /* Actual password buffer. */
-      service->password = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->passwordlen * sizeof(TCHAR));
-      if (! service->password) {
-        HeapFree(GetProcessHeap(), 0, password);
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password"), _T("install()"));
-        return 6;
-      }
+        /* Temporary buffer for password validation. */
+        TCHAR *password = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->passwordlen * sizeof(TCHAR));
+        if (! password) {
+          HeapFree(GetProcessHeap(), 0, service->username);
+          service->username = 0;
+          service->usernamelen = 0;
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password confirmation"), _T("install()"));
+          return 6;
+        }
 
-      /* Get first password. */
-      if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1, service->password, (int) service->passwordlen)) {
-        HeapFree(GetProcessHeap(), 0, password);
-        SecureZeroMemory(service->password, service->passwordlen);
-        HeapFree(GetProcessHeap(), 0, service->password);
-        service->password = 0;
-        service->passwordlen = 0;
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
-        return 6;
-      }
+        /* Actual password buffer. */
+        service->password = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->passwordlen * sizeof(TCHAR));
+        if (! service->password) {
+          HeapFree(GetProcessHeap(), 0, password);
+          HeapFree(GetProcessHeap(), 0, service->username);
+          service->username = 0;
+          service->usernamelen = 0;
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password"), _T("install()"));
+          return 6;
+        }
 
-      /* Get confirmation. */
-      if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2, password, (int) service->passwordlen)) {
-        SecureZeroMemory(password, service->passwordlen);
-        HeapFree(GetProcessHeap(), 0, password);
-        SecureZeroMemory(service->password, service->passwordlen);
-        HeapFree(GetProcessHeap(), 0, service->password);
-        service->password = 0;
-        service->passwordlen = 0;
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
-        return 6;
-      }
+        /* Get first password. */
+        if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1, service->password, (int) service->passwordlen)) {
+          HeapFree(GetProcessHeap(), 0, password);
+          SecureZeroMemory(service->password, service->passwordlen);
+          HeapFree(GetProcessHeap(), 0, service->password);
+          service->password = 0;
+          service->passwordlen = 0;
+          HeapFree(GetProcessHeap(), 0, service->username);
+          service->username = 0;
+          service->usernamelen = 0;
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
+          return 6;
+        }
 
-      /* Compare. */
-      if (_tcsncmp(password, service->password, service->passwordlen)) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
-        SecureZeroMemory(password, service->passwordlen);
-        HeapFree(GetProcessHeap(), 0, password);
-        SecureZeroMemory(service->password, service->passwordlen);
-        HeapFree(GetProcessHeap(), 0, service->password);
-        service->password = 0;
-        service->passwordlen = 0;
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        return 6;
+        /* Get confirmation. */
+        if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2, password, (int) service->passwordlen)) {
+          SecureZeroMemory(password, service->passwordlen);
+          HeapFree(GetProcessHeap(), 0, password);
+          SecureZeroMemory(service->password, service->passwordlen);
+          HeapFree(GetProcessHeap(), 0, service->password);
+          service->password = 0;
+          service->passwordlen = 0;
+          HeapFree(GetProcessHeap(), 0, service->username);
+          service->username = 0;
+          service->usernamelen = 0;
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
+          return 6;
+        }
+
+        /* Compare. */
+        if (_tcsncmp(password, service->password, service->passwordlen)) {
+          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+          SecureZeroMemory(password, service->passwordlen);
+          HeapFree(GetProcessHeap(), 0, password);
+          SecureZeroMemory(service->password, service->passwordlen);
+          HeapFree(GetProcessHeap(), 0, service->password);
+          service->password = 0;
+          service->passwordlen = 0;
+          HeapFree(GetProcessHeap(), 0, service->username);
+          service->username = 0;
+          service->usernamelen = 0;
+          return 6;
+        }
       }
     }
   }
@@ -628,6 +632,7 @@ int edit(HWND window, nssm_service_t *orig_service) {
       cleanup_nssm_service(service);
       return 4;
 
+    case 5:
     case 6:
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_EDIT_PARAMETERS_FAILED);
       cleanup_nssm_service(service);
