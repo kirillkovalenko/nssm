@@ -24,7 +24,8 @@ void strip_basename(TCHAR *buffer) {
 
 /* How to use me correctly */
 int usage(int ret) {
-  print_message(stderr, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
+  if (GetConsoleWindow()) print_message(stderr, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
+  else popup_message(MB_OK, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
   return(ret);
 }
 
@@ -39,7 +40,29 @@ void check_admin() {
   FreeSid(AdministratorsGroup);
 }
 
+/* See if we were launched from a console window. */
+static void check_console() {
+  /* If we're running in a service context there will be no console window. */
+  HWND console = GetConsoleWindow();
+  if (! console) return;
+
+  unsigned long pid;
+  if (! GetWindowThreadProcessId(console, &pid)) return;
+
+  /*
+    If the process associated with the console window handle is the same as
+    this process, we were not launched from an existing console.  The user
+    probably double-clicked our executable.
+  */
+  if (GetCurrentProcessId() != pid) return;
+
+  /* We close our new console so that subsequent messages appear in a popup. */
+  FreeConsole();
+}
+
 int _tmain(int argc, TCHAR **argv) {
+  check_console();
+
   /* Remember if we are admin */
   check_admin();
 
