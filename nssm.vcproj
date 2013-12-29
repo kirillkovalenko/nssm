@@ -718,7 +718,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputName).mc -r . -h ."
+					CommandLine="mc -u -U $(InputName).mc -r . -h ."
 					Outputs="$(InputName).rc;$(InputName).h"
 				/>
 			</FileConfiguration>
@@ -728,7 +728,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputName).mc -r . -h ."
+					CommandLine="mc -u -U $(InputName).mc -r . -h ."
 					Outputs="$(InputName).rc;$(InputName).h"
 				/>
 			</FileConfiguration>
@@ -738,7 +738,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputName).mc -r . -h ."
+					CommandLine="mc -u -U $(InputName).mc -r . -h ."
 					AdditionalDependencies=""
 					Outputs="$(InputName).rc;$(InputName).h"
 				/>
@@ -749,7 +749,7 @@
 				<Tool
 					Name="VCCustomBuildTool"
 					Description="Compiling messages"
-					CommandLine="mc -A $(InputName).mc -r . -h ."
+					CommandLine="mc -u -U $(InputName).mc -r . -h ."
 					AdditionalDependencies=""
 					Outputs="$(InputName).rc;$(InputName).h"
 				/>

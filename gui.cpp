@@ -4,9 +4,28 @@ static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_S
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
+static HWND dialog(const TCHAR *templ, HWND parent, DLGPROC function, LPARAM l) {
+  /* The caller will deal with GetLastError()... */
+  HRSRC resource = FindResourceEx(0, RT_DIALOG, templ, GetUserDefaultLangID());
+  if (! resource) {
+    if (GetLastError() != ERROR_RESOURCE_LANG_NOT_FOUND) return 0;
+    resource = FindResourceEx(0, RT_DIALOG, templ, MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL));
+    if (! resource) return 0;
+  }
+
+  HGLOBAL ret = LoadResource(0, resource);
+  if (! ret) return 0;
+
+  return CreateDialogIndirectParam(0, (DLGTEMPLATE *) ret, parent, function, l);
+}
+
+static HWND dialog(const TCHAR *templ, HWND parent, DLGPROC function) {
+  return dialog(templ, parent, function, 0);
+}
+
 int nssm_gui(int resource, nssm_service_t *service) {
   /* Create window */
-  HWND dlg = CreateDialogParam(0, MAKEINTRESOURCE(resource), 0, nssm_dlg, (LPARAM) service);
+  HWND dlg = dialog(MAKEINTRESOURCE(resource), 0, nssm_dlg, (LPARAM) service);
   if (! dlg) {
     popup_message(MB_OK, NSSM_GUI_CREATEDIALOG_FAILED, error_string(GetLastError()));
     return 1;
@@ -837,18 +856,18 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_APPLICATION, (LPARAM) &tab);
       if (service->native) {
-        tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_NATIVE), window, tab_dlg);
+        tablist[NSSM_TAB_APPLICATION] = dialog(MAKEINTRESOURCE(IDD_NATIVE), window, tab_dlg);
         EnableWindow(tablist[NSSM_TAB_APPLICATION], 0);
         EnableWindow(GetDlgItem(tablist[NSSM_TAB_APPLICATION], IDC_PATH), 0);
       }
-      else tablist[NSSM_TAB_APPLICATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
+      else tablist[NSSM_TAB_APPLICATION] = dialog(MAKEINTRESOURCE(IDD_APPLICATION), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_APPLICATION], SW_SHOW);
 
       /* Details tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_DETAILS);
       tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_DETAILS, (LPARAM) &tab);
-      tablist[NSSM_TAB_DETAILS] = CreateDialog(0, MAKEINTRESOURCE(IDD_DETAILS), window, tab_dlg);
+      tablist[NSSM_TAB_DETAILS] = dialog(MAKEINTRESOURCE(IDD_DETAILS), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_DETAILS], SW_HIDE);
 
       /* Set defaults. */
@@ -863,7 +882,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tab.pszText = message_string(NSSM_GUI_TAB_LOGON);
       tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_LOGON, (LPARAM) &tab);
-      tablist[NSSM_TAB_LOGON] = CreateDialog(0, MAKEINTRESOURCE(IDD_LOGON), window, tab_dlg);
+      tablist[NSSM_TAB_LOGON] = dialog(MAKEINTRESOURCE(IDD_LOGON), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_LOGON], SW_HIDE);
 
       /* Set defaults. */
@@ -877,7 +896,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);
       tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_SHUTDOWN, (LPARAM) &tab);
-      tablist[NSSM_TAB_SHUTDOWN] = CreateDialog(0, MAKEINTRESOURCE(IDD_SHUTDOWN), window, tab_dlg);
+      tablist[NSSM_TAB_SHUTDOWN] = dialog(MAKEINTRESOURCE(IDD_SHUTDOWN), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_SHUTDOWN], SW_HIDE);
 
       /* Set defaults. */
@@ -893,7 +912,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tab.pszText = message_string(NSSM_GUI_TAB_EXIT);
       tab.cchTextMax = (int) _tcslen(tab.pszText);
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_EXIT, (LPARAM) &tab);
-      tablist[NSSM_TAB_EXIT] = CreateDialog(0, MAKEINTRESOURCE(IDD_APPEXIT), window, tab_dlg);
+      tablist[NSSM_TAB_EXIT] = dialog(MAKEINTRESOURCE(IDD_APPEXIT), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_EXIT], SW_HIDE);
 
       /* Set defaults. */
@@ -909,14 +928,14 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tab.pszText = message_string(NSSM_GUI_TAB_IO);
       tab.cchTextMax = (int) _tcslen(tab.pszText) + 1;
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_IO, (LPARAM) &tab);
-      tablist[NSSM_TAB_IO] = CreateDialog(0, MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
+      tablist[NSSM_TAB_IO] = dialog(MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_IO], SW_HIDE);
 
       /* Rotation tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_ROTATION);
       tab.cchTextMax = (int) _tcslen(tab.pszText) + 1;
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_ROTATION, (LPARAM) &tab);
-      tablist[NSSM_TAB_ROTATION] = CreateDialog(0, MAKEINTRESOURCE(IDD_ROTATION), window, tab_dlg);
+      tablist[NSSM_TAB_ROTATION] = dialog(MAKEINTRESOURCE(IDD_ROTATION), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_ROTATION], SW_HIDE);
 
       /* Set defaults. */
@@ -928,7 +947,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       tab.pszText = message_string(NSSM_GUI_TAB_ENVIRONMENT);
       tab.cchTextMax = (int) _tcslen(tab.pszText) + 1;
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_ENVIRONMENT, (LPARAM) &tab);
-      tablist[NSSM_TAB_ENVIRONMENT] = CreateDialog(0, MAKEINTRESOURCE(IDD_ENVIRONMENT), window, tab_dlg);
+      tablist[NSSM_TAB_ENVIRONMENT] = dialog(MAKEINTRESOURCE(IDD_ENVIRONMENT), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_ENVIRONMENT], SW_HIDE);
 
       return 1;
