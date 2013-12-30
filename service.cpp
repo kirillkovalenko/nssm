@@ -37,6 +37,34 @@ SC_HANDLE open_service_manager() {
   return ret;
 }
 
+QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE service_handle) {
+  QUERY_SERVICE_CONFIG *qsc;
+  unsigned long bufsize;
+  unsigned long error;
+
+  QueryServiceConfig(service_handle, 0, 0, &bufsize);
+  error = GetLastError();
+  if (error == ERROR_INSUFFICIENT_BUFFER) {
+    qsc = (QUERY_SERVICE_CONFIG *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bufsize);
+    if (! qsc) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("QUERY_SERVICE_CONFIG"), _T("query_service_config()"), 0);
+      return 0;
+    }
+  }
+  else {
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED, service_name, error_string(error), 0);
+    return 0;
+  }
+
+  if (! QueryServiceConfig(service_handle, qsc, bufsize, &bufsize)) {
+    HeapFree(GetProcessHeap(), 0, qsc);
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED, service_name, error_string(GetLastError()), 0);
+    return 0;
+  }
+
+  return qsc;
+}
+
 static int grant_logon_as_service(const TCHAR *username) {
   if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
 
@@ -297,29 +325,10 @@ int pre_edit_service(int argc, TCHAR **argv) {
   /* Get system details. */
   unsigned long bufsize;
   unsigned long error;
-  QUERY_SERVICE_CONFIG *qsc;
-
-  QueryServiceConfig(service->handle, 0, 0, &bufsize);
-  error = GetLastError();
-  if (error == ERROR_INSUFFICIENT_BUFFER) {
-    qsc = (QUERY_SERVICE_CONFIG *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bufsize);
-    if (! qsc) {
-      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("QUERY_SERVICE_CONFIG"), _T("pre_edit_service()"), 0);
-      return 4;
-    }
-  }
-  else {
+  QUERY_SERVICE_CONFIG *qsc = query_service_config(service->name, service->handle);
+  if (! qsc) {
     CloseHandle(service->handle);
     CloseServiceHandle(services);
-    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED, service->name, error_string(error), 0);
-    return 4;
-  }
-
-  if (! QueryServiceConfig(service->handle, qsc, bufsize, &bufsize)) {
-    HeapFree(GetProcessHeap(), 0, qsc);
-    CloseHandle(service->handle);
-    CloseServiceHandle(services);
-    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG_FAILED, service->name, error_string(GetLastError()), 0);
     return 4;
   }
 
