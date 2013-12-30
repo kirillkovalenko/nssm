@@ -386,6 +386,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
       if (QueryServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, (unsigned char *) info, bufsize, &bufsize)) {
         if (info->fDelayedAutostart) service->startup = NSSM_STARTUP_DELAYED;
+        HeapFree(GetProcessHeap(), 0, info);
       }
       else {
         error = GetLastError();
