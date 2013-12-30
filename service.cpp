@@ -65,6 +65,50 @@ QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE 
   return qsc;
 }
 
+int get_service_startup(const TCHAR *service_name, SC_HANDLE service_handle, const QUERY_SERVICE_CONFIG *qsc, unsigned long *startup) {
+  if (! qsc) return 1;
+
+  switch (qsc->dwStartType) {
+    case SERVICE_DEMAND_START: *startup = NSSM_STARTUP_MANUAL; break;
+    case SERVICE_DISABLED: *startup = NSSM_STARTUP_DISABLED; break;
+    default: *startup = NSSM_STARTUP_AUTOMATIC;
+  }
+
+  if (*startup != NSSM_STARTUP_AUTOMATIC) return 0;
+
+  /* Check for delayed start. */
+  unsigned long bufsize;
+  unsigned long error;
+  QueryServiceConfig2(service_handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, 0, 0, &bufsize);
+  error = GetLastError();
+  if (error == ERROR_INSUFFICIENT_BUFFER) {
+    SERVICE_DELAYED_AUTO_START_INFO *info = (SERVICE_DELAYED_AUTO_START_INFO *) HeapAlloc(GetProcessHeap(), 0, bufsize);
+    if (! info) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SERVICE_DELAYED_AUTO_START_INFO"), _T("get_service_startup()"));
+      return 2;
+    }
+
+    if (QueryServiceConfig2(service_handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, (unsigned char *) info, bufsize, &bufsize)) {
+      if (info->fDelayedAutostart) *startup = NSSM_STARTUP_DELAYED;
+      HeapFree(GetProcessHeap(), 0, info);
+      return 0;
+    }
+    else {
+      error = GetLastError();
+      if (error != ERROR_INVALID_LEVEL) {
+        print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service_name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
+        return 3;
+      }
+    }
+  }
+  else if (error != ERROR_INVALID_LEVEL) {
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service_name, _T("SERVICE_DELAYED_AUTO_START_INFO"), error_string(error));
+    return 3;
+  }
+
+  return 0;
+}
+
 static int grant_logon_as_service(const TCHAR *username) {
   if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
 
@@ -341,11 +385,13 @@ int pre_edit_service(int argc, TCHAR **argv) {
     return 3;
   }
 
-  switch (qsc->dwStartType) {
-    case SERVICE_DEMAND_START: service->startup = NSSM_STARTUP_MANUAL; break;
-    case SERVICE_DISABLED: service->startup = NSSM_STARTUP_DISABLED; break;
-    default: service->startup = NSSM_STARTUP_AUTOMATIC;
+  if (get_service_startup(service->name, service->handle, qsc, &service->startup)) {
+    HeapFree(GetProcessHeap(), 0, qsc);
+    CloseHandle(service->handle);
+    CloseServiceHandle(services);
+    return 4;
   }
+
   if (! str_equiv(qsc->lpServiceStartName, NSSM_LOCALSYSTEM_ACCOUNT)) {
     size_t len = _tcslen(qsc->lpServiceStartName);
     service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
@@ -358,7 +404,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
       CloseHandle(service->handle);
       CloseServiceHandle(services);
       print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("username"), _T("pre_edit_service()"));
-      return 4;
+      return 5;
     }
   }
   _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), qsc->lpDisplayName);
@@ -372,40 +418,6 @@ int pre_edit_service(int argc, TCHAR **argv) {
   HeapFree(GetProcessHeap(), 0, qsc);
 
   /* Get extended system details. */
-  if (service->startup == NSSM_STARTUP_AUTOMATIC) {
-    QueryServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, 0, 0, &bufsize);
-    error = GetLastError();
-    if (error == ERROR_INSUFFICIENT_BUFFER) {
-      SERVICE_DELAYED_AUTO_START_INFO *info = (SERVICE_DELAYED_AUTO_START_INFO *) HeapAlloc(GetProcessHeap(), 0, bufsize);
-      if (! info) {
-        CloseHandle(service->handle);
-        CloseServiceHandle(services);
-        print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SERVICE_DELAYED_AUTO_START_INFO"), _T("pre_edit_service()"));
-        return 5;
-      }
-
-      if (QueryServiceConfig2(service->handle, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, (unsigned char *) info, bufsize, &bufsize)) {
-        if (info->fDelayedAutostart) service->startup = NSSM_STARTUP_DELAYED;
-        HeapFree(GetProcessHeap(), 0, info);
-      }
-      else {
-        error = GetLastError();
-        if (error != ERROR_INVALID_LEVEL) {
-          CloseHandle(service->handle);
-          CloseServiceHandle(services);
-          print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
-          return 5;
-        }
-      }
-    }
-    else if (error != ERROR_INVALID_LEVEL) {
-      CloseHandle(service->handle);
-      CloseServiceHandle(services);
-      print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_DELAYED_AUTO_START_INFO"), error_string(error));
-      return 5;
-    }
-  }
-
   QueryServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, 0, 0, &bufsize);
   error = GetLastError();
   if (error == ERROR_INSUFFICIENT_BUFFER) {
