@@ -92,6 +92,7 @@ SC_HANDLE open_service_manager();
 QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *, SC_HANDLE);
 int get_service_description(const TCHAR *, SC_HANDLE, unsigned long, TCHAR *);
 int get_service_startup(const TCHAR *, SC_HANDLE, const QUERY_SERVICE_CONFIG *, unsigned long *);
+int get_service_username(const TCHAR *, const QUERY_SERVICE_CONFIG *, TCHAR **, size_t *);
 int pre_install_service(int, TCHAR **);
 int pre_remove_service(int, TCHAR **);
 int pre_edit_service(int, TCHAR **);

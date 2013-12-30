@@ -142,6 +142,30 @@ int get_service_startup(const TCHAR *service_name, SC_HANDLE service_handle, con
   return 0;
 }
 
+int get_service_username(const TCHAR *service_name, const QUERY_SERVICE_CONFIG *qsc, TCHAR **username, size_t *usernamelen) {
+  if (! username) return 1;
+  if (! usernamelen) return 1;
+
+  *username = 0;
+  *usernamelen = 0;
+
+  if (! qsc) return 1;
+
+  if (str_equiv(qsc->lpServiceStartName, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
+
+  size_t len = _tcslen(qsc->lpServiceStartName);
+  *username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
+  if (! *username) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("username"), _T("get_service_username()"));
+    return 2;
+  }
+
+  memmove(*username, qsc->lpServiceStartName, (len + 1) * sizeof(TCHAR));
+  *usernamelen = len;
+
+  return 0;
+}
+
 static int grant_logon_as_service(const TCHAR *username) {
   if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
 
@@ -424,21 +448,13 @@ int pre_edit_service(int argc, TCHAR **argv) {
     return 4;
   }
 
-  if (! str_equiv(qsc->lpServiceStartName, NSSM_LOCALSYSTEM_ACCOUNT)) {
-    size_t len = _tcslen(qsc->lpServiceStartName);
-    service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
-    if (service->username) {
-      memmove(service->username, qsc->lpServiceStartName, (len + 1) * sizeof(TCHAR));
-      service->usernamelen = (unsigned long) len;
-    }
-    else {
-      HeapFree(GetProcessHeap(), 0, qsc);
-      CloseHandle(service->handle);
-      CloseServiceHandle(services);
-      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("username"), _T("pre_edit_service()"));
-      return 5;
-    }
+  if (get_service_username(service->name, qsc, &service->username, &service->usernamelen)) {
+    HeapFree(GetProcessHeap(), 0, qsc);
+    CloseHandle(service->handle);
+    CloseServiceHandle(services);
+    return 5;
   }
+
   _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), qsc->lpDisplayName);
 
   /* Get the canonical service name. We open it case insensitively. */
