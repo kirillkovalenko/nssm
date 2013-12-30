@@ -65,6 +65,39 @@ QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE 
   return qsc;
 }
 
+int get_service_description(const TCHAR *service_name, SC_HANDLE service_handle, unsigned long len, TCHAR *buffer) {
+  if (! buffer) return 1;
+
+  unsigned long bufsize;
+  QueryServiceConfig2(service_handle, SERVICE_CONFIG_DESCRIPTION, 0, 0, &bufsize);
+  unsigned long error = GetLastError();
+  if (error == ERROR_INSUFFICIENT_BUFFER) {
+    SERVICE_DESCRIPTION *description = (SERVICE_DESCRIPTION *) HeapAlloc(GetProcessHeap(), 0, bufsize);
+    if (! description) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SERVICE_CONFIG_DESCRIPTION"), _T("get_service_description()"));
+      return 2;
+    }
+
+    if (QueryServiceConfig2(service_handle, SERVICE_CONFIG_DESCRIPTION, (unsigned char *) description, bufsize, &bufsize)) {
+      if (description->lpDescription) _sntprintf_s(buffer, len, _TRUNCATE, _T("%s"), description->lpDescription);
+      else ZeroMemory(buffer, len * sizeof(TCHAR));
+      HeapFree(GetProcessHeap(), 0, description);
+      return 0;
+    }
+    else {
+      HeapFree(GetProcessHeap(), 0, description);
+      print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service_name, _T("SERVICE_CONFIG_DESCRIPTION"), error_string(error));
+      return 3;
+    }
+  }
+  else {
+    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service_name, _T("SERVICE_CONFIG_DESCRIPTION"), error_string(error));
+    return 4;
+  }
+
+  return 0;
+}
+
 int get_service_startup(const TCHAR *service_name, SC_HANDLE service_handle, const QUERY_SERVICE_CONFIG *qsc, unsigned long *startup) {
   if (! qsc) return 1;
 
@@ -368,7 +401,6 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   /* Get system details. */
   unsigned long bufsize;
-  unsigned long error;
   QUERY_SERVICE_CONFIG *qsc = query_service_config(service->name, service->handle);
   if (! qsc) {
     CloseHandle(service->handle);
@@ -418,33 +450,9 @@ int pre_edit_service(int argc, TCHAR **argv) {
   HeapFree(GetProcessHeap(), 0, qsc);
 
   /* Get extended system details. */
-  QueryServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, 0, 0, &bufsize);
-  error = GetLastError();
-  if (error == ERROR_INSUFFICIENT_BUFFER) {
-    SERVICE_DESCRIPTION *description = (SERVICE_DESCRIPTION *) HeapAlloc(GetProcessHeap(), 0, bufsize);
-    if (! description) {
-      CloseHandle(service->handle);
-      CloseServiceHandle(services);
-      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SERVICE_CONFIG_DESCRIPTION"), _T("pre_edit_service()"));
-      return 6;
-    }
-
-    if (QueryServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, (unsigned char *) description, bufsize, &bufsize)) {
-     if (description->lpDescription) _sntprintf_s(service->description, _countof(service->description), _TRUNCATE, _T("%s"), description->lpDescription);
-      HeapFree(GetProcessHeap(), 0, description);
-    }
-    else {
-      HeapFree(GetProcessHeap(), 0, description);
-      CloseHandle(service->handle);
-      CloseServiceHandle(services);
-      print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
-      return 6;
-    }
-  }
-  else {
+  if (get_service_description(service->name, service->handle, _countof(service->description), service->description)) {
     CloseHandle(service->handle);
     CloseServiceHandle(services);
-    print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service->name, _T("SERVICE_CONFIG_DELAYED_AUTO_START_INFO"), error_string(error));
     return 6;
   }
 
