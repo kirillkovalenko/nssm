@@ -90,6 +90,7 @@ void set_nssm_service_defaults(nssm_service_t *);
 void cleanup_nssm_service(nssm_service_t *);
 SC_HANDLE open_service_manager();
 QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *, SC_HANDLE);
+int set_service_description(const TCHAR *, SC_HANDLE, TCHAR *);
 int get_service_description(const TCHAR *, SC_HANDLE, unsigned long, TCHAR *);
 int get_service_startup(const TCHAR *, SC_HANDLE, const QUERY_SERVICE_CONFIG *, unsigned long *);
 int get_service_username(const TCHAR *, const QUERY_SERVICE_CONFIG *, TCHAR **, size_t *);

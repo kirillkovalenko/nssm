@@ -65,6 +65,22 @@ QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE 
   return qsc;
 }
 
+int set_service_description(const TCHAR *service_name, SC_HANDLE service_handle, TCHAR *buffer) {
+  SERVICE_DESCRIPTION description;
+  ZeroMemory(&description, sizeof(description));
+  /*
+    lpDescription must be NULL if we aren't changing, the new description
+    or "".
+  */
+  if (buffer && buffer[0]) description.lpDescription = buffer;
+  else description.lpDescription = _T("");
+
+  if (ChangeServiceConfig2(service_handle, SERVICE_CONFIG_DESCRIPTION, &description)) return 0;
+
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DESCRIPTION_FAILED, service_name, error_string(GetLastError()), 0);
+  return 1;
+}
+
 int get_service_description(const TCHAR *service_name, SC_HANDLE service_handle, unsigned long len, TCHAR *buffer) {
   if (! buffer) return 1;
 
@@ -589,13 +605,7 @@ int edit_service(nssm_service_t *service, bool editing) {
   }
 
   if (service->description[0] || editing) {
-    SERVICE_DESCRIPTION description;
-    ZeroMemory(&description, sizeof(description));
-    if (service->description[0]) description.lpDescription = service->description;
-    else description.lpDescription = 0;
-    if (! ChangeServiceConfig2(service->handle, SERVICE_CONFIG_DESCRIPTION, &description)) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SERVICE_CONFIG_DESCRIPTION_FAILED, service->name, error_string(GetLastError()), 0);
-    }
+    set_service_description(service->name, service->handle, service->description);
   }
 
   SERVICE_DELAYED_AUTO_START_INFO delayed;
