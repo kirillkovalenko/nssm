@@ -29,35 +29,25 @@ int create_messages() {
 }
 
 int create_parameters(nssm_service_t *service, bool editing) {
-  /* Get registry */
-  TCHAR registry[KEY_LENGTH];
-  if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY, service->name) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("NSSM_REGISTRY"), _T("create_parameters()"), 0);
-    return 1;
-  }
-
   /* Try to open the registry */
-  HKEY key;
-  if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, KEY_WRITE, 0, &key, 0) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-    return 2;
-  }
+  HKEY key = open_registry(service->name, KEY_WRITE);
+  if (! key) return 1;
 
   /* Try to create the parameters */
   if (set_expand_string(key, NSSM_REG_EXE, service->exe)) {
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
-    return 3;
+    return 2;
   }
   if (set_expand_string(key, NSSM_REG_FLAGS, service->flags)) {
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
-    return 4;
+    return 3;
   }
   if (set_expand_string(key, NSSM_REG_DIR, service->dir)) {
     RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
     RegCloseKey(key);
-    return 5;
+    return 4;
   }
 
   /* Other non-default parameters. May fail. */
@@ -334,22 +324,45 @@ void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned
   if (! ok) *buffer = default_value;
 }
 
+HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {
+  /* Get registry */
+  TCHAR registry[KEY_LENGTH];
+  HKEY key;
+  int ret;
+
+  if (sub) ret = _sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY _T("\\%s"), service_name, sub);
+  else ret = _sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY, service_name);
+  if (ret < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("NSSM_REGISTRY"), _T("open_registry()"), 0);
+    return 0;
+  }
+
+  if (sam & KEY_WRITE) {
+    if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, &key, 0) != ERROR_SUCCESS) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
+      return 0;
+    }
+  }
+  else {
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, &key) != ERROR_SUCCESS) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
+      return 0;
+    }
+  }
+
+  return key;
+}
+
+HKEY open_registry(const TCHAR *service_name, REGSAM sam) {
+  return open_registry(service_name, 0, sam);
+}
+
 int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   unsigned long ret;
 
-  /* Get registry */
-  TCHAR registry[KEY_LENGTH];
-  if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY, service->name) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("NSSM_REGISTRY"), _T("get_parameters()"), 0);
-    return 1;
-  }
-
   /* Try to open the registry */
-  HKEY key;
-  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, KEY_READ, &key) != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-    return 2;
-  }
+  HKEY key = open_registry(service->name, KEY_READ);
+  if (! key) return 1;
 
   /* Try to get executable file - MUST succeed */
   if (expand_parameter(key, NSSM_REG_EXE, service->exe, sizeof(service->exe), false)) {
@@ -494,24 +507,28 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   return 0;
 }
 
-int get_exit_action(TCHAR *service_name, unsigned long *ret, TCHAR *action, bool *default_action) {
+/*
+  Sets the string for the exit action corresponding to the exit code.
+
+  ret is a pointer to an unsigned long containing the exit code.
+  If ret is NULL, we retrieve the default exit action unconditionally.
+
+  action is a buffer which receives the string.
+
+  default_action is a pointer to a bool which is set to false if there
+  was an explicit string for the given exit code, or true if we are
+  returning the default action.
+
+  Returns: 0 on success.
+           1 on error.
+*/
+int get_exit_action(const TCHAR *service_name, unsigned long *ret, TCHAR *action, bool *default_action) {
   /* Are we returning the default action or a status-specific one? */
   *default_action = ! ret;
 
-  /* Get registry */
-  TCHAR registry[KEY_LENGTH];
-  if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY _T("\\%s"), service_name, NSSM_REG_EXIT) < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("NSSM_REG_EXIT"), _T("get_exit_action()"), 0);
-    return 1;
-  }
-
   /* Try to open the registry */
-  HKEY key;
-  long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, KEY_READ, &key);
-  if (error != ERROR_SUCCESS && error != ERROR_FILE_NOT_FOUND) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-    return 2;
-  }
+  HKEY key = open_registry(service_name, NSSM_REG_EXIT, KEY_READ);
+  if (! key) return 1;
 
   unsigned long type = REG_SZ;
   unsigned long action_len = ACTION_LEN;

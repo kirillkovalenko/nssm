@@ -25,6 +25,8 @@
 #define NSSM_REG_ROTATE_BYTES_HIGH _T("AppRotateBytesHigh")
 #define NSSM_STDIO_LENGTH 29
 
+HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam);
+HKEY open_registry(const TCHAR *, REGSAM sam);
 int create_messages();
 int create_parameters(nssm_service_t *, bool);
 int create_exit_action(TCHAR *, const TCHAR *, bool);
@@ -37,6 +39,6 @@ int get_number(HKEY, TCHAR *, unsigned long *, bool);
 int get_number(HKEY, TCHAR *, unsigned long *);
 void override_milliseconds(TCHAR *, HKEY, TCHAR *, unsigned long *, unsigned long, unsigned long);
 int get_parameters(nssm_service_t *, STARTUPINFO *);
-int get_exit_action(TCHAR *, unsigned long *, TCHAR *, bool *);
+int get_exit_action(const TCHAR *, unsigned long *, TCHAR *, bool *);
 
 #endif
