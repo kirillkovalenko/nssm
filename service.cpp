@@ -286,7 +286,7 @@ int grant_logon_as_service(const TCHAR *username) {
 #else
   size_t buflen;
   mbstowcs_s(&buflen, NULL, 0, username, _TRUNCATE);
-  lsa_username.MaximumLength = buflen * sizeof(wchar_t);
+  lsa_username.MaximumLength = (unsigned short) buflen * sizeof(wchar_t);
   lsa_username.Length = lsa_username.MaximumLength - sizeof(wchar_t);
   lsa_username.Buffer = (wchar_t *) HeapAlloc(GetProcessHeap(), 0, lsa_username.MaximumLength);
   if (lsa_username.Buffer) mbstowcs_s(&buflen, lsa_username.Buffer, lsa_username.MaximumLength, username, _TRUNCATE);
