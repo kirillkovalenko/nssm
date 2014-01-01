@@ -12,6 +12,17 @@ int str_equiv(const TCHAR *a, const TCHAR *b) {
   return 1;
 }
 
+/* Convert a string to a number. */
+int str_number(const TCHAR *string, unsigned long *number) {
+  if (! string) return 1;
+
+  TCHAR *bogus;
+  *number = _tcstoul(string, &bogus, 0);
+  if (*bogus) return 2;
+
+  return 0;
+}
+
 /* Remove basename of a path. */
 void strip_basename(TCHAR *buffer) {
   size_t len = _tcslen(buffer);

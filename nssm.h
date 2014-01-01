@@ -18,6 +18,7 @@
 
 int str_equiv(const TCHAR *, const TCHAR *);
 void strip_basename(TCHAR *);
+int str_number(const TCHAR *, unsigned long *);
 int usage(int);
 
 #define NSSM _T("nssm")
