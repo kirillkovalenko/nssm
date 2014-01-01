@@ -63,10 +63,13 @@ Since version 2.22, NSSM can manage existing services.
 
 Usage
 -----
-In the usage notes below, arguments to the program may be written in angle 
-brackets and/or square brackets.  <string> means you must insert the 
-appropriate string and [<string>] means the string is optional.  See the 
+In the usage notes below, arguments to the program may be written in angle
+brackets and/or square brackets.  <string> means you must insert the
+appropriate string and [<string>] means the string is optional.  See the
 examples below...
+
+Note that everywhere <servicename> appears you may substitute the
+service's display name.
 
 
 Installation using the GUI

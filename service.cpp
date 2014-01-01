@@ -37,6 +37,85 @@ SC_HANDLE open_service_manager() {
   return ret;
 }
 
+/* Open a service by name or display name. */
+SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, TCHAR *canonical_name, unsigned long canonical_namelen) {
+  SC_HANDLE service_handle = OpenService(services, service_name, SERVICE_ALL_ACCESS);
+  if (service_handle) {
+    if (canonical_name && canonical_name != service_name) {
+      if (_sntprintf_s(canonical_name, canonical_namelen, _TRUNCATE, _T("%s"), service_name) < 0) {
+        print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canonical_name"), _T("open_service()"));
+        return 0;
+      }
+    }
+    return service_handle;
+  }
+
+  unsigned long error = GetLastError();
+  if (error != ERROR_SERVICE_DOES_NOT_EXIST) {
+    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED, error_string(GetLastError()));
+    return 0;
+  }
+
+  /* We can't look for a display name because there's no buffer to store it. */
+  if (! canonical_name) {
+    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED, error_string(GetLastError()));
+    return 0;
+  }
+
+  unsigned long bufsize, required, count, i;
+  unsigned long resume = 0;
+  EnumServicesStatus(services, SERVICE_DRIVER | SERVICE_FILE_SYSTEM_DRIVER | SERVICE_KERNEL_DRIVER | SERVICE_WIN32, SERVICE_STATE_ALL, 0, 0, &required, &count, &resume);
+  error = GetLastError();
+  if (error != ERROR_MORE_DATA) {
+    print_message(stderr, NSSM_MESSAGE_ENUMSERVICESSTATUS_FAILED, error_string(GetLastError()));
+    return 0;
+  }
+
+  ENUM_SERVICE_STATUS *status = (ENUM_SERVICE_STATUS *) HeapAlloc(GetProcessHeap(), 0, required);
+  if (! status) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("ENUM_SERVICE_STATUS"), _T("open_service()"));
+    return 0;
+  }
+
+  bufsize = required;
+  while (true) {
+    /*
+      EnumServicesStatus() returns:
+      1 when it retrieved data and there's no more data to come.
+      0 and sets last error to ERROR_MORE_DATA when it retrieved data and
+        there's more data to come.
+      0 and sets last error to something else on error.
+    */
+    int ret = EnumServicesStatus(services, SERVICE_DRIVER | SERVICE_FILE_SYSTEM_DRIVER | SERVICE_KERNEL_DRIVER | SERVICE_WIN32, SERVICE_STATE_ALL, status, bufsize, &required, &count, &resume);
+    if (! ret) {
+      error = GetLastError();
+      if (error != ERROR_MORE_DATA) {
+        HeapFree(GetProcessHeap(), 0, status);
+        print_message(stderr, NSSM_MESSAGE_ENUMSERVICESSTATUS_FAILED, error_string(GetLastError()));
+        return 0;
+      }
+    }
+
+    for (i = 0; i < count; i++) {
+      if (str_equiv(status[i].lpDisplayName, service_name)) {
+        if (_sntprintf_s(canonical_name, canonical_namelen, _TRUNCATE, _T("%s"), status[i].lpServiceName) < 0) {
+          HeapFree(GetProcessHeap(), 0, status);
+          print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canonical_name"), _T("open_service()"));
+          return 0;
+        }
+
+        HeapFree(GetProcessHeap(), 0, status);
+        return open_service(services, canonical_name, 0, 0);
+      }
+    }
+
+    if (ret) break;
+  }
+
+  /* Recurse so we can get an error message. */
+  return open_service(services, service_name, 0, 0);
+}
+
 QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE service_handle) {
   QUERY_SERVICE_CONFIG *qsc;
   unsigned long bufsize;
@@ -491,10 +570,9 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
 
   /* Try to open the service */
-  service->handle = OpenService(services, service->name, SC_MANAGER_ALL_ACCESS);
+  service->handle = open_service(services, service->name, service->name, _countof(service->name));
   if (! service->handle) {
     CloseServiceHandle(services);
-    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
     return 3;
   }
 
@@ -806,6 +884,7 @@ int edit_service(nssm_service_t *service, bool editing) {
 int control_service(unsigned long control, int argc, TCHAR **argv) {
   if (argc < 1) return usage(1);
   TCHAR *service_name = argv[0];
+  TCHAR canonical_name[SERVICE_NAME_LENGTH];
 
   SC_HANDLE services = open_service_manager();
   if (! services) {
@@ -813,9 +892,8 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     return 2;
   }
 
-  SC_HANDLE service_handle = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
+  SC_HANDLE service_handle = open_service(services, service_name, canonical_name, _countof(canonical_name));
   if (! service_handle) {
-    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
     CloseServiceHandle(services);
     return 3;
   }
@@ -861,7 +939,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
       return 0;
     }
     else {
-      _ftprintf(stderr, _T("%s: %s\n"), service_name, error_string(error));
+      _ftprintf(stderr, _T("%s: %s\n"), canonical_name, error_string(error));
       return 1;
     }
   }
@@ -894,9 +972,8 @@ int remove_service(nssm_service_t *service) {
   }
 
   /* Try to open the service */
-  service->handle = OpenService(services, service->name, SC_MANAGER_ALL_ACCESS);
+  service->handle = open_service(services, service->name, service->name, _countof(service->name));
   if (! service->handle) {
-    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
     CloseServiceHandle(services);
     return 3;
   }
