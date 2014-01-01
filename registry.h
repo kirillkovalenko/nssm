@@ -31,6 +31,8 @@ int create_messages();
 int create_parameters(nssm_service_t *, bool);
 int create_exit_action(TCHAR *, const TCHAR *, bool);
 int set_environment(TCHAR *, HKEY, TCHAR *, TCHAR **, unsigned long *);
+int format_environment(TCHAR *, unsigned long, TCHAR **, unsigned long *);
+int unformat_environment(TCHAR *, unsigned long, TCHAR **, unsigned long *);
 int expand_parameter(HKEY, TCHAR *, TCHAR *, unsigned long, bool, bool);
 int expand_parameter(HKEY, TCHAR *, TCHAR *, unsigned long, bool);
 int set_expand_string(HKEY, TCHAR *, TCHAR *);

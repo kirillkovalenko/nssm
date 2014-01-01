@@ -146,27 +146,15 @@ int nssm_gui(int resource, nssm_service_t *service) {
     }
 
     if (envlen) {
-      /* Replace NULL with CRLF. Leave NULL NULL as the end marker. */
-      unsigned long i, j;
-      unsigned long newlen = envlen;
-      for (i = 0; i < envlen; i++) if (! env[i] && env[i + 1]) newlen++;
-
-      TCHAR *formatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen * sizeof(TCHAR));
-      if (formatted) {
-        for (i = 0, j = 0; i < envlen; i++) {
-          formatted[j] = env[i];
-          if (! env[i]) {
-            if (env[i + 1]) {
-              formatted[j] = _T('\r');
-              formatted[++j] = _T('\n');
-            }
-          }
-          j++;
-        }
+      TCHAR *formatted;
+      unsigned long newlen;
+      if (format_environment(env, envlen, &formatted, &newlen)) {
+        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("nssm_dlg()"));
+      }
+      else {
         SetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, formatted);
         HeapFree(GetProcessHeap(), 0, formatted);
       }
-      else popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("nssm_dlg()"));
     }
     if (service->envlen && service->env_extralen) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ENVIRONMENT);
   }
@@ -483,26 +471,13 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
       return 5;
     }
 
-    /* Strip CR and replace LF with NULL. */
-    unsigned long newlen = 0;
-    unsigned long i, j;
-    for (i = 0; i < envlen; i++) if (env[i] != _T('\r')) newlen++;
-    /* Must end with two NULLs. */
-    newlen += 2;
-
-    TCHAR *newenv = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newlen * sizeof(TCHAR));
-    if (! newenv) {
+    TCHAR *newenv;
+    unsigned long newlen;
+    if (unformat_environment(env, envlen, &newenv, &newlen)) {
       HeapFree(GetProcessHeap(), 0, env);
       popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
       cleanup_nssm_service(service);
       return 5;
-    }
-
-    for (i = 0, j = 0; i < envlen; i++) {
-      if (env[i] == _T('\r')) continue;
-      if (env[i] == _T('\n')) newenv[j] = _T('\0');
-      else newenv[j] = env[i];
-      j++;
     }
 
     HeapFree(GetProcessHeap(), 0, env);
