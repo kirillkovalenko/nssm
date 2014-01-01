@@ -351,6 +351,15 @@ int native_get_imagepath(const TCHAR *service_name, void *param, const TCHAR *na
   return ret;
 }
 
+int native_set_name(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  print_message(stderr, NSSM_MESSAGE_CANNOT_RENAME_SERVICE);
+  return -1;
+}
+
+int native_get_name(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  return value_from_string(name, value, service_name);
+}
+
 int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   SC_HANDLE service_handle = (SC_HANDLE) param;
   if (! service_handle) return -1;
@@ -666,6 +675,7 @@ settings_t settings[] = {
   { NSSM_NATIVE_DISPLAYNAME, REG_SZ, NULL, true, 0, native_set_displayname, native_get_displayname },
   { NSSM_NATIVE_IMAGEPATH, REG_EXPAND_SZ, NULL, true, 0, native_set_imagepath, native_get_imagepath },
   { NSSM_NATIVE_OBJECTNAME, REG_SZ, NSSM_LOCALSYSTEM_ACCOUNT, true, ADDITIONAL_SETTING, native_set_objectname, native_get_objectname },
+  { NSSM_NATIVE_NAME, REG_SZ, NULL, true, 0, native_set_name, native_get_name },
   { NSSM_NATIVE_STARTUP, REG_SZ, NULL, true, 0, native_set_startup, native_get_startup },
   { NSSM_NATIVE_TYPE, REG_SZ, NULL, true, 0, native_set_type, native_get_type },
   { NULL, NULL, NULL, NULL, NULL }

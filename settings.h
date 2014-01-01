@@ -4,6 +4,7 @@
 #define NSSM_NATIVE_DESCRIPTION _T("Description")
 #define NSSM_NATIVE_DISPLAYNAME _T("DisplayName")
 #define NSSM_NATIVE_IMAGEPATH _T("ImagePath")
+#define NSSM_NATIVE_NAME _T("Name")
 #define NSSM_NATIVE_OBJECTNAME _T("ObjectName")
 #define NSSM_NATIVE_STARTUP _T("Start")
 #define NSSM_NATIVE_TYPE _T("Type")

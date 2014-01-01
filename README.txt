@@ -324,6 +324,7 @@ run NSSM itself.  The parameters recognised are as follows:
   DisplayName: Service display name.
   ImagePath: Path to the service executable.
   ObjectName: User account which runs the service.
+  Name: Service key name.
   Start: Service startup type.
   Type: Service type.
 
@@ -379,6 +380,12 @@ To set configure the service to stop when the application exits with an
 exit code of 2, run
 
     nssm set <servicename> AppExit 2 Exit
+
+
+The Name parameter can only be queried, not set.  It returns the service's
+registry key name.  This may be useful to know if you take advantage of
+the fact that you can substitute the service's display name anywhere where
+the syntax calls for <servicename>.
 
 
 The ObjectName parameter requires an additional argument only when setting
@@ -485,6 +492,10 @@ To configure the server to log to a file:
 To remove the server:
 
     nssm remove UT2004 confirm
+
+To find out the service name of a service with a display name:
+
+    nssm get "Background Intelligent Transfer Service" Name
 
 
 Building NSSM from source
