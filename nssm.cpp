@@ -25,7 +25,7 @@ void strip_basename(TCHAR *buffer) {
 /* How to use me correctly */
 int usage(int ret) {
   if (GetConsoleWindow()) print_message(stderr, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
-  else popup_message(MB_OK, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
+  else popup_message(0, MB_OK, NSSM_MESSAGE_USAGE, NSSM_VERSION, NSSM_DATE);
   return(ret);
 }
 

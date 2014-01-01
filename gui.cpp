@@ -27,9 +27,15 @@ int nssm_gui(int resource, nssm_service_t *service) {
   /* Create window */
   HWND dlg = dialog(MAKEINTRESOURCE(resource), 0, nssm_dlg, (LPARAM) service);
   if (! dlg) {
-    popup_message(MB_OK, NSSM_GUI_CREATEDIALOG_FAILED, error_string(GetLastError()));
+    popup_message(0, MB_OK, NSSM_GUI_CREATEDIALOG_FAILED, error_string(GetLastError()));
     return 1;
   }
+
+  /* Load the icon. */
+  HANDLE icon = LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(IDI_NSSM), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0);
+  if (icon) SendMessage(dlg, WM_SETICON, ICON_SMALL, (LPARAM) icon);
+  icon = LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(IDI_NSSM), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0);
+  if (icon) SendMessage(dlg, WM_SETICON, ICON_BIG, (LPARAM) icon);
 
   /* Remember what the window is for. */
   SetWindowLongPtr(dlg, GWLP_USERDATA, (LONG_PTR) resource);
@@ -129,8 +135,8 @@ int nssm_gui(int resource, nssm_service_t *service) {
     if (! service->rotate_bytes_high) SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, service->rotate_bytes_low, 0);
 
     /* Check if advanced settings are in use. */
-    if (service->stdout_disposition ^ service->stderr_disposition || service->stdout_disposition & ~CREATE_ALWAYS || service->stderr_disposition & ~CREATE_ALWAYS) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_STDIO);
-    if (service->rotate_bytes_high) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ROTATE_BYTES);
+    if (service->stdout_disposition ^ service->stderr_disposition || service->stdout_disposition & ~CREATE_ALWAYS || service->stderr_disposition & ~CREATE_ALWAYS) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_STDIO);
+    if (service->rotate_bytes_high) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ROTATE_BYTES);
 
     /* Environment tab. */
     TCHAR *env;
@@ -149,14 +155,14 @@ int nssm_gui(int resource, nssm_service_t *service) {
       TCHAR *formatted;
       unsigned long newlen;
       if (format_environment(env, envlen, &formatted, &newlen)) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("nssm_dlg()"));
+        popup_message(dlg, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("nssm_dlg()"));
       }
       else {
         SetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, formatted);
         HeapFree(GetProcessHeap(), 0, formatted);
       }
     }
-    if (service->envlen && service->env_extralen) popup_message(MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ENVIRONMENT);
+    if (service->envlen && service->env_extralen) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ENVIRONMENT);
   }
 
   /* Go! */
@@ -222,10 +228,10 @@ static inline void set_rotation_enabled(unsigned char enabled) {
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW), enabled);
 }
 
-static inline void check_io(TCHAR *name, TCHAR *buffer, unsigned long len, unsigned long control) {
+static inline void check_io(HWND owner, TCHAR *name, TCHAR *buffer, unsigned long len, unsigned long control) {
   if (! SendMessage(GetDlgItem(tablist[NSSM_TAB_IO], control), WM_GETTEXTLENGTH, 0, 0)) return;
   if (GetDlgItemText(tablist[NSSM_TAB_IO], control, buffer, (int) len)) return;
-  popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, name);
+  popup_message(owner, MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, name);
   ZeroMemory(buffer, len * sizeof(TCHAR));
 }
 
@@ -242,7 +248,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
 
   /* Get service name. */
   if (! GetDlgItemText(window, IDC_NAME, service->name, _countof(service->name))) {
-    popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
+    popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
     cleanup_nssm_service(service);
     return 2;
   }
@@ -250,7 +256,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   /* Get executable name */
   if (! service->native) {
     if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->exe, _countof(service->exe))) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PATH);
       return 3;
     }
 
@@ -263,7 +269,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
     /* Get flags. */
     if (SendMessage(GetDlgItem(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS), WM_GETTEXTLENGTH, 0, 0)) {
       if (! GetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_FLAGS, service->flags, _countof(service->flags))) {
-        popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
+        popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_OPTIONS);
         return 4;
       }
     }
@@ -272,14 +278,14 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   /* Get details. */
   if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME), WM_GETTEXTLENGTH, 0, 0)) {
     if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DISPLAYNAME, service->displayname, _countof(service->displayname))) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DISPLAYNAME);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DISPLAYNAME);
       return 5;
     }
   }
 
   if (SendMessage(GetDlgItem(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION), WM_GETTEXTLENGTH, 0, 0)) {
     if (! GetDlgItemText(tablist[NSSM_TAB_DETAILS], IDC_DESCRIPTION, service->description, _countof(service->description))) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DESCRIPTION);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DESCRIPTION);
       return 5;
     }
   }
@@ -307,21 +313,21 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
     /* Username. */
     service->usernamelen = SendMessage(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), WM_GETTEXTLENGTH, 0, 0);
     if (! service->usernamelen) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_USERNAME);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_USERNAME);
       return 6;
     }
     service->usernamelen++;
 
     service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
     if (! service->username) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
       return 6;
     }
     if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username, (int) service->usernamelen)) {
       HeapFree(GetProcessHeap(), 0, service->username);
       service->username = 0;
       service->usernamelen = 0;
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_USERNAME);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_USERNAME);
       return 6;
     }
 
@@ -341,11 +347,11 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
 
       if (! orig_service || ! orig_service->username || ! str_equiv(service->username, orig_service->username) || service->passwordlen || passwordlen) {
         if (! service->passwordlen) {
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
           return 6;
         }
         if (passwordlen != service->passwordlen) {
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
           return 6;
         }
         service->passwordlen++;
@@ -356,7 +362,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
           HeapFree(GetProcessHeap(), 0, service->username);
           service->username = 0;
           service->usernamelen = 0;
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password confirmation"), _T("install()"));
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password confirmation"), _T("install()"));
           return 6;
         }
 
@@ -367,7 +373,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
           HeapFree(GetProcessHeap(), 0, service->username);
           service->username = 0;
           service->usernamelen = 0;
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password"), _T("install()"));
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("password"), _T("install()"));
           return 6;
         }
 
@@ -381,7 +387,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
           HeapFree(GetProcessHeap(), 0, service->username);
           service->username = 0;
           service->usernamelen = 0;
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
           return 6;
         }
 
@@ -396,13 +402,13 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
           HeapFree(GetProcessHeap(), 0, service->username);
           service->username = 0;
           service->usernamelen = 0;
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_PASSWORD);
           return 6;
         }
 
         /* Compare. */
         if (_tcsncmp(password, service->password, service->passwordlen)) {
-          popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
+          popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
           SecureZeroMemory(password, service->passwordlen);
           HeapFree(GetProcessHeap(), 0, password);
           SecureZeroMemory(service->password, service->passwordlen);
@@ -437,9 +443,9 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
 
   /* Get I/O stuff. */
-  check_io(_T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
-  check_io(_T("stdout"), service->stdout_path, _countof(service->stdout_path), IDC_STDOUT);
-  check_io(_T("stderr"), service->stderr_path, _countof(service->stderr_path), IDC_STDERR);
+  check_io(window, _T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
+  check_io(window, _T("stdout"), service->stdout_path, _countof(service->stdout_path), IDC_STDOUT);
+  check_io(window, _T("stderr"), service->stderr_path, _countof(service->stderr_path), IDC_STDERR);
 
   /* Override stdout and/or stderr. */
   if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
@@ -459,13 +465,13 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   if (envlen) {
     TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (envlen + 2) * sizeof(TCHAR));
     if (! env) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
       cleanup_nssm_service(service);
       return 5;
     }
 
     if (! GetDlgItemText(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT, env, envlen + 1)) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
       HeapFree(GetProcessHeap(), 0, env);
       cleanup_nssm_service(service);
       return 5;
@@ -475,7 +481,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
     unsigned long newlen;
     if (unformat_environment(env, envlen, &newenv, &newlen)) {
       HeapFree(GetProcessHeap(), 0, env);
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
       cleanup_nssm_service(service);
       return 5;
     }
@@ -486,7 +492,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
 
     /* Test the environment is valid. */
     if (test_environment(env)) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_ENVIRONMENT);
       HeapFree(GetProcessHeap(), 0, env);
       cleanup_nssm_service(service);
       return 5;
@@ -518,37 +524,37 @@ int install(HWND window) {
   /* See if it works. */
   switch (install_service(service)) {
     case 1:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("install()"));
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("install()"));
       cleanup_nssm_service(service);
       return 1;
 
     case 2:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
       cleanup_nssm_service(service);
       return 2;
 
     case 3:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
       cleanup_nssm_service(service);
       return 3;
 
     case 4:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
       cleanup_nssm_service(service);
       return 4;
 
     case 5:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INSTALL_SERVICE_FAILED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INSTALL_SERVICE_FAILED);
       cleanup_nssm_service(service);
       return 5;
 
     case 6:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_CREATE_PARAMETERS_FAILED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_CREATE_PARAMETERS_FAILED);
       cleanup_nssm_service(service);
       return 6;
   }
 
-  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_INSTALLED, service->name);
+  popup_message(window, MB_OK, NSSM_MESSAGE_SERVICE_INSTALLED, service->name);
   cleanup_nssm_service(service);
   return 0;
 }
@@ -562,13 +568,13 @@ int remove(HWND window) {
   if (service) {
     /* Get service name */
     if (! GetDlgItemText(window, IDC_NAME, service->name, _countof(service->name))) {
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_SERVICE_NAME);
       cleanup_nssm_service(service);
       return 2;
     }
 
     /* Confirm */
-    if (popup_message(MB_YESNO, NSSM_GUI_ASK_REMOVE_SERVICE, service->name) != IDYES) {
+    if (popup_message(window, MB_YESNO, NSSM_GUI_ASK_REMOVE_SERVICE, service->name) != IDYES) {
       cleanup_nssm_service(service);
       return 0;
     }
@@ -576,27 +582,27 @@ int remove(HWND window) {
 
   switch (remove_service(service)) {
     case 1:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("remove()"));
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("remove()"));
       cleanup_nssm_service(service);
       return 1;
 
     case 2:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
       cleanup_nssm_service(service);
       return 2;
 
     case 3:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_SERVICE_NOT_INSTALLED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_SERVICE_NOT_INSTALLED);
       return 3;
       cleanup_nssm_service(service);
 
     case 4:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_REMOVE_SERVICE_FAILED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_REMOVE_SERVICE_FAILED);
       cleanup_nssm_service(service);
       return 4;
   }
 
-  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_REMOVED, service->name);
+  popup_message(window, MB_OK, NSSM_MESSAGE_SERVICE_REMOVED, service->name);
   cleanup_nssm_service(service);
   return 0;
 }
@@ -612,28 +618,28 @@ int edit(HWND window, nssm_service_t *orig_service) {
 
   switch (edit_service(service, true)) {
     case 1:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("edit()"));
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("service"), _T("edit()"));
       cleanup_nssm_service(service);
       return 1;
 
     case 3:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_MESSAGE_PATH_TOO_LONG, NSSM);
       cleanup_nssm_service(service);
       return 3;
 
     case 4:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_OUT_OF_MEMORY_FOR_IMAGEPATH);
       cleanup_nssm_service(service);
       return 4;
 
     case 5:
     case 6:
-      popup_message(MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_EDIT_PARAMETERS_FAILED);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_EDIT_PARAMETERS_FAILED);
       cleanup_nssm_service(service);
       return 6;
   }
 
-  popup_message(MB_OK, NSSM_MESSAGE_SERVICE_EDITED, service->name);
+  popup_message(window, MB_OK, NSSM_MESSAGE_SERVICE_EDITED, service->name);
   cleanup_nssm_service(service);
   return 0;
 }

@@ -72,7 +72,7 @@ void print_message(FILE *file, unsigned long id, ...) {
 }
 
 /* Show a GUI dialogue */
-int popup_message(unsigned int type, unsigned long id, ...) {
+int popup_message(HWND owner, unsigned int type, unsigned long id, ...) {
   va_list arg;
 
   TCHAR *format = message_string(id);
@@ -89,7 +89,20 @@ int popup_message(unsigned int type, unsigned long id, ...) {
   }
   va_end(arg);
 
-  int ret = MessageBox(0, blurb, NSSM, type);
+  MSGBOXPARAMS params;
+  ZeroMemory(&params, sizeof(params));
+  params.cbSize = sizeof(params);
+  params.hInstance = GetModuleHandle(0);
+  params.hwndOwner = owner;
+  params.lpszText = blurb;
+  params.lpszCaption = NSSM;
+  params.dwStyle = type;
+  if (type == MB_OK) {
+    params.dwStyle |= MB_USERICON;
+    params.lpszIcon = MAKEINTRESOURCE(IDI_NSSM);
+  }
+
+  int ret = MessageBoxIndirect(&params);
 
   LocalFree(format);
 
