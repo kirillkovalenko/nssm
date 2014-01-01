@@ -58,7 +58,7 @@ Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 Since version 2.22, NSSM can set service display name, description, startup
 type and log on details.
 
-Since version 2.22, NSSM can edit existing services with the GUI.
+Since version 2.22, NSSM can edit existing services.
 
 
 Usage
@@ -298,6 +298,131 @@ the App* registry settings described above, the GUI will allow editing only
 system settings such as the service display name and description.
 
 
+Managing services using the command line
+----------------------------------------
+NSSM can retrieve or set individual service parameters from the command line.
+In general the syntax is as follows, though see below for exceptions.
+
+    nssm get <servicename> <parameter>
+
+    nssm set <servicename> <parameter> <value>
+
+Parameters can also be reset to their default values.
+
+    nssm reset <servicename> <parameter>
+
+The parameter names recognised by NSSM are the same as the registry entry
+names described above, eg AppDirectory.
+
+NSSM offers limited editing capabilities for Services other than those which
+run NSSM itself.  The parameters recognised are as follows:
+
+  Description: Service description.
+  DisplayName: Service display name.
+  ImagePath: Path to the service executable.
+  ObjectName: User account which runs the service.
+  Start: Service startup type.
+  Type: Service type.
+
+These correspond to the registry values under the service's key
+HKLM\SYSTEM\CurrentControlSet\Services\<service>.
+
+
+Note that NSSM will concatenate all arguments passed on the command line
+with spaces to form the value to set.  Thus the following two invocations
+would have the same effect.
+
+    nssm set <servicename> Description "NSSM managed service"
+
+    nssm set <servicename> Description NSSM managed service
+
+
+Non-standard parameters
+-----------------------
+The AppEnvironment and AppEnvironmentExtra parameters recognise an
+additional argument when querying the environment.  The following syntax
+will print all extra environment variables configured for a service
+
+    nssm get <servicename> AppEnvironmentExtra
+
+whereas the syntax below will print only the value of the CLASSPATH
+variable if it is configured in the environment block, or the empty string
+if it is not configured.
+
+    nssm get <servicename> AppEnvironmentExtra CLASSPATH
+
+When setting an environment block, each variable should be specified as a
+KEY=VALUE pair in separate command line arguments.  For example:
+
+    nssm set <servicename> AppEnvironment CLASSPATH=C:\Classes TEMP=C:\Temp
+
+
+The AppExit parameter requires an additional argument specifying the exit
+code to get or set.  The default action can be specified with the string
+Default.
+
+For example, to get the default exit action for a service you should run
+
+    nssm get <servicename> AppExit Default
+
+To get the exit action when the application exits with exit code 2, run
+
+    nssm get <servicename> AppExit 2
+
+Note that if no explicit action is configured for a specified exit code,
+NSSM will print the default exit action.
+
+To set configure the service to stop when the application exits with an
+exit code of 2, run
+
+    nssm set <servicename> AppExit 2 Exit
+
+
+The ObjectName parameter requires an additional argument only when setting
+a username.  The additional argument is the password of the user.
+
+To retrieve the username, run
+
+    nssm get <servicename> ObjectName
+
+To set the username and password, run
+
+    nssm set <servicename> ObjectName <username> <password>
+
+Note that the rules of argument concatenation still apply.  The following
+invocation is valid and will have the expected effect.
+
+    nssm set <servicename> ObjectName <username> correct horse battery staple
+
+
+The Start parameter is used to query or set the startup type of the service.
+Valid service startup types are as follows:
+
+  SERVICE_AUTO_START: Automatic startup at boot.
+  SERVICE_DELAYED_START: Delayed startup at boot.
+  SERVICE_DEMAND_START: Manual service startup.
+  SERVICE_DISABLED: The service is disabled.
+
+Note that SERVICE_DELAYED_START is not supported on versions of Windows prior
+to Vista.  NSSM will set the service to automatic startup if delayed start is
+unavailable.
+
+
+The Type parameter is used to query or set the service type.  NSSM recognises
+all currently documented service types but will only allow setting one of two
+types:
+
+  SERVICE_WIN32_OWN_PROCESS: A standalone service.  This is the default.
+  SERVICE_INTERACTIVE_PROCESS: A service which can interact with the desktop.
+
+Note that a service may only be configured as interactive if it runs under
+the LocalSystem account.  The safe way to configure an interactive service
+is in two stages as follows.
+
+    nssm reset <servicename> ObjectName
+    nssm set <servicename> Type SERVICE_INTERACTIVE_PROCESS
+
+
 Removing services using the GUI
 -------------------------------
 NSSM can also remove services.  Run
@@ -334,6 +459,14 @@ Example usage
 To install an Unreal Tournament server:
 
     nssm install UT2004 c:\games\ut2004\system\ucc.exe server
+
+To run the server as the "games" user:
+
+    nssm set UT2004 ObjectName games password
+
+To configure the server to log to a file:
+
+    nssm set UT2004 AppStdout c:\games\ut2004\service.log
 
 To remove the server:
 

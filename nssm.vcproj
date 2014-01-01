@@ -626,6 +626,10 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\settings.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -661,6 +665,10 @@
 			</File>
 			<File
 				RelativePath="service.h"
+				>
+			</File>
+			<File
+				RelativePath=".\settings.h"
 				>
 			</File>
 		</Filter>

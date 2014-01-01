@@ -13,6 +13,7 @@
 #include "messages.h"
 #include "process.h"
 #include "registry.h"
+#include "settings.h"
 #include "io.h"
 #include "gui.h"
 

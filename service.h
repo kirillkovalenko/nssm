@@ -20,6 +20,13 @@
 #define ACTION_LEN 16
 
 #define NSSM_LOCALSYSTEM_ACCOUNT _T("LocalSystem")
+#define NSSM_KERNEL_DRIVER _T("SERVICE_KERNEL_DRIVER")
+#define NSSM_FILE_SYSTEM_DRIVER _T("SERVICE_FILE_SYSTEM_DRIVER")
+#define NSSM_WIN32_OWN_PROCESS _T("SERVICE_WIN32_OWN_PROCESS")
+#define NSSM_WIN32_SHARE_PROCESS _T("SERVICE_WIN32_SHARE_PROCESS")
+#define NSSM_INTERACTIVE_PROCESS _T("SERVICE_INTERACTIVE_PROCESS")
+#define NSSM_SHARE_INTERACTIVE_PROCESS NSSM_WIN32_SHARE_PROCESS _T("|") NSSM_INTERACTIVE_PROCESS
+#define NSSM_UNKNOWN _T("?")
 
 typedef struct {
   bool native;
@@ -94,6 +101,7 @@ int set_service_description(const TCHAR *, SC_HANDLE, TCHAR *);
 int get_service_description(const TCHAR *, SC_HANDLE, unsigned long, TCHAR *);
 int get_service_startup(const TCHAR *, SC_HANDLE, const QUERY_SERVICE_CONFIG *, unsigned long *);
 int get_service_username(const TCHAR *, const QUERY_SERVICE_CONFIG *, TCHAR **, size_t *);
+int grant_logon_as_service(const TCHAR *);
 int pre_install_service(int, TCHAR **);
 int pre_remove_service(int, TCHAR **);
 int pre_edit_service(int, TCHAR **);

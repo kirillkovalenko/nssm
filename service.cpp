@@ -3,14 +3,14 @@
 /* This is explicitly a wide string. */
 #define NSSM_LOGON_AS_SERVICE_RIGHT L"SeServiceLogonRight"
 
-extern const TCHAR *exit_action_strings[];
-
 bool is_admin;
 bool use_critical_section;
 
 extern imports_t imports;
+extern settings_t settings[];
 
 const TCHAR *exit_action_strings[] = { _T("Restart"), _T("Ignore"), _T("Exit"), _T("Suicide"), 0 };
+const TCHAR *startup_strings[] = { _T("SERVICE_AUTO_START"), _T("SERVICE_DELAYED_AUTO_START"), _T("SERVICE_DEMAND_START"), _T("SERVICE_DISABLED"), 0 };
 
 static inline int throttle_milliseconds(unsigned long throttle) {
   /* pow() operates on doubles. */
@@ -182,7 +182,7 @@ int get_service_username(const TCHAR *service_name, const QUERY_SERVICE_CONFIG *
   return 0;
 }
 
-static int grant_logon_as_service(const TCHAR *username) {
+int grant_logon_as_service(const TCHAR *username) {
   if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
 
   /* Open Policy object. */
@@ -419,10 +419,69 @@ int pre_install_service(int argc, TCHAR **argv) {
 /* About to edit the service. */
 int pre_edit_service(int argc, TCHAR **argv) {
   /* Require service name. */
-  if (argc < 1) return usage(1);
+  if (argc < 2) return usage(1);
+
+  /* Are we editing on the command line? */
+  enum { MODE_EDITING, MODE_GETTING, MODE_SETTING, MODE_RESETTING } mode = MODE_EDITING;
+  const TCHAR *verb = argv[0];
+  const TCHAR *service_name = argv[1];
+  bool getting = false;
+  bool unsetting = false;
+
+  /* Minimum number of arguments. */
+  int mandatory = 2;
+  /* Index of first value. */
+  int remainder = 3;
+  int i;
+  if (str_equiv(verb, _T("get"))) {
+    mandatory = 3;
+    mode = MODE_GETTING;
+  }
+  else if (str_equiv(verb, _T("set"))) {
+    mandatory = 4;
+    mode = MODE_SETTING;
+  }
+  else if (str_equiv(verb, _T("reset")) || str_equiv(verb, _T("unset"))) {
+    mandatory = 3;
+    mode = MODE_RESETTING;
+  }
+  if (argc < mandatory) return usage(1);
+
+  const TCHAR *parameter = 0;
+  settings_t *setting = 0;
+  TCHAR *additional;
+
+  /* Validate the parameter. */
+  if (mandatory > 2) {
+    bool additional_mandatory = false;
+
+    parameter = argv[2];
+    for (i = 0; settings[i].name; i++) {
+      setting = &settings[i];
+      if (! str_equiv(setting->name, parameter)) continue;
+      if (((setting->additional & ADDITIONAL_GETTING) && mode == MODE_GETTING) || ((setting->additional & ADDITIONAL_SETTING) && mode == MODE_SETTING) || ((setting->additional & ADDITIONAL_RESETTING) && mode == MODE_RESETTING)) {
+        additional_mandatory = true;
+        mandatory++;
+      }
+      break;
+    }
+    if (! settings[i].name) {
+      print_message(stderr, NSSM_MESSAGE_INVALID_PARAMETER, parameter);
+      for (i = 0; settings[i].name; i++) _ftprintf(stderr, _T("%s\n"), settings[i].name);
+      return 1;
+    }
+    if (argc < mandatory) return usage(1);
+
+    additional = 0;
+    if (additional_mandatory) {
+      additional = argv[3];
+      remainder = 4;
+    }
+    else additional = argv[remainder];
+  }
 
   nssm_service_t *service = alloc_nssm_service();
-  _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), argv[0]);
+  _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), service_name);
 
   /* Open service manager */
   SC_HANDLE services = open_service_manager();
@@ -440,7 +499,6 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
 
   /* Get system details. */
-  unsigned long bufsize;
   QUERY_SERVICE_CONFIG *qsc = query_service_config(service->name, service->handle);
   if (! qsc) {
     CloseHandle(service->handle);
@@ -450,31 +508,37 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   service->type = qsc->dwServiceType;
   if (! (service->type & SERVICE_WIN32_OWN_PROCESS)) {
-    HeapFree(GetProcessHeap(), 0, qsc);
-    CloseHandle(service->handle);
-    CloseServiceHandle(services);
-    print_message(stderr, NSSM_MESSAGE_CANNOT_EDIT, service->name, _T("SERVICE_WIN32_OWN_PROCESS"), 0);
-    return 3;
+    if (mode != MODE_GETTING) {
+      HeapFree(GetProcessHeap(), 0, qsc);
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      print_message(stderr, NSSM_MESSAGE_CANNOT_EDIT, service->name, NSSM_WIN32_OWN_PROCESS, 0);
+      return 3;
+    }
   }
 
   if (get_service_startup(service->name, service->handle, qsc, &service->startup)) {
-    HeapFree(GetProcessHeap(), 0, qsc);
-    CloseHandle(service->handle);
-    CloseServiceHandle(services);
-    return 4;
+    if (mode != MODE_GETTING) {
+      HeapFree(GetProcessHeap(), 0, qsc);
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      return 4;
+    }
   }
 
   if (get_service_username(service->name, qsc, &service->username, &service->usernamelen)) {
-    HeapFree(GetProcessHeap(), 0, qsc);
-    CloseHandle(service->handle);
-    CloseServiceHandle(services);
-    return 5;
+    if (mode != MODE_GETTING) {
+      HeapFree(GetProcessHeap(), 0, qsc);
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      return 5;
+    }
   }
 
   _sntprintf_s(service->displayname, _countof(service->displayname), _TRUNCATE, _T("%s"), qsc->lpDisplayName);
 
   /* Get the canonical service name. We open it case insensitively. */
-  bufsize = _countof(service->name);
+  unsigned long bufsize = _countof(service->name);
   GetServiceKeyName(services, service->displayname, service->name, &bufsize);
 
   /* Remember the executable in case it isn't NSSM. */
@@ -483,9 +547,11 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   /* Get extended system details. */
   if (get_service_description(service->name, service->handle, _countof(service->description), service->description)) {
-    CloseHandle(service->handle);
-    CloseServiceHandle(services);
-    return 6;
+    if (mode != MODE_GETTING) {
+      CloseHandle(service->handle);
+      CloseServiceHandle(services);
+      return 6;
+    }
   }
 
   /* Get NSSM details. */
@@ -494,11 +560,112 @@ int pre_edit_service(int argc, TCHAR **argv) {
   CloseServiceHandle(services);
 
   if (! service->exe[0]) {
-    print_message(stderr, NSSM_MESSAGE_INVALID_SERVICE, service->name, NSSM, service->image);
     service->native = true;
+    if (mode != MODE_GETTING) print_message(stderr, NSSM_MESSAGE_INVALID_SERVICE, service->name, NSSM, service->image);
   }
 
-  nssm_gui(IDD_EDIT, service);
+  /* Editing with the GUI. */
+  if (mode == MODE_EDITING) {
+    nssm_gui(IDD_EDIT, service);
+    return 0;
+  }
+
+  /* Trying to manage App* parameters for a non-NSSM service. */
+  if (! setting->native && service->native) {
+    CloseHandle(service->handle);
+    print_message(stderr, NSSM_MESSAGE_NATIVE_PARAMETER, setting->name, NSSM);
+    return 1;
+  }
+
+  HKEY key;
+  value_t value;
+  int ret;
+
+  if (mode == MODE_GETTING) {
+    if (! service->native) {
+      key = open_registry(service->name, KEY_READ);
+      if (! key) return 4;
+    }
+
+    if (setting->native) ret = get_setting(service->name, service->handle, setting, &value, additional);
+    else ret = get_setting(service->name, key, setting, &value, additional);
+    if (ret < 0) {
+      CloseHandle(service->handle);
+      return 5;
+    }
+
+    switch (setting->type) {
+      case REG_EXPAND_SZ:
+      case REG_MULTI_SZ:
+      case REG_SZ:
+        _tprintf(_T("%s\n"), value.string ? value.string : _T(""));
+        HeapFree(GetProcessHeap(), 0, value.string);
+        break;
+
+      case REG_DWORD:
+        _tprintf(_T("%u\n"), value.numeric);
+        break;
+    }
+
+    if (! service->native) RegCloseKey(key);
+    CloseHandle(service->handle);
+    return 0;
+  }
+
+  /* Build the value. */
+  if (mode == MODE_RESETTING) {
+    /* Unset the parameter. */
+    value.string = 0;
+  }
+  else {
+    /* Set the parameter. */
+    size_t len = 0;
+    size_t delimiterlen = (setting->additional & ADDITIONAL_CRLF) ? 2 : 1;
+    for (i = remainder; i < argc; i++) len += _tcslen(argv[i]) + delimiterlen;
+    len++;
+
+    value.string = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, len * sizeof(TCHAR));
+    if (! value.string) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("value"), _T("edit_service()"));
+      CloseHandle(service->handle);
+      return 2;
+    }
+
+    size_t s = 0;
+    for (i = remainder; i < argc; i++) {
+      size_t len = _tcslen(argv[i]);
+      memmove(value.string + s, argv[i], len * sizeof(TCHAR));
+      s += len;
+      if (i < argc - 1) {
+        if (setting->additional & ADDITIONAL_CRLF) {
+          value.string[s++] = _T('\r');
+          value.string[s++] = _T('\n');
+        }
+        else value.string[s++] = _T(' ');
+      }
+    }
+    value.string[s] = _T('\0');
+  }
+
+  if (! service->native) {
+    key = open_registry(service->name, KEY_WRITE);
+    if (! key) {
+      if (value.string) HeapFree(GetProcessHeap(), 0, value.string);
+      return 4;
+    }
+  }
+
+  if (setting->native) ret = set_setting(service->name, service->handle, setting, &value, additional);
+  else ret = set_setting(service->name, key, setting, &value, additional);
+  if (value.string) HeapFree(GetProcessHeap(), 0, value.string);
+  if (ret < 0) {
+    if (! service->native) RegCloseKey(key);
+    CloseHandle(service->handle);
+    return 6;
+  }
+
+  if (! service->native) RegCloseKey(key);
+  CloseHandle(service->handle);
 
   return 0;
 }
@@ -581,7 +748,7 @@ int edit_service(nssm_service_t *service, bool editing) {
 
   /*
     Username must be NULL if we aren't changing or an account name.
-    We must explicitly user LOCALSYSTEM to change it when we are editing.
+    We must explicitly use LOCALSYSTEM to change it when we are editing.
     Password must be NULL if we aren't changing, a password or "".
     Empty passwords are valid but we won't allow them in the GUI.
   */

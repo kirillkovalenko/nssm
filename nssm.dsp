@@ -118,6 +118,10 @@ SOURCE=.\registry.cpp
 
 SOURCE=.\service.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=.\settings.cpp
+# End Source File
 # End Group
 # Begin Group "Header Files"
 
@@ -153,6 +157,10 @@ SOURCE=.\registry.h
 # Begin Source File
 
 SOURCE=.\service.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\settings.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"
