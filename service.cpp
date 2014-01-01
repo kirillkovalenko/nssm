@@ -262,6 +262,7 @@ int get_service_username(const TCHAR *service_name, const QUERY_SERVICE_CONFIG *
 }
 
 int grant_logon_as_service(const TCHAR *username) {
+  if (! username) return 0;
   if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return 0;
 
   /* Open Policy object. */
@@ -781,9 +782,9 @@ int install_service(nssm_service_t *service) {
   GetModuleFileName(0, service->image, _countof(service->image));
 
   /* Create the service - settings will be changed in edit_service() */
-  service->handle = CreateService(services, service->name, service->name, SC_MANAGER_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, service->image, 0, 0, 0, 0, 0);
+  service->handle = CreateService(services, service->name, service->name, SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, service->image, 0, 0, 0, 0, 0);
   if (! service->handle) {
-    print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED);
+    print_message(stderr, NSSM_MESSAGE_CREATESERVICE_FAILED, error_string(GetLastError()));
     CloseServiceHandle(services);
     return 5;
   }
