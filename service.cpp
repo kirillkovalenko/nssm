@@ -907,6 +907,21 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     CloseHandle(service_handle);
     CloseServiceHandle(services);
 
+    if (error == ERROR_IO_PENDING) {
+      /*
+        Older versions of Windows return immediately with ERROR_IO_PENDING
+        indicate that the operation is still in progress.  Newer versions
+        will return it if there really is a delay.  As far as we're
+        concerned the operation is a success.  We don't claim to offer a
+        fully-feature service control method; it's just a quick 'n' dirty
+        interface.
+
+        In the future we may identify and handle this situation properly.
+      */
+      ret = 1;
+      error = ERROR_SUCCESS;
+    }
+
     if (ret) {
       _tprintf(_T("%s: %s"), canonical_name, error_string(error));
       return 0;
@@ -948,6 +963,11 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     error = GetLastError();
     CloseHandle(service_handle);
     CloseServiceHandle(services);
+
+    if (error == ERROR_IO_PENDING) {
+      ret = 1;
+      error = ERROR_SUCCESS;
+    }
 
     if (ret) {
       _tprintf(_T("%s: %s"), canonical_name, error_string(error));
