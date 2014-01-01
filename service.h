@@ -108,6 +108,7 @@ int pre_edit_service(int, TCHAR **);
 int install_service(nssm_service_t *);
 int remove_service(nssm_service_t *);
 int edit_service(nssm_service_t *, bool);
+int control_service(unsigned long, int, TCHAR **);
 void set_service_recovery(nssm_service_t *);
 int monitor_service(nssm_service_t *);
 int start_service(nssm_service_t *);

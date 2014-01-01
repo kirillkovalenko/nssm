@@ -58,7 +58,7 @@ Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 Since version 2.22, NSSM can set service display name, description, startup
 type and log on details.
 
-Since version 2.22, NSSM can edit existing services.
+Since version 2.22, NSSM can manage existing services.
 
 
 Usage
@@ -421,6 +421,17 @@ is in two stages as follows.
 
     nssm reset <servicename> ObjectName
     nssm set <servicename> Type SERVICE_INTERACTIVE_PROCESS
+
+
+Controlling services using the command line
+-------------------------------------------
+NSSM offers rudimentary service control features.
+
+    nssm start <servicename>
+
+    nssm stop <servicename>
+
+    nssm status <servicename>
 
 
 Removing services using the GUI

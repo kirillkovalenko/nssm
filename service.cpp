@@ -802,6 +802,86 @@ int edit_service(nssm_service_t *service, bool editing) {
   return 0;
 }
 
+/* Control a service. */
+int control_service(unsigned long control, int argc, TCHAR **argv) {
+  if (argc < 1) return usage(1);
+  TCHAR *service_name = argv[0];
+
+  SC_HANDLE services = open_service_manager();
+  if (! services) {
+    print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+    return 2;
+  }
+
+  SC_HANDLE service_handle = OpenService(services, service_name, SC_MANAGER_ALL_ACCESS);
+  if (! service_handle) {
+    print_message(stderr, NSSM_MESSAGE_OPENSERVICE_FAILED);
+    CloseServiceHandle(services);
+    return 3;
+  }
+
+  int ret;
+  unsigned long error;
+  SERVICE_STATUS service_status;
+  if (control == 0) {
+    ret = StartService(service_handle, (unsigned long) argc, (const TCHAR **) argv);
+    error = GetLastError();
+    CloseHandle(service_handle);
+    CloseServiceHandle(services);
+
+    if (ret) {
+      _tprintf(_T("%s: %s"), canonical_name, error_string(error));
+      return 0;
+    }
+    else {
+      _ftprintf(stderr, _T("%s: %s"), canonical_name, error_string(error));
+      return 1;
+    }
+  }
+  else if (control == SERVICE_CONTROL_INTERROGATE) {
+    /*
+      We could actually send an INTERROGATE control but that won't return
+      any information if the service is stopped and we don't care about
+      the extra details it might give us in any case.  So we'll fake it.
+    */
+    ret = QueryServiceStatus(service_handle, &service_status);
+    error = GetLastError();
+
+    if (ret) {
+      switch (service_status.dwCurrentState) {
+        case SERVICE_STOPPED: _tprintf(_T("SERVICE_STOPPED\n")); break;
+        case SERVICE_START_PENDING: _tprintf(_T("SERVICE_START_PENDING\n")); break;
+        case SERVICE_STOP_PENDING: _tprintf(_T("SERVICE_STOP_PENDING\n")); break;
+        case SERVICE_RUNNING: _tprintf(_T("SERVICE_RUNNING\n")); break;
+        case SERVICE_CONTINUE_PENDING: _tprintf(_T("SERVICE_CONTINUE_PENDING\n")); break;
+        case SERVICE_PAUSE_PENDING: _tprintf(_T("SERVICE_PAUSE_PENDING\n")); break;
+        case SERVICE_PAUSED: _tprintf(_T("SERVICE_PAUSED\n")); break;
+        default: _tprintf(_T("?\n")); return 1;
+      }
+      return 0;
+    }
+    else {
+      _ftprintf(stderr, _T("%s: %s\n"), service_name, error_string(error));
+      return 1;
+    }
+  }
+  else {
+    ret = ControlService(service_handle, control, &service_status);
+    error = GetLastError();
+    CloseHandle(service_handle);
+    CloseServiceHandle(services);
+
+    if (ret) {
+      _tprintf(_T("%s: %s"), canonical_name, error_string(error));
+      return 0;
+    }
+    else {
+      _ftprintf(stderr, _T("%s: %s"), canonical_name, error_string(error));
+      return 1;
+    }
+  }
+}
+
 /* Remove the service */
 int remove_service(nssm_service_t *service) {
   if (! service) return 1;

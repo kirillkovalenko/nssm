@@ -79,7 +79,15 @@ int _tmain(int argc, TCHAR **argv) {
 
   /* Elevate */
   if (argc > 1) {
-    /* Valid commands are install, edit, get, set, reset, unset or remove */
+    /*
+      Valid commands are:
+      start, stop, pause, continue, install, edit, get, set, reset, unset, remove
+    */
+    if (str_equiv(argv[1], _T("start"))) exit(control_service(0, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("stop"))) exit(control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("pause"))) exit(control_service(SERVICE_CONTROL_PAUSE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("continue"))) exit(control_service(SERVICE_CONTROL_CONTINUE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("status"))) exit(control_service(SERVICE_CONTROL_INTERROGATE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("install"))) {
       if (! is_admin) {
         print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL);

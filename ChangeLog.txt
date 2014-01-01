@@ -1,6 +1,6 @@
 Changes since 2.21
 ------------------
-  * Existing services can now be edited using the GUI
+  * Existing services can now be managed using the GUI
     or on the command line.
 
   * NSSM can now optionally rotate existing files when
