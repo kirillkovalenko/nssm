@@ -1,5 +1,6 @@
 #include "nssm.h"
 
+#define NSSM_SOURCE _T("nssm")
 #define NSSM_ERROR_BUFSIZE 65535
 #define NSSM_NUM_EVENT_STRINGS 16
 unsigned long tls_index;
@@ -42,7 +43,7 @@ void log_event(unsigned short type, unsigned long id, ...) {
   TCHAR *strings[NSSM_NUM_EVENT_STRINGS];
 
   /* Open event log */
-  HANDLE handle = RegisterEventSource(0, NSSM);
+  HANDLE handle = RegisterEventSource(0, NSSM_SOURCE);
   if (! handle) return;
 
   /* Log it */

@@ -165,7 +165,7 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
+				PreprocessorDefinitions="_DEBUG;_WIN64"
 				Culture="2057"
 			/>
 			<Tool
@@ -353,7 +353,7 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
+				PreprocessorDefinitions="NDEBUG;_WIN64"
 				Culture="2057"
 			/>
 			<Tool
