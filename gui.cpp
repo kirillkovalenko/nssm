@@ -136,13 +136,13 @@ int nssm_gui(int resource, nssm_service_t *service) {
     TCHAR *env;
     unsigned long envlen;
     if (service->env_extralen) {
-      SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_SETCHECK, BST_CHECKED, 0);
       env = service->env_extra;
       envlen = service->env_extralen;
     }
     else {
       env = service->env;
       envlen = service->envlen;
+      if (envlen) SendDlgItemMessage(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT_REPLACE, BM_SETCHECK, BST_CHECKED, 0);
     }
 
     if (envlen) {
