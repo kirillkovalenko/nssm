@@ -500,8 +500,10 @@ To find out the service name of a service with a display name:
 
 Building NSSM from source
 -------------------------
-NSSM is known to compile with Visual Studio 2008.  Older Visual Studio
-releases may or may not work.
+NSSM is known to compile with Visual Studio 2008 and later.  Older Visual
+Studio releases may or may not work if you install an appropriate SDK and
+edit the nssm.vcproj and nssm.sln files to set a lower version number.
+They are known not to work with default settings.
 
 NSSM will also compile with Visual Studio 2010 but the resulting executable
 will not run on versions of Windows older than XP SP2.  If you require
