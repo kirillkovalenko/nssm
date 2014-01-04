@@ -175,5 +175,44 @@ SOURCE=.\nssm.ico
 SOURCE=.\nssm.rc
 # End Source File
 # End Group
+# Begin Source File
+
+SOURCE=.\messages.mc
+
+!IF  "$(CFG)" == "nssm - Win32 Release"
+
+# Begin Custom Build - Compiling messages
+InputPath=.\messages.mc
+InputName=messages
+
+BuildCmds= \
+	mc -u -U $(InputName).mc -r . -h .
+
+"$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "nssm - Win32 Debug"
+
+# Begin Custom Build - Compiling messages
+InputPath=.\messages.mc
+InputName=messages
+
+BuildCmds= \
+	mc -u -U $(InputName).mc -r . -h .
+
+"$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
 # End Target
 # End Project
