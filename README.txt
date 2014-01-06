@@ -167,7 +167,7 @@ Application priority
 NSSM can set the priority class of the managed application.  NSSM will look in
 the registry under HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters
 for the REG_DWORD entry AppPriority.  Valid values correspond to arguments to
-SetProcessPriorityClass().  If AppPriority() is missing or invalid the
+SetPriorityClass().  If AppPriority() is missing or invalid the
 application will be launched with normal priority.
 
 
