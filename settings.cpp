@@ -145,7 +145,7 @@ static int setting_set_exit_action(const TCHAR *service_name, void *param, const
     if (! _tcsnicmp((const TCHAR *) action_string, exit_action_strings[i], ACTION_LEN)) {
       if (default_value && str_equiv(action_string, (TCHAR *) default_value)) ret = 0;
       if (RegSetValueEx(key, code, 0, REG_SZ, (const unsigned char *) action_string, (unsigned long) (_tcslen(action_string) + 1) * sizeof(TCHAR)) != ERROR_SUCCESS) {
-        print_message(stderr, NSSM_MESSAGE_REGDELETEVALUE_FAILED, code, service_name, error_string(GetLastError()));
+        print_message(stderr, NSSM_MESSAGE_SETVALUE_FAILED, code, service_name, error_string(GetLastError()));
         RegCloseKey(key);
         return -1;
       }
