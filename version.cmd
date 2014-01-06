@@ -33,11 +33,10 @@ if "%commit%" == "prerelease" set flags=VS_FF_PRERELEASE
 if "%BUILD_NUMBER%" == "" set BUILD_NUMBER=0
 
 @rem Copyright year provided by Jenkins.
-if "%BUILD_ID%" == "" (set year=) else (
-  set md=%BUILD_ID:*-=%
-  call set year=%%BUILD_ID:%md%=%%
-  set year=%year:~0,-1%
-)
+set md=%BUILD_ID:*-=%
+call set year=%%BUILD_ID:%md%=%%
+set year=%year:~0,-1%
+if "%BUILD_ID%" == "" set year=
 
 @rem Create version.h.
 @echo>version.h.new #define NSSM_VERSION _T("%description%")
