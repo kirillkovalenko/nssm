@@ -3,6 +3,7 @@
 
 extern const TCHAR *exit_action_strings[];
 extern const TCHAR *startup_strings[];
+extern const TCHAR *priority_strings[];
 
 /* Does the parameter refer to the default value of the AppExit setting? */
 static inline int is_default_exit_action(const TCHAR *value) {
@@ -254,6 +255,56 @@ static int setting_get_environment(const TCHAR *service_name, void *param, const
   ret = value_from_string(name, value, formatted);
   if (newlen) HeapFree(GetProcessHeap(), 0, formatted);
   return ret;
+}
+
+static int setting_set_priority(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = (HKEY) param;
+  if (! param) return -1;
+
+  TCHAR *priority_string;
+  int i;
+  long error;
+
+  if (value && value->string) priority_string = value->string;
+  else if (default_value) priority_string = (TCHAR *) default_value;
+  else {
+    error = RegDeleteValue(key, name);
+    if (error == ERROR_SUCCESS || error == ERROR_FILE_NOT_FOUND) return 0;
+    print_message(stderr, NSSM_MESSAGE_REGDELETEVALUE_FAILED, name, service_name, error_string(error));
+    return -1;
+  }
+
+  for (i = 0; priority_strings[i]; i++) {
+    if (! str_equiv(priority_strings[i], priority_string)) continue;
+
+    if (default_value && str_equiv(priority_string, (TCHAR *) default_value)) {
+      error = RegDeleteValue(key, name);
+      if (error == ERROR_SUCCESS || error == ERROR_FILE_NOT_FOUND) return 0;
+      print_message(stderr, NSSM_MESSAGE_REGDELETEVALUE_FAILED, name, service_name, error_string(error));
+      return -1;
+    }
+
+    if (set_number(key, (TCHAR *) name, priority_index_to_constant(i))) return -1;
+    return 1;
+  }
+
+  print_message(stderr, NSSM_MESSAGE_INVALID_PRIORITY, priority_string);
+  for (i = 0; priority_strings[i]; i++) _ftprintf(stderr, _T("%s\n"), priority_strings[i]);
+
+  return -1;
+}
+
+static int setting_get_priority(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = (HKEY) param;
+  if (! param) return -1;
+
+  unsigned long constant;
+  switch (get_number(key, (TCHAR *) name, &constant, false)) {
+    case 0: return value_from_string(name, value, (const TCHAR *) default_value);
+    case -1: return -1;
+  }
+
+  return value_from_string(name, value, priority_strings[priority_constant_to_index(constant)]);
 }
 
 /* Functions to manage native service settings. */
@@ -650,6 +701,7 @@ settings_t settings[] = {
   { NSSM_REG_EXIT, REG_SZ, (void *) exit_action_strings[NSSM_EXIT_RESTART], false, ADDITIONAL_MANDATORY, setting_set_exit_action, setting_get_exit_action },
   { NSSM_REG_ENV, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
   { NSSM_REG_ENV_EXTRA, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
+  { NSSM_REG_PRIORITY, REG_SZ, (void *) priority_strings[NSSM_NORMAL_PRIORITY], false, 0, setting_set_priority, setting_get_priority },
   { NSSM_REG_STDIN, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string },
   { NSSM_REG_STDIN NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDIN_SHARING, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_STDIN NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDIN_DISPOSITION, false, 0, setting_set_number, setting_get_number },

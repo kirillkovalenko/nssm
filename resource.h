@@ -16,6 +16,7 @@
 #define IDD_SHUTDOWN                    111
 #define IDD_ENVIRONMENT                 112
 #define IDD_NATIVE                      113
+#define IDD_PROCESS                     114
 #define IDC_PATH                        1000
 #define IDC_TAB1                        1001
 #define IDC_CANCEL                      1002
@@ -55,14 +56,15 @@
 #define IDC_USERNAME                    1037
 #define IDC_PASSWORD1                   1038
 #define IDC_PASSWORD2                   1039
+#define IDC_PRIORITY                    1040
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        114
+#define _APS_NEXT_RESOURCE_VALUE        115
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1040
+#define _APS_NEXT_CONTROL_VALUE         1041
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

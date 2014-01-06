@@ -47,6 +47,7 @@ typedef struct {
   unsigned long envlen;
   TCHAR *env_extra;
   unsigned long env_extralen;
+  unsigned long priority;
   TCHAR stdin_path[MAX_PATH];
   unsigned long stdin_sharing;
   unsigned long stdin_disposition;
@@ -91,6 +92,10 @@ void WINAPI service_main(unsigned long, TCHAR **);
 TCHAR *service_control_text(unsigned long);
 void log_service_control(TCHAR *, unsigned long, bool);
 unsigned long WINAPI service_control_handler(unsigned long, unsigned long, void *, void *);
+
+unsigned long priority_mask();
+int priority_constant_to_index(unsigned long);
+unsigned long priority_index_to_constant(int);
 
 nssm_service_t *alloc_nssm_service();
 void set_nssm_service_defaults(nssm_service_t *);

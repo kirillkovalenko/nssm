@@ -53,6 +53,8 @@ Since version 2.19, NSSM can add to the service's environment by setting
 AppEnvironmentExtra in place of or in addition to the srvany-compatible
 AppEnvironment.
 
+Since version 2.22, NSSM can set the managed application's process priority.
+
 Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 
 Since version 2.22, NSSM can set service display name, description, startup
@@ -158,6 +160,15 @@ pre-Vista systems where you wish to apply a service recovery action.  Note
 that if the monitored application exits with code 0, NSSM will only honour a
 request to suicide if you explicitly configure a registry key for exit code 0.
 If only the default action is set to Suicide NSSM will instead exit gracefully.
+
+
+Application priority
+--------------------
+NSSM can set the priority class of the managed application.  NSSM will look in
+the registry under HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters
+for the REG_DWORD entry AppPriority.  Valid values correspond to arguments to
+SetProcessPriorityClass().  If AppPriority() is missing or invalid the
+application will be launched with normal priority.
 
 
 Stopping the service
@@ -382,6 +393,17 @@ exit code of 2, run
     nssm set <servicename> AppExit 2 Exit
 
 
+The AppPriority parameter is used to set the priority class of the
+managed application.  Valid priorities are as follows:
+
+  REALTIME_PRIORITY_CLASS
+  HIGH_PRIORITY_CLASS
+  ABOVE_NORMAL_PRIORITY_CLASS
+  NORMAL_PRIORITY_CLASS
+  BELOW_NORMAL_PRIORITY_CLASS
+  IDLE_PRIORITY_CLASS
+
+
 The Name parameter can only be queried, not set.  It returns the service's
 registry key name.  This may be useful to know if you take advantage of
 the fact that you can substitute the service's display name anywhere where
@@ -537,6 +559,7 @@ Thanks to Russ Holmann for suggesting that the shutdown timeout be configurable.
 Thanks to Paul Spause for spotting a bug with default registry entries.
 Thanks to BUGHUNTER for spotting more GUI bugs.
 Thanks to Doug Watson for suggesting file rotation.
+Thanks to Арслан Сайдуганов for suggesting setting process priority.
 
 Licence
 -------

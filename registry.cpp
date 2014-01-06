@@ -51,6 +51,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
   }
 
   /* Other non-default parameters. May fail. */
+  if (service->priority != NORMAL_PRIORITY_CLASS) set_number(key, NSSM_REG_PRIORITY, service->priority);
+  else if (editing) RegDeleteValue(key, NSSM_REG_PRIORITY);
   unsigned long stop_method_skip = ~service->stop_method;
   if (stop_method_skip) set_number(key, NSSM_REG_STOP_METHOD_SKIP, stop_method_skip);
   else if (editing) RegDeleteValue(key, NSSM_REG_STOP_METHOD_SKIP);
@@ -490,6 +492,13 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
         }
       }
     }
+  }
+
+  /* Try to get priority - may fail. */
+  unsigned long priority;
+  if (get_number(key, NSSM_REG_PRIORITY, &priority) == 1) {
+    if (priority == (priority & priority_mask())) service->priority = priority;
+    else log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_PRIORITY, service->name, NSSM_REG_PRIORITY, 0);
   }
 
   /* Try to get file rotation settings - may fail. */

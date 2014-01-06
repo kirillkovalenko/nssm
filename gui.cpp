@@ -1,6 +1,6 @@
 #include "nssm.h"
 
-static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_PROCESS, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
@@ -92,6 +92,13 @@ int nssm_gui(int resource, nssm_service_t *service) {
     else {
       CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
       if (service->type & SERVICE_INTERACTIVE_PROCESS) SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_SETCHECK, BST_CHECKED, 0);
+    }
+
+    /* Process tab. */
+    if (service->priority) {
+      int priority = priority_constant_to_index(service->priority);
+      combo = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_PRIORITY);
+      SendMessage(combo, CB_SETCURSEL, priority, 0);
     }
 
     /* Shutdown tab. */
@@ -426,6 +433,10 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
 
   /* Remaining tabs are only for services we manage. */
   if (service->native) return 0;
+
+  /* Get process stuff. */
+  combo = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_PRIORITY);
+  service->priority = priority_index_to_constant((unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0));
 
   /* Get stop method stuff. */
   check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
@@ -872,6 +883,23 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
       /* Remaining tabs are only for services we manage. */
       if (service->native) return 1;
+
+      /* Process tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_PROCESS);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_PROCESS, (LPARAM) &tab);
+      tablist[NSSM_TAB_PROCESS] = dialog(MAKEINTRESOURCE(IDD_PROCESS), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_PROCESS], SW_HIDE);
+
+      /* Set defaults. */
+      combo = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_PRIORITY);
+      SendMessage(combo, CB_INSERTSTRING, NSSM_REALTIME_PRIORITY, (LPARAM) message_string(NSSM_GUI_REALTIME_PRIORITY_CLASS));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_HIGH_PRIORITY, (LPARAM) message_string(NSSM_GUI_HIGH_PRIORITY_CLASS));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_ABOVE_NORMAL_PRIORITY, (LPARAM) message_string(NSSM_GUI_ABOVE_NORMAL_PRIORITY_CLASS));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_NORMAL_PRIORITY, (LPARAM) message_string(NSSM_GUI_NORMAL_PRIORITY_CLASS));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_BELOW_NORMAL_PRIORITY, (LPARAM) message_string(NSSM_GUI_BELOW_NORMAL_PRIORITY_CLASS));
+      SendMessage(combo, CB_INSERTSTRING, NSSM_IDLE_PRIORITY, (LPARAM) message_string(NSSM_GUI_IDLE_PRIORITY_CLASS));
+      SendMessage(combo, CB_SETCURSEL, NSSM_NORMAL_PRIORITY, 0);
 
       /* Shutdown tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);

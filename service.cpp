@@ -11,6 +11,33 @@ extern settings_t settings[];
 
 const TCHAR *exit_action_strings[] = { _T("Restart"), _T("Ignore"), _T("Exit"), _T("Suicide"), 0 };
 const TCHAR *startup_strings[] = { _T("SERVICE_AUTO_START"), _T("SERVICE_DELAYED_AUTO_START"), _T("SERVICE_DEMAND_START"), _T("SERVICE_DISABLED"), 0 };
+const TCHAR *priority_strings[] = { _T("REALTIME_PRIORITY_CLASS"), _T("HIGH_PRIORITY_CLASS"), _T("ABOVE_NORMAL_PRIORITY_CLASS"), _T("NORMAL_PRIORITY_CLASS"), _T("BELOW_NORMAL_PRIORITY_CLASS"), _T("IDLE_PRIORITY_CLASS"), 0 };
+
+inline unsigned long priority_mask() {
+ return REALTIME_PRIORITY_CLASS | HIGH_PRIORITY_CLASS | ABOVE_NORMAL_PRIORITY_CLASS | NORMAL_PRIORITY_CLASS | BELOW_NORMAL_PRIORITY_CLASS | IDLE_PRIORITY_CLASS;
+}
+
+int priority_constant_to_index(unsigned long constant) {
+  switch (constant & priority_mask()) {
+    case REALTIME_PRIORITY_CLASS: return NSSM_REALTIME_PRIORITY;
+    case HIGH_PRIORITY_CLASS: return NSSM_HIGH_PRIORITY;
+    case ABOVE_NORMAL_PRIORITY_CLASS: return NSSM_ABOVE_NORMAL_PRIORITY;
+    case BELOW_NORMAL_PRIORITY_CLASS: return NSSM_BELOW_NORMAL_PRIORITY;
+    case IDLE_PRIORITY_CLASS: return NSSM_IDLE_PRIORITY;
+  }
+  return NSSM_NORMAL_PRIORITY;
+}
+
+unsigned long priority_index_to_constant(int index) {
+  switch (index) {
+    case NSSM_REALTIME_PRIORITY: return REALTIME_PRIORITY_CLASS;
+    case NSSM_HIGH_PRIORITY: return HIGH_PRIORITY_CLASS;
+    case NSSM_ABOVE_NORMAL_PRIORITY: return ABOVE_NORMAL_PRIORITY_CLASS;
+    case NSSM_BELOW_NORMAL_PRIORITY: return BELOW_NORMAL_PRIORITY_CLASS;
+    case NSSM_IDLE_PRIORITY: return IDLE_PRIORITY_CLASS;
+  }
+  return NORMAL_PRIORITY_CLASS;
+}
 
 static inline int throttle_milliseconds(unsigned long throttle) {
   /* pow() operates on doubles. */
@@ -413,6 +440,7 @@ void set_nssm_service_defaults(nssm_service_t *service) {
   if (! service) return;
 
   service->type = SERVICE_WIN32_OWN_PROCESS;
+  service->priority = NORMAL_PRIORITY_CLASS;
   service->stdin_sharing = NSSM_STDIN_SHARING;
   service->stdin_disposition = NSSM_STDIN_DISPOSITION;
   service->stdin_flags = NSSM_STDIN_FLAGS;
@@ -1259,7 +1287,7 @@ int start_service(nssm_service_t *service) {
 
   bool inherit_handles = false;
   if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
-  unsigned long flags = 0;
+  unsigned long flags = service->priority & priority_mask();
 #ifdef UNICODE
   flags |= CREATE_UNICODE_ENVIRONMENT;
 #endif
