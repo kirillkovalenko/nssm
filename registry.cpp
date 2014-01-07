@@ -496,7 +496,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
 
   /* Try to get priority - may fail. */
   unsigned long priority;
-  if (get_number(key, NSSM_REG_PRIORITY, &priority) == 1) {
+  if (get_number(key, NSSM_REG_PRIORITY, &priority, false) == 1) {
     if (priority == (priority & priority_mask())) service->priority = priority;
     else log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_PRIORITY, service->name, NSSM_REG_PRIORITY, 0);
   }
