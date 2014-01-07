@@ -13,14 +13,18 @@ int str_equiv(const TCHAR *a, const TCHAR *b) {
 }
 
 /* Convert a string to a number. */
-int str_number(const TCHAR *string, unsigned long *number) {
+int str_number(const TCHAR *string, unsigned long *number, TCHAR **bogus) {
   if (! string) return 1;
 
-  TCHAR *bogus;
-  *number = _tcstoul(string, &bogus, 0);
-  if (*bogus) return 2;
+  *number = _tcstoul(string, bogus, 0);
+  if (**bogus) return 2;
 
   return 0;
+}
+
+int str_number(const TCHAR *string, unsigned long *number) {
+  TCHAR *bogus;
+  return str_number(string, number, &bogus);
 }
 
 /* Remove basename of a path. */
