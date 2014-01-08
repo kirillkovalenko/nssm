@@ -53,6 +53,18 @@ int create_parameters(nssm_service_t *service, bool editing) {
   /* Other non-default parameters. May fail. */
   if (service->priority != NORMAL_PRIORITY_CLASS) set_number(key, NSSM_REG_PRIORITY, service->priority);
   else if (editing) RegDeleteValue(key, NSSM_REG_PRIORITY);
+  if (service->affinity) {
+    TCHAR *string;
+    if (! affinity_mask_to_string(service->affinity, &string)) {
+      if (RegSetValueEx(key, NSSM_REG_AFFINITY, 0, REG_SZ, (const unsigned char *) string, (unsigned long) (_tcslen(string) + 1) * sizeof(TCHAR)) != ERROR_SUCCESS) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, NSSM_REG_AFFINITY, error_string(GetLastError()), 0);
+        HeapFree(GetProcessHeap(), 0, string);
+        return 5;
+      }
+    }
+    if (string) HeapFree(GetProcessHeap(), 0, string);
+  }
+  else if (editing) RegDeleteValue(key, NSSM_REG_AFFINITY);
   unsigned long stop_method_skip = ~service->stop_method;
   if (stop_method_skip) set_number(key, NSSM_REG_STOP_METHOD_SKIP, stop_method_skip);
   else if (editing) RegDeleteValue(key, NSSM_REG_STOP_METHOD_SKIP);
@@ -451,6 +463,32 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
       }
     }
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_DIR, NSSM_REG_DIR, service->name, service->dir, 0);
+  }
+
+  /* Try to get processor affinity - may fail. */
+  TCHAR buffer[512];
+  if (expand_parameter(key, NSSM_REG_AFFINITY, buffer, sizeof(buffer), false, false) || ! buffer[0]) service->affinity = 0LL;
+  else if (affinity_string_to_mask(buffer, &service->affinity)) {
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_AFFINITY_MASK, service->name, buffer);
+    service->affinity = 0LL;
+  }
+  else {
+    DWORD_PTR affinity, system_affinity;
+
+    if (GetProcessAffinityMask(GetCurrentProcess(), &affinity, &system_affinity)) {
+      _int64 effective_affinity = service->affinity & system_affinity;
+      if (effective_affinity != service->affinity) {
+        TCHAR *system = 0;
+        if (! affinity_mask_to_string(system_affinity, &system)) {
+          TCHAR *effective = 0;
+          if (! affinity_mask_to_string(effective_affinity, &effective)) {
+            log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_EFFECTIVE_AFFINITY_MASK, service->name, buffer, system, effective, 0);
+          }
+          HeapFree(GetProcessHeap(), 0, effective);
+        }
+        HeapFree(GetProcessHeap(), 0, system);
+      }
+    }
   }
 
   /* Try to get environment variables - may fail */

@@ -67,6 +67,7 @@ int nssm_gui(int resource, nssm_service_t *service) {
 
     /* Set existing details. */
     HWND combo;
+    HWND list;
 
     /* Application tab. */
     if (service->native) SetDlgItemText(tablist[NSSM_TAB_APPLICATION], IDC_PATH, service->image);
@@ -99,6 +100,21 @@ int nssm_gui(int resource, nssm_service_t *service) {
       int priority = priority_constant_to_index(service->priority);
       combo = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_PRIORITY);
       SendMessage(combo, CB_SETCURSEL, priority, 0);
+    }
+
+    if (service->affinity) {
+      list = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY);
+      SendDlgItemMessage(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY_ALL, BM_SETCHECK, BST_UNCHECKED, 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY), 1);
+
+      DWORD_PTR affinity, system_affinity;
+      if (GetProcessAffinityMask(GetCurrentProcess(), &affinity, &system_affinity)) {
+        if ((service->affinity & (__int64) system_affinity) != service->affinity) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_AFFINITY);
+      }
+
+      for (int i = 0; i < num_cpus(); i++) {
+        if (! (service->affinity & (1LL << (__int64) i))) SendMessage(list, LB_SETSEL, 0, i);
+      }
     }
 
     /* Shutdown tab. */
@@ -228,6 +244,10 @@ static inline void set_logon_enabled(unsigned char enabled) {
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), enabled);
+}
+
+static inline void set_affinity_enabled(unsigned char enabled) {
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY), enabled);
 }
 
 static inline void set_rotation_enabled(unsigned char enabled) {
@@ -437,6 +457,22 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   /* Get process stuff. */
   combo = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_PRIORITY);
   service->priority = priority_index_to_constant((unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0));
+
+  service->affinity = 0LL;
+  if (! (SendDlgItemMessage(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY_ALL, BM_GETCHECK, 0, 0) & BST_CHECKED)) {
+    HWND list = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY);
+    int selected = (int) SendMessage(list, LB_GETSELCOUNT, 0, 0);
+    int count = (int) SendMessage(list, LB_GETCOUNT, 0, 0);
+    if (! selected) {
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_WARN_AFFINITY_NONE);
+      return 5;
+    }
+    else if (selected < count) {
+      for (int i = 0; i < count; i++) {
+        if (SendMessage(list, LB_GETSEL, i, 0)) service->affinity |= (1LL << (__int64) i);
+      }
+    }
+  }
 
   /* Get stop method stuff. */
   check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
@@ -766,6 +802,13 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
           set_logon_enabled(1);
           break;
 
+        /* Affinity. */
+        case IDC_AFFINITY_ALL:
+          if (SendDlgItemMessage(tab, LOWORD(w), BM_GETCHECK, 0, 0) & BST_CHECKED) enabled = 0;
+          else enabled = 1;
+          set_affinity_enabled(enabled);
+          break;
+
         /* Shutdown methods. */
         case IDC_METHOD_CONSOLE:
           set_timeout_enabled(LOWORD(w), IDC_KILL_CONSOLE);
@@ -832,6 +875,8 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
       HWND tabs;
       HWND combo;
+      HWND list;
+      int i, n;
       tabs = GetDlgItem(window, IDC_TAB1);
       if (! tabs) return 0;
 
@@ -900,6 +945,37 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(combo, CB_INSERTSTRING, NSSM_BELOW_NORMAL_PRIORITY, (LPARAM) message_string(NSSM_GUI_BELOW_NORMAL_PRIORITY_CLASS));
       SendMessage(combo, CB_INSERTSTRING, NSSM_IDLE_PRIORITY, (LPARAM) message_string(NSSM_GUI_IDLE_PRIORITY_CLASS));
       SendMessage(combo, CB_SETCURSEL, NSSM_NORMAL_PRIORITY, 0);
+
+      list = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY);
+      n = num_cpus();
+      SendMessage(list, LB_SETCOLUMNWIDTH, 16, 0);
+      for (i = 0; i < n; i++) {
+        TCHAR buffer[3];
+        _sntprintf_s(buffer, _countof(buffer), _TRUNCATE, _T("%d"), i);
+        SendMessage(list, LB_ADDSTRING, 0, (LPARAM) buffer);
+      }
+
+      /*
+        Size to fit.
+        The box is high enough for four rows.  It is wide enough for eight
+        columns without scrolling.  With scrollbars it shrinks to two rows.
+        Note that the above only holds if we set the column width BEFORE
+        adding the strings.
+      */
+      if (n < 32) {
+        int columns = (n - 1) / 4;
+        RECT rect;
+        GetWindowRect(list, &rect);
+        int width = rect.right - rect.left;
+        width -= (7 - columns) * 16;
+        int height = rect.bottom - rect.top;
+        if (n < 4) height -= SendMessage(list, LB_GETITEMHEIGHT, 0, 0) * (4 - n);
+        SetWindowPos(list, 0, 0, 0, width, height, SWP_NOMOVE | SWP_NOOWNERZORDER);
+      }
+      SendMessage(list, LB_SELITEMRANGE, 1, MAKELPARAM(0, n));
+
+      SendDlgItemMessage(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY_ALL, BM_SETCHECK, BST_CHECKED, 0);
+      set_affinity_enabled(0);
 
       /* Shutdown tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_SHUTDOWN);

@@ -44,6 +44,7 @@ typedef struct {
   TCHAR flags[VALUE_LENGTH];
   TCHAR dir[MAX_PATH];
   TCHAR *env;
+  __int64 affinity;
   unsigned long envlen;
   TCHAR *env_extra;
   unsigned long env_extralen;
@@ -93,6 +94,8 @@ TCHAR *service_control_text(unsigned long);
 void log_service_control(TCHAR *, unsigned long, bool);
 unsigned long WINAPI service_control_handler(unsigned long, unsigned long, void *, void *);
 
+int affinity_mask_to_string(__int64, TCHAR **);
+int affinity_string_to_mask(TCHAR *, __int64 *);
 unsigned long priority_mask();
 int priority_constant_to_index(unsigned long);
 unsigned long priority_index_to_constant(int);

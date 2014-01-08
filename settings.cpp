@@ -1,12 +1,15 @@
 #include "nssm.h"
 /* XXX: (value && value->string) is probably bogus because value is probably never null */
 
+/* Affinity. */
+#define NSSM_AFFINITY_ALL _T("All")
+
 extern const TCHAR *exit_action_strings[];
 extern const TCHAR *startup_strings[];
 extern const TCHAR *priority_strings[];
 
-/* Does the parameter refer to the default value of the AppExit setting? */
-static inline int is_default_exit_action(const TCHAR *value) {
+/* Does the parameter refer to the default value of the setting? */
+static inline int is_default(const TCHAR *value) {
   return (str_equiv(value, _T("default")) || str_equiv(value, _T("*")) || ! value[0]);
 }
 
@@ -110,7 +113,7 @@ static int setting_set_exit_action(const TCHAR *service_name, void *param, const
 
   if (additional) {
     /* Default action? */
-    if (is_default_exit_action(additional)) code = 0;
+    if (is_default(additional)) code = 0;
     else {
       if (str_number(additional, &exitcode)) return -1;
       code = (TCHAR *) additional;
@@ -167,7 +170,7 @@ static int setting_get_exit_action(const TCHAR *service_name, void *param, const
   unsigned long *code = 0;
 
   if (additional) {
-    if (! is_default_exit_action(additional)) {
+    if (! is_default(additional)) {
       if (str_number(additional, &exitcode)) return -1;
       code = &exitcode;
     }
@@ -181,6 +184,111 @@ static int setting_get_exit_action(const TCHAR *service_name, void *param, const
 
   if (default_action && ! _tcsnicmp((const TCHAR *) action_string, (TCHAR *) default_value, ACTION_LEN)) return 0;
   return 1;
+}
+
+static int setting_set_affinity(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = (HKEY) param;
+  if (! key) return -1;
+
+  long error;
+  __int64 mask;
+  __int64 system_affinity = 0LL;
+
+  if (value && value->string) {
+    DWORD_PTR affinity;
+    if (! GetProcessAffinityMask(GetCurrentProcess(), &affinity, (DWORD_PTR *) &system_affinity)) system_affinity = ~0;
+
+    if (is_default(value->string) || str_equiv(value->string, NSSM_AFFINITY_ALL)) mask = 0LL;
+    else if (affinity_string_to_mask(value->string, &mask)) {
+      print_message(stderr, NSSM_MESSAGE_BOGUS_AFFINITY_MASK, value->string, num_cpus() - 1);
+      return -1;
+    }
+  }
+  else mask = 0LL;
+
+  if (! mask) {
+    error = RegDeleteValue(key, name);
+    if (error == ERROR_SUCCESS || error == ERROR_FILE_NOT_FOUND) return 0;
+    print_message(stderr, NSSM_MESSAGE_REGDELETEVALUE_FAILED, name, service_name, error_string(error));
+    return -1;
+  }
+
+  /* Canonicalise. */
+  TCHAR *canon = 0;
+  if (affinity_mask_to_string(mask, &canon)) canon = value->string;
+
+  __int64 effective_affinity = mask & system_affinity;
+  if (effective_affinity != mask) {
+    /* Requested CPUs did not intersect with available CPUs? */
+    if (! effective_affinity) mask = effective_affinity = system_affinity;
+
+    TCHAR *system = 0;
+    if (! affinity_mask_to_string(system_affinity, &system)) {
+      TCHAR *effective = 0;
+      if (! affinity_mask_to_string(effective_affinity, &effective)) {
+        print_message(stderr, NSSM_MESSAGE_EFFECTIVE_AFFINITY_MASK, value->string, system, effective);
+        HeapFree(GetProcessHeap(), 0, effective);
+      }
+      HeapFree(GetProcessHeap(), 0, system);
+    }
+  }
+
+  if (RegSetValueEx(key, name, 0, REG_SZ, (const unsigned char *) canon, (unsigned long) (_tcslen(canon) + 1) * sizeof(TCHAR)) != ERROR_SUCCESS) {
+    if (canon != value->string) HeapFree(GetProcessHeap(), 0, canon);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, name, error_string(GetLastError()), 0);
+    return -1;
+  }
+
+  if (canon != value->string) HeapFree(GetProcessHeap(), 0, canon);
+  return 1;
+}
+
+static int setting_get_affinity(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = (HKEY) param;
+  if (! key) return -1;
+
+  unsigned long type;
+  TCHAR *buffer = 0;
+  unsigned long buflen = 0;
+
+  int ret = RegQueryValueEx(key, name, 0, &type, 0, &buflen);
+  if (ret == ERROR_FILE_NOT_FOUND) {
+    if (value_from_string(name, value, NSSM_AFFINITY_ALL) == 1) return 0;
+    return -1;
+  }
+  if (ret != ERROR_SUCCESS) return -1;
+
+  if (type != REG_SZ) return -1;
+
+  buffer = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, buflen);
+  if (! buffer) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("affinity"), _T("setting_get_affinity"));
+    return -1;
+  }
+
+  if (expand_parameter(key, (TCHAR *) name, buffer, buflen, false, true)) {
+    HeapFree(GetProcessHeap(), 0, buffer);
+    return -1;
+  }
+
+  __int64 affinity;
+  if (affinity_string_to_mask(buffer, &affinity)) {
+    print_message(stderr, NSSM_MESSAGE_BOGUS_AFFINITY_MASK, buffer, num_cpus() - 1);
+    HeapFree(GetProcessHeap(), 0, buffer);
+    return -1;
+  }
+
+  HeapFree(GetProcessHeap(), 0, buffer);
+
+  /* Canonicalise. */
+  if (affinity_mask_to_string(affinity, &buffer)) {
+    if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+    return -1;
+  }
+
+  ret = value_from_string(name, value, buffer);
+  HeapFree(GetProcessHeap(), 0, buffer);
+  return ret;
 }
 
 static int setting_set_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
@@ -699,6 +807,7 @@ settings_t settings[] = {
   { NSSM_REG_FLAGS, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
   { NSSM_REG_DIR, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
   { NSSM_REG_EXIT, REG_SZ, (void *) exit_action_strings[NSSM_EXIT_RESTART], false, ADDITIONAL_MANDATORY, setting_set_exit_action, setting_get_exit_action },
+  { NSSM_REG_AFFINITY, REG_SZ, 0, false, 0, setting_set_affinity, setting_get_affinity },
   { NSSM_REG_ENV, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
   { NSSM_REG_ENV_EXTRA, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
   { NSSM_REG_PRIORITY, REG_SZ, (void *) priority_strings[NSSM_NORMAL_PRIORITY], false, 0, setting_set_priority, setting_get_priority },

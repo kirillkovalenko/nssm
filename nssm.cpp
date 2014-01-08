@@ -75,6 +75,13 @@ static void check_console() {
   FreeConsole();
 }
 
+int num_cpus() {
+  DWORD_PTR i, affinity, system_affinity;
+  if (! GetProcessAffinityMask(GetCurrentProcess(), &affinity, &system_affinity)) return 64;
+  for (i = 0; system_affinity & (1LL << i); i++);
+  return (int) i;
+}
+
 int _tmain(int argc, TCHAR **argv) {
   check_console();
 

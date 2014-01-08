@@ -53,7 +53,8 @@ Since version 2.19, NSSM can add to the service's environment by setting
 AppEnvironmentExtra in place of or in addition to the srvany-compatible
 AppEnvironment.
 
-Since version 2.22, NSSM can set the managed application's process priority.
+Since version 2.22, NSSM can set the managed application's process priority
+and CPU affinity.
 
 Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 
@@ -169,6 +170,25 @@ the registry under HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters
 for the REG_DWORD entry AppPriority.  Valid values correspond to arguments to
 SetPriorityClass().  If AppPriority() is missing or invalid the
 application will be launched with normal priority.
+
+
+Processor affinity
+------------------
+NSSM can set the CPU affinity of the managed application.  NSSM will look in
+the registry under HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters
+for the REG_SZ entry AppAffinity.   It should specify a comma-separated listed
+of zero-indexed processor IDs.  A range of processors may optionally be
+specified with a dash.  No other characters are allowed in the string.
+
+For example, to specify the first; second; third and fifth CPUs, an appropriate
+AppAffinity would be 0-2,4.
+
+If AppAffinity is missing or invalid, NSSM will not attempt to restrict the
+application to specific CPUs.
+
+Note that the 64-bit version of NSSM can configure a maximum of 64 CPUs in this
+way and that the 32-bit version can configure a maxium of 32 CPUs even when
+running on 64-bit Windows.
 
 
 Stopping the service
@@ -511,6 +531,10 @@ To configure the server to log to a file:
 
     nssm set UT2004 AppStdout c:\games\ut2004\service.log
 
+To restrict the server to a single CPU:
+
+    nssm set UT2004 AppAffinity 0
+
 To remove the server:
 
     nssm remove UT2004 confirm
@@ -542,7 +566,8 @@ Thanks to Joel Reingold for spotting a command line truncation bug.
 Thanks to Arve Knudsen for spotting that child processes of the monitored
 application could be left running on service shutdown, and that a missing
 registry value for AppDirectory confused NSSM.
-Thanks to Peter Wagemans and Laszlo Keresztfalvi for suggesting throttling restarts.
+Thanks to Peter Wagemans and Laszlo Keresztfalvi for suggesting throttling
+restarts.
 Thanks to Eugene Lifshitz for finding an edge case in CreateProcess() and for
 advising how to build messages.mc correctly in paths containing spaces.
 Thanks to Rob Sharp for pointing out that NSSM did not respect the
@@ -554,12 +579,15 @@ the default language when the user's display language was not translated.
 Thanks to Riccardo Gusmeroli for Italian translation.
 Thanks to Eric Cheldelin for the inspiration to generate a Control-C event
 on shutdown.
-Thanks to Brian Baxter for suggesting how to escape quotes from the command prompt.
+Thanks to Brian Baxter for suggesting how to escape quotes from the command
+prompt.
 Thanks to Russ Holmann for suggesting that the shutdown timeout be configurable.
 Thanks to Paul Spause for spotting a bug with default registry entries.
 Thanks to BUGHUNTER for spotting more GUI bugs.
 Thanks to Doug Watson for suggesting file rotation.
 Thanks to Арслан Сайдуганов for suggesting setting process priority.
+Thanks to Robert Middleton for suggestion and draft implementation of process
+affinity support.
 
 Licence
 -------

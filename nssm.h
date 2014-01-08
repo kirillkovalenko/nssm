@@ -21,6 +21,7 @@ int str_equiv(const TCHAR *, const TCHAR *);
 void strip_basename(TCHAR *);
 int str_number(const TCHAR *, unsigned long *, TCHAR **);
 int str_number(const TCHAR *, unsigned long *);
+int num_cpus();
 int usage(int);
 
 #define NSSM _T("NSSM")

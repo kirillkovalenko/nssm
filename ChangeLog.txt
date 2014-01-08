@@ -3,8 +3,8 @@ Changes since 2.21
   * Existing services can now be managed using the GUI
     or on the command line.
 
-  * NSSM can now set the priority class of the managed
-    application.
+  * NSSM can now set the priority class and processor
+    affinity of the managed application.
 
   * NSSM can now optionally rotate existing files when
     redirecting I/O.
