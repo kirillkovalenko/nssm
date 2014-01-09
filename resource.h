@@ -39,26 +39,27 @@
 #define IDC_BROWSE_STDERR               1020
 #define IDC_THROTTLE                    1021
 #define IDC_APPEXIT                     1022
-#define IDC_DIR                         1023
-#define IDC_BROWSE_DIR                  1024
-#define IDC_ENVIRONMENT                 1025
-#define IDC_ENVIRONMENT_REPLACE         1026
-#define IDC_TRUNCATE                    1027
-#define IDC_ROTATE                      1028
-#define IDC_ROTATE_SECONDS              1029
-#define IDC_ROTATE_BYTES_LOW            1030
-#define IDC_DISPLAYNAME                 1031
-#define IDC_DESCRIPTION                 1032
-#define IDC_STARTUP                     1033
-#define IDC_LOCALSYSTEM                 1034
-#define IDC_INTERACT                    1035
-#define IDC_ACCOUNT                     1036
-#define IDC_USERNAME                    1037
-#define IDC_PASSWORD1                   1038
-#define IDC_PASSWORD2                   1039
-#define IDC_PRIORITY                    1040
-#define IDC_AFFINITY_ALL                1041
-#define IDC_AFFINITY                    1042
+#define IDC_RESTART_DELAY               1023
+#define IDC_DIR                         1024
+#define IDC_BROWSE_DIR                  1025
+#define IDC_ENVIRONMENT                 1026
+#define IDC_ENVIRONMENT_REPLACE         1027
+#define IDC_TRUNCATE                    1028
+#define IDC_ROTATE                      1029
+#define IDC_ROTATE_SECONDS              1030
+#define IDC_ROTATE_BYTES_LOW            1031
+#define IDC_DISPLAYNAME                 1032
+#define IDC_DESCRIPTION                 1033
+#define IDC_STARTUP                     1034
+#define IDC_LOCALSYSTEM                 1035
+#define IDC_INTERACT                    1036
+#define IDC_ACCOUNT                     1037
+#define IDC_USERNAME                    1038
+#define IDC_PASSWORD1                   1039
+#define IDC_PASSWORD2                   1040
+#define IDC_PRIORITY                    1041
+#define IDC_AFFINITY_ALL                1042
+#define IDC_AFFINITY                    1043
 
 // Next default values for new objects
 // 
@@ -66,7 +67,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        115
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1043
+#define _APS_NEXT_CONTROL_VALUE         1044
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

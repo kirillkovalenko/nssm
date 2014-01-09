@@ -6,6 +6,9 @@ Changes since 2.21
   * NSSM can now set the priority class and processor
     affinity of the managed application.
 
+  * NSSM can now apply an unconditional delay before
+    restarting the application.
+
   * NSSM can now optionally rotate existing files when
     redirecting I/O.
 

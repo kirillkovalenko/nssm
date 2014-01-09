@@ -8,6 +8,7 @@
 #define NSSM_REG_ENV _T("AppEnvironment")
 #define NSSM_REG_ENV_EXTRA _T("AppEnvironmentExtra")
 #define NSSM_REG_EXIT _T("AppExit")
+#define NSSM_REG_RESTART_DELAY _T("AppRestartDelay")
 #define NSSM_REG_THROTTLE _T("AppThrottle")
 #define NSSM_REG_STOP_METHOD_SKIP _T("AppStopMethodSkip")
 #define NSSM_REG_KILL_CONSOLE_GRACE_PERIOD _T("AppStopMethodConsole")

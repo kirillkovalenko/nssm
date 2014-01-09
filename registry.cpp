@@ -69,6 +69,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
   if (stop_method_skip) set_number(key, NSSM_REG_STOP_METHOD_SKIP, stop_method_skip);
   else if (editing) RegDeleteValue(key, NSSM_REG_STOP_METHOD_SKIP);
   if (service->default_exit_action < NSSM_NUM_EXIT_ACTIONS) create_exit_action(service->name, exit_action_strings[service->default_exit_action], editing);
+  if (service->restart_delay) set_number(key, NSSM_REG_RESTART_DELAY, service->restart_delay);
+  else if (editing) RegDeleteValue(key, NSSM_REG_RESTART_DELAY);
   if (service->throttle_delay != NSSM_RESET_THROTTLE_RESTART) set_number(key, NSSM_REG_THROTTLE, service->throttle_delay);
   else if (editing) RegDeleteValue(key, NSSM_REG_THROTTLE);
   if (service->kill_console_delay != NSSM_KILL_CONSOLE_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, service->kill_console_delay);
@@ -565,6 +567,9 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
 
   /* Change back in case the startup directory needs to be deleted. */
   SetCurrentDirectory(cwd);
+
+  /* Try to get mandatory restart delay */
+  override_milliseconds(service->name, key, NSSM_REG_RESTART_DELAY, &service->restart_delay, 0, NSSM_EVENT_BOGUS_RESTART_DELAY);
 
   /* Try to get throttle restart delay */
   override_milliseconds(service->name, key, NSSM_REG_THROTTLE, &service->throttle_delay, NSSM_RESET_THROTTLE_RESTART, NSSM_EVENT_BOGUS_THROTTLE);

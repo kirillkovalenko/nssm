@@ -141,6 +141,7 @@ int nssm_gui(int resource, nssm_service_t *service) {
     SetDlgItemInt(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, service->throttle_delay, 0);
     combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
     SendMessage(combo, CB_SETCURSEL, service->default_exit_action, 0);
+    SetDlgItemInt(tablist[NSSM_TAB_EXIT], IDC_RESTART_DELAY, service->restart_delay, 0);
 
     /* I/O tab. */
     SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDIN, service->stdin_path);
@@ -488,6 +489,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   combo = GetDlgItem(tablist[NSSM_TAB_EXIT], IDC_APPEXIT);
   service->default_exit_action = (unsigned long) SendMessage(combo, CB_GETCURSEL, 0, 0);
   if (service->default_exit_action == CB_ERR) service->default_exit_action = 0;
+  check_number(tablist[NSSM_TAB_EXIT], IDC_RESTART_DELAY, &service->restart_delay);
 
   /* Get I/O stuff. */
   check_io(window, _T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
@@ -1008,6 +1010,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(combo, CB_INSERTSTRING, NSSM_EXIT_REALLY, (LPARAM) message_string(NSSM_GUI_EXIT_REALLY));
       SendMessage(combo, CB_INSERTSTRING, NSSM_EXIT_UNCLEAN, (LPARAM) message_string(NSSM_GUI_EXIT_UNCLEAN));
       SendMessage(combo, CB_SETCURSEL, NSSM_EXIT_RESTART, 0);
+      SetDlgItemInt(tablist[NSSM_TAB_EXIT], IDC_RESTART_DELAY, 0, 0);
 
       /* I/O tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_IO);

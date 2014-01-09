@@ -811,6 +811,7 @@ settings_t settings[] = {
   { NSSM_REG_ENV, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
   { NSSM_REG_ENV_EXTRA, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
   { NSSM_REG_PRIORITY, REG_SZ, (void *) priority_strings[NSSM_NORMAL_PRIORITY], false, 0, setting_set_priority, setting_get_priority },
+  { NSSM_REG_RESTART_DELAY, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_STDIN, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string },
   { NSSM_REG_STDIN NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDIN_SHARING, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_STDIN NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDIN_DISPOSITION, false, 0, setting_set_number, setting_get_number },

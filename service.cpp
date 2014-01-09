@@ -162,9 +162,9 @@ unsigned long priority_index_to_constant(int index) {
   return NORMAL_PRIORITY_CLASS;
 }
 
-static inline int throttle_milliseconds(unsigned long throttle) {
+static inline unsigned long throttle_milliseconds(unsigned long throttle) {
   /* pow() operates on doubles. */
-  int ret = 1; for (unsigned long i = 1; i < throttle; i++) ret *= 2;
+  unsigned long ret = 1; for (unsigned long i = 1; i < throttle; i++) ret *= 2;
   return ret * 1000;
 }
 
@@ -1490,6 +1490,9 @@ int start_service(nssm_service_t *service) {
     else service->throttle = 0;
   }
 
+  /* Ensure the restart delay is always applied. */
+  if (service->restart_delay && ! service->throttle) service->throttle++;
+
   return 0;
 }
 
@@ -1632,14 +1635,22 @@ void throttle_restart(nssm_service_t *service) {
   /* This can't be a restart if the service is already running. */
   if (! service->throttle++) return;
 
-  int ms = throttle_milliseconds(service->throttle);
+  unsigned long ms;
+  unsigned long throttle_ms = throttle_milliseconds(service->throttle);
+  TCHAR threshold[8], milliseconds[8];
+
+  if (service->restart_delay > throttle_ms) ms = service->restart_delay;
+  else ms = throttle_ms;
 
   if (service->throttle > 7) service->throttle = 8;
 
-  TCHAR threshold[8], milliseconds[8];
-  _sntprintf_s(threshold, _countof(threshold), _TRUNCATE, _T("%lu"), service->throttle_delay);
   _sntprintf_s(milliseconds, _countof(milliseconds), _TRUNCATE, _T("%lu"), ms);
-  log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service->name, threshold, milliseconds, 0);
+
+  if (service->throttle == 1 && service->restart_delay > throttle_ms) log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_RESTART_DELAY, service->name, milliseconds, 0);
+  else {
+    _sntprintf_s(threshold, _countof(threshold), _TRUNCATE, _T("%lu"), service->throttle_delay);
+    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_THROTTLED, service->name, threshold, milliseconds, 0);
+  }
 
   if (use_critical_section) EnterCriticalSection(&service->throttle_section);
   else if (service->throttle_timer) {

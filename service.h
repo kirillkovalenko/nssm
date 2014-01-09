@@ -66,6 +66,7 @@ typedef struct {
   unsigned long rotate_bytes_low;
   unsigned long rotate_bytes_high;
   unsigned long default_exit_action;
+  unsigned long restart_delay;
   unsigned long throttle_delay;
   unsigned long stop_method;
   unsigned long kill_console_delay;

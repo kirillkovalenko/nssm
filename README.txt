@@ -56,6 +56,9 @@ AppEnvironment.
 Since version 2.22, NSSM can set the managed application's process priority
 and CPU affinity.
 
+Since version 2.22, NSSM can apply an unconditional delay before restarting
+an application which has exited.
+
 Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 
 Since version 2.22, NSSM can set service display name, description, startup
@@ -128,6 +131,17 @@ By default, NSSM defines "a timely manner" to be within 1500 milliseconds.
 You can change the threshold for the service by setting the number of
 milliseconds as a REG_DWORD value in the registry at
 HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppThrottle.
+
+Alternatively, NSSM can pause for a configurable amount of time before
+attempting to restart the application even if it successfully ran for the
+amount of time specified by AppThrottle.  NSSM will consult the REG_DWORD value
+at HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppRestartDelay
+for the number of milliseconds to wait before attempting a restart.  If
+AppRestartDelay is set and the application is determined to be subject to
+throttling, NSSM will pause the service for whichever is longer of the
+configured restart delay and the calculated throttle period.
+
+If AppRestartDelay is missing or invalid, only throttling will be applied.
 
 NSSM will look in the registry under
 HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppExit for
@@ -588,6 +602,7 @@ Thanks to Doug Watson for suggesting file rotation.
 Thanks to Арслан Сайдуганов for suggesting setting process priority.
 Thanks to Robert Middleton for suggestion and draft implementation of process
 affinity support.
+Thanks to Andrew RedzMax for suggesting an unconditional restart delay.
 
 Licence
 -------
