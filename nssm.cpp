@@ -85,6 +85,15 @@ int num_cpus() {
 int _tmain(int argc, TCHAR **argv) {
   check_console();
 
+#ifdef UNICODE
+  /*
+    Ensure we write in UTF-16 mode, so that non-ASCII characters don't get
+    mangled.  If we were compiled in ANSI mode it won't work.
+   */
+  _setmode(_fileno(stdout), _O_U16TEXT);
+  _setmode(_fileno(stderr), _O_U16TEXT);
+#endif
+
   /* Remember if we are admin */
   check_admin();
 

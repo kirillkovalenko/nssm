@@ -2,6 +2,8 @@
 #define NSSM_H
 
 #define _WIN32_WINNT 0x0500
+#include <fcntl.h>
+#include <io.h>
 #include <shlwapi.h>
 #include <stdarg.h>
 #include <stdio.h>
