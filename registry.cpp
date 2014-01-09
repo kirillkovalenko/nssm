@@ -500,38 +500,63 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
 
   if (si) {
     if (service->env_extra) {
-      /* Append these to any other environment variables set. */
+      TCHAR *env;
+      unsigned long envlen;
+
+      /* Copy our environment for the application. */
+      if (! service->env) {
+        TCHAR *rawenv = GetEnvironmentStrings();
+        env = rawenv;
+        if (env) {
+          /*
+            The environment block starts with variables of the form
+            =C:=C:\Windows\System32 which we ignore.
+          */
+          while (*env == _T('=')) {
+            for ( ; *env; env++);
+            env++;
+          }
+          envlen = 0;
+          if (*env) {
+            while (true) {
+              for ( ; env[envlen]; envlen++);
+              if (! env[++envlen]) break;
+            }
+            envlen++;
+
+            service->envlen = envlen * sizeof(TCHAR);
+            service->env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->envlen);
+            memmove(service->env, env, service->envlen);
+            FreeEnvironmentStrings(rawenv);
+          }
+        }
+      }
+
+      /* Append extra variables to configured variables. */
       if (service->env) {
-        /* Append extra variables to configured variables. */
-        unsigned long envlen = service->envlen + service->env_extralen - 1;
-        TCHAR *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, envlen);
+        envlen = service->envlen + service->env_extralen - sizeof(TCHAR)/*?*/;
+        env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, envlen);
         if (env) {
           memmove(env, service->env, service->envlen - sizeof(TCHAR));
-          /* envlen is in bytes. */
+          /* envlen is in bytes but env[i] is in characters. */
           memmove(env + (service->envlen / sizeof(TCHAR)) - 1, service->env_extra, service->env_extralen);
 
           HeapFree(GetProcessHeap(), 0, service->env);
+          HeapFree(GetProcessHeap(), 0, service->env_extra);
           service->env = env;
           service->envlen = envlen;
         }
         else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("get_parameters()"), 0);
       }
       else {
-        /* Append extra variables to our environment. */
-        TCHAR *env, *s;
-        size_t envlen, len;
-
-        env = service->env_extra;
-        len = 0;
-        while (*env) {
-          envlen = _tcslen(env) + 1;
-          for (s = env; *s && *s != _T('='); s++);
-          if (*s == _T('=')) *s++ = _T('\0');
-          if (! SetEnvironmentVariable(env, s)) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETENVIRONMENTVARIABLE_FAILED, env, s, error_string(GetLastError()), 0);
-          env += envlen;
-        }
+        /* Huh?  No environment at all? */
+        service->env = service->env_extra;
+        service->envlen = service->env_extralen;
       }
     }
+
+    service->env_extra = 0;
+    service->env_extralen = 0;
   }
 
   /* Try to get priority - may fail. */
