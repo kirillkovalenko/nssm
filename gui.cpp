@@ -971,7 +971,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
         int width = rect.right - rect.left;
         width -= (7 - columns) * 16;
         int height = rect.bottom - rect.top;
-        if (n < 4) height -= SendMessage(list, LB_GETITEMHEIGHT, 0, 0) * (4 - n);
+        if (n < 4) height -= (int) SendMessage(list, LB_GETITEMHEIGHT, 0, 0) * (4 - n);
         SetWindowPos(list, 0, 0, 0, width, height, SWP_NOMOVE | SWP_NOOWNERZORDER);
       }
       SendMessage(list, LB_SELITEMRANGE, 1, MAKELPARAM(0, n));
