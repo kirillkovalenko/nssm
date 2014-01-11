@@ -46,20 +46,21 @@
 #define IDC_ENVIRONMENT_REPLACE         1027
 #define IDC_TRUNCATE                    1028
 #define IDC_ROTATE                      1029
-#define IDC_ROTATE_SECONDS              1030
-#define IDC_ROTATE_BYTES_LOW            1031
-#define IDC_DISPLAYNAME                 1032
-#define IDC_DESCRIPTION                 1033
-#define IDC_STARTUP                     1034
-#define IDC_LOCALSYSTEM                 1035
-#define IDC_INTERACT                    1036
-#define IDC_ACCOUNT                     1037
-#define IDC_USERNAME                    1038
-#define IDC_PASSWORD1                   1039
-#define IDC_PASSWORD2                   1040
-#define IDC_PRIORITY                    1041
-#define IDC_AFFINITY_ALL                1042
-#define IDC_AFFINITY                    1043
+#define IDC_ROTATE_ONLINE               1030
+#define IDC_ROTATE_SECONDS              1031
+#define IDC_ROTATE_BYTES_LOW            1032
+#define IDC_DISPLAYNAME                 1033
+#define IDC_DESCRIPTION                 1034
+#define IDC_STARTUP                     1035
+#define IDC_LOCALSYSTEM                 1036
+#define IDC_INTERACT                    1037
+#define IDC_ACCOUNT                     1038
+#define IDC_USERNAME                    1039
+#define IDC_PASSWORD1                   1040
+#define IDC_PASSWORD2                   1041
+#define IDC_PRIORITY                    1042
+#define IDC_AFFINITY_ALL                1043
+#define IDC_AFFINITY                    1044
 
 // Next default values for new objects
 // 
@@ -67,7 +68,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        115
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1044
+#define _APS_NEXT_CONTROL_VALUE         1045
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

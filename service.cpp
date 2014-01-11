@@ -1431,7 +1431,7 @@ int start_service(nssm_service_t *service) {
 
   if (get_process_creation_time(service->process_handle, &service->creation_time)) ZeroMemory(&service->creation_time, sizeof(service->creation_time));
 
-  close_output_handles(&si);
+  close_output_handles(&si, ! service->rotate_stdout_online, ! service->rotate_stderr_online);
 
   if (service->affinity) {
     /*

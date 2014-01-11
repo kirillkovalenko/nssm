@@ -830,6 +830,7 @@ settings_t settings[] = {
   { NSSM_REG_KILL_THREADS_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_THREADS_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_THROTTLE, REG_DWORD, (void *) NSSM_RESET_THROTTLE_RESTART, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_ROTATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
+  { NSSM_REG_ROTATE_ONLINE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_ROTATE_SECONDS, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_ROTATE_BYTES_LOW, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_ROTATE_BYTES_HIGH, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },

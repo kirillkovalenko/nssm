@@ -152,9 +152,11 @@ int nssm_gui(int resource, nssm_service_t *service) {
     if (service->stdout_disposition == CREATE_ALWAYS) SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_SETCHECK, BST_CHECKED, 0);
     if (service->rotate_files) {
       SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_SETCHECK, BST_CHECKED, 0);
+      EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE), 1);
       EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS), 1);
       EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW), 1);
     }
+    if (service->rotate_stdout_online || service->rotate_stderr_online) SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE, BM_SETCHECK, BST_CHECKED, 0);
     SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, service->rotate_seconds, 0);
     if (! service->rotate_bytes_high) SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, service->rotate_bytes_low, 0);
 
@@ -252,6 +254,7 @@ static inline void set_affinity_enabled(unsigned char enabled) {
 }
 
 static inline void set_rotation_enabled(unsigned char enabled) {
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE), enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS), enabled);
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW), enabled);
 }
@@ -505,6 +508,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   /* Get rotation stuff. */
   if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
     service->rotate_files = true;
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE, BM_GETCHECK, 0, 0) & BST_CHECKED) service->rotate_stdout_online = service->rotate_stderr_online = true;
     check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
     check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
   }
@@ -1027,6 +1031,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       ShowWindow(tablist[NSSM_TAB_ROTATION], SW_HIDE);
 
       /* Set defaults. */
+      SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE, BM_SETCHECK, BST_UNCHECKED, 0);
       SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, 0, 0);
       SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, 0, 0);
       set_rotation_enabled(0);

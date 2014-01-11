@@ -314,6 +314,15 @@ Rotation is independent of the CreateFile() parameters used to open the files.
 They will be rotated regardless of whether NSSM would otherwise have appended
 or replaced them.
 
+NSSM can also rotate files which hit the configured size threshold while the
+service is running.  To enable this feature, set AppRotateOnline to a non-zero
+value.
+
+Note that online rotation requires NSSM to intercept the application's I/O
+and create the output files on its behalf.  This is more complex and
+error-prone than simply redirecting the I/O streams before launching the
+application.  Therefore online rotation is not enabled by default.
+
 
 Environment variables
 ---------------------

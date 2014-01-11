@@ -111,6 +111,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
   }
   if (service->rotate_files) set_number(key, NSSM_REG_ROTATE, 1);
   else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE);
+  if (service->rotate_stdout_online) set_number(key, NSSM_REG_ROTATE_ONLINE, 1);
+  else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_ONLINE);
   if (service->rotate_seconds) set_number(key, NSSM_REG_ROTATE_SECONDS, service->rotate_seconds);
   else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_SECONDS);
   if (service->rotate_bytes_low) set_number(key, NSSM_REG_ROTATE_BYTES_LOW, service->rotate_bytes_low);
@@ -573,6 +575,11 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
     else service->rotate_files = false;
   }
   else service->rotate_files = false;
+  if (get_number(key, NSSM_REG_ROTATE_ONLINE, &rotate_files, false) == 1) {
+    if (rotate_files) service->rotate_stdout_online = service->rotate_stderr_online = true;
+    else service->rotate_stdout_online = service->rotate_stderr_online = false;
+  }
+  else service->rotate_stdout_online = service->rotate_stderr_online = false;
   if (get_number(key, NSSM_REG_ROTATE_SECONDS, &service->rotate_seconds, false) != 1) service->rotate_seconds = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_LOW, &service->rotate_bytes_low, false) != 1) service->rotate_bytes_low = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_HIGH, &service->rotate_bytes_high, false) != 1) service->rotate_bytes_high = 0;

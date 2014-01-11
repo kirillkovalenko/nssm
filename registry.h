@@ -21,6 +21,7 @@
 #define NSSM_REG_STDIO_DISPOSITION _T("CreationDisposition")
 #define NSSM_REG_STDIO_FLAGS _T("FlagsAndAttributes")
 #define NSSM_REG_ROTATE _T("AppRotateFiles")
+#define NSSM_REG_ROTATE_ONLINE _T("AppRotateOnline")
 #define NSSM_REG_ROTATE_SECONDS _T("AppRotateSeconds")
 #define NSSM_REG_ROTATE_BYTES_LOW _T("AppRotateBytes")
 #define NSSM_REG_ROTATE_BYTES_HIGH _T("AppRotateBytesHigh")
