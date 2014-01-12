@@ -508,7 +508,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   /* Get rotation stuff. */
   if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
     service->rotate_files = true;
-    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE, BM_GETCHECK, 0, 0) & BST_CHECKED) service->rotate_stdout_online = service->rotate_stderr_online = true;
+    if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_ONLINE, BM_GETCHECK, 0, 0) & BST_CHECKED) service->rotate_stdout_online = service->rotate_stderr_online = NSSM_ROTATE_ONLINE;
     check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
     check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
   }

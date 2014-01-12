@@ -108,6 +108,7 @@ int _tmain(int argc, TCHAR **argv) {
     if (str_equiv(argv[1], _T("pause"))) exit(control_service(SERVICE_CONTROL_PAUSE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("continue"))) exit(control_service(SERVICE_CONTROL_CONTINUE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("status"))) exit(control_service(SERVICE_CONTROL_INTERROGATE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("rotate"))) exit(control_service(NSSM_SERVICE_CONTROL_ROTATE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("install"))) {
       if (! is_admin) {
         print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL);

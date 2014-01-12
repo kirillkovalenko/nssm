@@ -242,7 +242,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
 
     /* Try online rotation only if a size threshold is set. */
     logger_t *stdout_logger = 0;
-    if (service->rotate_files && service->rotate_stdout_online && size.QuadPart) {
+    if (service->rotate_files && service->rotate_stdout_online) {
       stdout_logger = (logger_t *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(logger_t));
       if (stdout_logger) {
         /* Pipe between application's stdout and our logging handle. */
@@ -256,6 +256,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
           stdout_logger->write_handle = stdout_handle;
           stdout_logger->size = (__int64) size.QuadPart;
           stdout_logger->tid_ptr = &service->stdout_tid;
+          stdout_logger->rotate_online = &service->rotate_stdout_online;
 
           /* Logging thread. */
           service->stdout_thread = create_logging_thread(stdout_logger);
@@ -283,7 +284,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
         return 4;
       }
-      service->rotate_stdout_online = false;
+      service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
     }
 
     set_flags = true;
@@ -321,7 +322,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
 
       /* Try online rotation only if a size threshold is set. */
       logger_t *stderr_logger = 0;
-      if (service->rotate_files && service->rotate_stderr_online && size.QuadPart) {
+      if (service->rotate_files && service->rotate_stderr_online) {
         stderr_logger = (logger_t *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(logger_t));
         if (stderr_logger) {
           /* Pipe between application's stderr and our logging handle. */
@@ -335,6 +336,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
             stderr_logger->write_handle = stderr_handle;
             stderr_logger->size = (__int64) size.QuadPart;
             stderr_logger->tid_ptr = &service->stderr_tid;
+            stderr_logger->rotate_online = &service->rotate_stderr_online;
 
             /* Logging thread. */
             service->stderr_thread = create_logging_thread(stderr_logger);
@@ -362,7 +364,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
           log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDERR, error_string(GetLastError()), 0);
           return 7;
         }
-        service->rotate_stderr_online = false;
+        service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
       }
     }
 
@@ -510,7 +512,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
     }
     else if (ret) continue;
 
-    if (size + (__int64) in >= logger->size) {
+    if (*logger->rotate_online == NSSM_ROTATE_ONLINE_ASAP || (logger->size && size + (__int64) in >= logger->size)) {
       /* Look for newline. */
       unsigned long i;
       for (i = 0; i < in; i++) {
@@ -527,6 +529,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
           size += (__int64) out;
 
           /* Rotate. */
+          *logger->rotate_online = NSSM_ROTATE_ONLINE;
           TCHAR rotated[MAX_PATH];
           rotated_filename(logger->path, rotated, _countof(rotated), 0);
 

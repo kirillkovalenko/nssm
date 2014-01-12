@@ -315,7 +315,17 @@ They will be rotated regardless of whether NSSM would otherwise have appended
 or replaced them.
 
 NSSM can also rotate files which hit the configured size threshold while the
-service is running.  To enable this feature, set AppRotateOnline to a non-zero
+service is running.  Additionally, you can trigger an on-demand rotation by
+running the command
+
+    nssm rotate <servicename>
+
+On-demand rotations will happen after the next line of data is read from
+the managed application, regardless of the value of AppRotateBytes. Be aware
+that if the application is not particularly verbose the rotation may not
+happen for some time.
+
+To enable online and on-demand rotation, set AppRotateOnline to a non-zero
 value.
 
 Note that online rotation requires NSSM to intercept the application's I/O

@@ -1281,6 +1281,7 @@ TCHAR *service_control_text(unsigned long control) {
     case SERVICE_CONTROL_PAUSE: return _T("PAUSE");
     case SERVICE_CONTROL_CONTINUE: return _T("CONTINUE");
     case SERVICE_CONTROL_INTERROGATE: return _T("INTERROGATE");
+    case NSSM_SERVICE_CONTROL_ROTATE: return _T("ROTATE");
     default: return 0;
   }
 }
@@ -1368,6 +1369,12 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
       */
       log_service_control(service->name, control, false);
       return ERROR_CALL_NOT_IMPLEMENTED;
+
+    case NSSM_SERVICE_CONTROL_ROTATE:
+      log_service_control(service->name, control, true);
+      if (service->rotate_stdout_online) service->rotate_stdout_online = NSSM_ROTATE_ONLINE_ASAP;
+      if (service->rotate_stdout_online) service->rotate_stderr_online = NSSM_ROTATE_ONLINE_ASAP;
+      return NO_ERROR;
   }
 
   /* Unknown control */

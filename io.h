@@ -21,6 +21,7 @@ typedef struct {
   HANDLE write_handle;
   __int64 size;
   unsigned long *tid_ptr;
+  unsigned long *rotate_online;
 } logger_t;
 
 int get_createfile_parameters(HKEY, TCHAR *, TCHAR *, unsigned long *, unsigned long, unsigned long *, unsigned long, unsigned long *, unsigned long);

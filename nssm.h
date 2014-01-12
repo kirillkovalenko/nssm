@@ -95,4 +95,7 @@ int usage(int);
 /* How many milliseconds to wait before updating service status. */
 #define NSSM_SERVICE_STATUS_DEADLINE 20000
 
+/* User-defined service controls can be in the range 128-255. */
+#define NSSM_SERVICE_CONTROL_ROTATE 128
+
 #endif

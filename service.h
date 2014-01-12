@@ -28,6 +28,10 @@
 #define NSSM_SHARE_INTERACTIVE_PROCESS NSSM_WIN32_SHARE_PROCESS _T("|") NSSM_INTERACTIVE_PROCESS
 #define NSSM_UNKNOWN _T("?")
 
+#define NSSM_ROTATE_OFFLINE 0
+#define NSSM_ROTATE_ONLINE 1
+#define NSSM_ROTATE_ONLINE_ASAP 2
+
 typedef struct {
   bool native;
   TCHAR name[SERVICE_NAME_LENGTH];
@@ -68,8 +72,8 @@ typedef struct {
   HANDLE stderr_thread;
   unsigned long stderr_tid;
   bool rotate_files;
-  bool rotate_stdout_online;
-  bool rotate_stderr_online;
+  unsigned long rotate_stdout_online;
+  unsigned long rotate_stderr_online;
   unsigned long rotate_seconds;
   unsigned long rotate_bytes_low;
   unsigned long rotate_bytes_high;
