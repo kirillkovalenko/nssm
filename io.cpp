@@ -395,7 +395,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
     size = l.QuadPart;
   }
 
-  char buffer[80];
+  char buffer[1024];
   void *address;
   unsigned long in, out;
   while (true) {
