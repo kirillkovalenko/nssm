@@ -1,15 +1,23 @@
 #include "nssm.h"
 
+#define COMPLAINED_READ (1 << 0)
+#define COMPLAINED_WRITE (1 << 1)
+#define COMPLAINED_ROTATE (1 << 2)
+
 static HANDLE create_logging_thread(logger_t *logger) {
   HANDLE thread_handle = CreateThread(NULL, 0, log_and_rotate, (void *) logger, 0, logger->tid_ptr);
   if (! thread_handle) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETHREAD_FAILED, error_string(GetLastError()), 0);
   return thread_handle;
 }
 
-static inline void write_bom(logger_t *logger) {
+static inline unsigned long guess_charsize(void *address, unsigned long bufsize) {
+  if (IsTextUnicode(address, bufsize, 0)) return (unsigned long) sizeof(wchar_t);
+  else return (unsigned long) sizeof(char);
+}
+
+static inline void write_bom(logger_t *logger, unsigned long *out) {
   wchar_t bom = L'\ufeff';
-  unsigned long out;
-  if (! WriteFile(logger->write_handle, (void *) &bom, sizeof(bom), &out, 0)) {
+  if (! WriteFile(logger->write_handle, (void *) &bom, sizeof(bom), out, 0)) {
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SOMEBODY_SET_UP_US_THE_BOM, logger->service_name, logger->path, error_string(GetLastError()), 0);
   }
 }
@@ -180,9 +188,13 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
   rotated_filename(path, rotated, _countof(rotated), &st);
 
   /* Rotate. */
-  if (MoveFile(path, rotated)) return;
+  if (MoveFile(path, rotated)) {
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ROTATED, service_name, path, rotated, 0);
+    return;
+  }
   error = GetLastError();
 
+  if (error == ERROR_FILE_NOT_FOUND) return;
   log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, service_name, path, _T("MoveFile()"), rotated, error_string(error), 0);
   return;
 }
@@ -378,6 +390,91 @@ void close_output_handles(STARTUPINFO *si) {
   return close_output_handles(si, true, true);
 }
 
+/*
+  Try multiple times to read from a file.
+  Returns:  0 on success.
+            1 on non-fatal error.
+           -1 on fatal error.
+*/
+static int try_read(logger_t *logger, void *address, unsigned long bufsize, unsigned long *in, int *complained) {
+  int ret = 1;
+  unsigned long error;
+  for (int tries = 0; tries < 5; tries++) {
+    if (ReadFile(logger->read_handle, address, bufsize, in, 0)) return 0;
+
+    error = GetLastError();
+    switch (error) {
+      /* Other end closed the pipe. */
+      case ERROR_BROKEN_PIPE:
+        ret = -1;
+        goto complain_read;
+
+      /* Couldn't lock the buffer. */
+      case ERROR_NOT_ENOUGH_QUOTA:
+        Sleep(2000 + tries * 3000);
+        ret = 1;
+        continue;
+
+      /* Write was cancelled by the other end. */
+      case ERROR_OPERATION_ABORTED:
+        ret = 1;
+        goto complain_read;
+
+      default:
+        ret = -1;
+    }
+  }
+
+complain_read:
+  if (! (*complained & COMPLAINED_READ)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_READFILE_FAILED, logger->service_name, logger->path, error_string(error), 0);
+  *complained |= COMPLAINED_READ;
+  return ret;
+}
+
+/*
+  Try multiple times to write to a file.
+  Returns:  0 on success.
+            1 on non-fatal error.
+           -1 on fatal error.
+*/
+static int try_write(logger_t *logger, void *address, unsigned long bufsize, unsigned long *out, int *complained) {
+  int ret = 1;
+  unsigned long error;
+  for (int tries = 0; tries < 5; tries++) {
+    if (WriteFile(logger->write_handle, address, bufsize, out, 0)) return 0;
+
+    error = GetLastError();
+    if (error == ERROR_IO_PENDING) {
+      /* Operation was successful pending flush to disk. */
+      return 0;
+    }
+
+    switch (error) {
+      /* Other end closed the pipe. */
+      case ERROR_BROKEN_PIPE:
+        ret = -1;
+        goto complain_write;
+
+      /* Couldn't lock the buffer. */
+      case ERROR_NOT_ENOUGH_QUOTA:
+      /* Out of disk space. */
+      case ERROR_DISK_FULL:
+        Sleep(2000 + tries * 3000);
+        ret = 1;
+        continue;
+
+      default:
+        /* We'll lose this line but try to read and write subsequent ones. */
+        ret = 1;
+    }
+  }
+
+complain_write:
+  if (! (*complained & COMPLAINED_WRITE)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_WRITEFILE_FAILED, logger->service_name, logger->path, error_string(error), 0);
+  *complained |= COMPLAINED_WRITE;
+  return ret;
+}
+
 /* Wrapper to be called in a new thread for logging. */
 unsigned long WINAPI log_and_rotate(void *arg) {
   logger_t *logger = (logger_t *) arg;
@@ -398,28 +495,36 @@ unsigned long WINAPI log_and_rotate(void *arg) {
   char buffer[1024];
   void *address;
   unsigned long in, out;
+  unsigned long charsize = 0;
+  unsigned long error;
+  int ret;
+  int complained = 0;
+
   while (true) {
     /* Read data from the pipe. */
     address = &buffer;
-    if (! ReadFile(logger->read_handle, address, sizeof(buffer), &in, 0)) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_READFILE_FAILED, logger->service_name, logger->path, error_string(GetLastError()), 0);
+    ret = try_read(logger, address, sizeof(buffer), &in, &complained);
+    if (ret < 0) {
+      HeapFree(GetProcessHeap(), 0, logger);
       return 2;
     }
+    else if (ret) continue;
 
     if (size + (__int64) in >= logger->size) {
       /* Look for newline. */
       unsigned long i;
       for (i = 0; i < in; i++) {
         if (buffer[i] == '\n') {
-          unsigned char unicode = IsTextUnicode(address, sizeof(buffer), 0);
-          if (unicode) i += sizeof(wchar_t);
-          else i += sizeof(char);
+          if (! charsize) charsize = guess_charsize(address, in);
+          i += charsize;
 
           /* Write up to the newline. */
-          if (! WriteFile(logger->write_handle, address, i, &out, 0)) {
-            log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_WRITEFILE_FAILED, logger->service_name, logger->path, error_string(GetLastError()), 0);
+          ret = try_write(logger, address, i, &out, &complained);
+          if (ret < 0) {
+            HeapFree(GetProcessHeap(), 0, logger);
             return 3;
           }
+          size += (__int64) out;
 
           /* Rotate. */
           TCHAR rotated[MAX_PATH];
@@ -431,10 +536,15 @@ unsigned long WINAPI log_and_rotate(void *arg) {
             risk losing everything.
           */
           CloseHandle(logger->write_handle);
-          if (! MoveFile(logger->path, rotated)) {
-            unsigned long error = GetLastError();
+          if (MoveFile(logger->path, rotated)) {
+            log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ROTATED, logger->service_name, logger->path, rotated, 0);
+            size = 0LL;
+          }
+          else {
+            error = GetLastError();
             if (error != ERROR_FILE_NOT_FOUND) {
-              log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, logger->service_name, logger->path, _T("MoveFile()"), rotated, error_string(error), 0);
+              if (! (complained & COMPLAINED_ROTATE)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, logger->service_name, logger->path, _T("MoveFile()"), rotated, error_string(error), 0);
+              complained |= COMPLAINED_ROTATE;
               /* We can at least try to re-open the existing file. */
               logger->disposition = OPEN_ALWAYS;
             }
@@ -443,36 +553,38 @@ unsigned long WINAPI log_and_rotate(void *arg) {
           /* Reopen. */
           logger->write_handle = append_to_file(logger->path, logger->sharing, 0, logger->disposition, logger->flags);
           if (! logger->write_handle) {
-            log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, logger->path, error_string(GetLastError()), 0);
+            error = GetLastError();
+            log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, logger->path, error_string(error), 0);
             /* Oh dear.  Now we can't log anything further. */
+            HeapFree(GetProcessHeap(), 0, logger);
             return 4;
           }
 
-          /* Unicode files need a new BOM. */
-          if (unicode) write_bom(logger);
-
           /* Resume writing after the newline. */
-          size = 0LL;
           address = (void *) ((char *) address + i);
           in -= i;
-
-          break;
         }
       }
     }
-    else if (! size) {
+
+    if (! size) {
       /* Write a BOM to the new file. */
-      if (IsTextUnicode(address, sizeof(buffer), 0)) write_bom(logger);
+      if (! charsize) charsize = guess_charsize(address, in);
+      if (charsize == sizeof(wchar_t)) write_bom(logger, &out);
+      size += (__int64) out;
     }
 
-    /* Write the data. */
-    if (! WriteFile(logger->write_handle, address, in, &out, 0)) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_WRITEFILE_FAILED, logger->service_name, logger->path, error_string(GetLastError()), 0);
+    /* Write the data, if any. */
+    if (! in) continue;
+
+    ret = try_write(logger, address, in, &out, &complained);
+    size += (__int64) out;
+    if (ret < 0) {
+      HeapFree(GetProcessHeap(), 0, logger);
       return 3;
     }
-
-    size += (__int64) out;
   }
 
+  HeapFree(GetProcessHeap(), 0, logger);
   return 0;
 }
