@@ -290,7 +290,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   }
 
   /* stderr */
-  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stdout_sharing, NSSM_STDERR_SHARING, &service->stdout_disposition, NSSM_STDERR_DISPOSITION, &service->stdout_flags, NSSM_STDERR_FLAGS)) {
+  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stderr_sharing, NSSM_STDERR_SHARING, &service->stderr_disposition, NSSM_STDERR_DISPOSITION, &service->stderr_flags, NSSM_STDERR_FLAGS)) {
     service->stderr_sharing = service->stderr_disposition = service->stderr_flags = 0;
     ZeroMemory(service->stderr_path, _countof(service->stderr_path) * sizeof(TCHAR));
     return 5;
@@ -313,7 +313,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
     }
     else if (si) {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
-      HANDLE stderr_handle = append_to_file(service->stderr_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
+      HANDLE stderr_handle = append_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (! stderr_handle) {
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stderr_path, error_string(GetLastError()), 0);
         return 7;
