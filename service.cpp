@@ -1474,7 +1474,7 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
     case NSSM_SERVICE_CONTROL_ROTATE:
       log_service_control(service->name, control, true);
       if (service->rotate_stdout_online) service->rotate_stdout_online = NSSM_ROTATE_ONLINE_ASAP;
-      if (service->rotate_stdout_online) service->rotate_stderr_online = NSSM_ROTATE_ONLINE_ASAP;
+      if (service->rotate_stderr_online) service->rotate_stderr_online = NSSM_ROTATE_ONLINE_ASAP;
       return NO_ERROR;
   }
 
