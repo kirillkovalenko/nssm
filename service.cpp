@@ -701,14 +701,20 @@ int pre_edit_service(int argc, TCHAR **argv) {
       for (i = 0; settings[i].name; i++) _ftprintf(stderr, _T("%s\n"), settings[i].name);
       return 1;
     }
-    if (argc < mandatory) return usage(1);
 
     additional = 0;
     if (additional_mandatory) {
+      if (argc < mandatory) {
+        print_message(stderr, NSSM_MESSAGE_MISSING_SUBPARAMETER, parameter);
+        return 1;
+      }
       additional = argv[3];
       remainder = 4;
     }
-    else additional = argv[remainder];
+    else {
+      additional = argv[remainder];
+      if (argc < mandatory) return usage(1);
+    }
   }
 
   nssm_service_t *service = alloc_nssm_service();
