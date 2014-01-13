@@ -276,18 +276,22 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
     HANDLE stdout_handle = append_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (! stdout_handle) return 4;
 
-    /* Try online rotation only if a size threshold is set. */
     if (service->rotate_files && service->rotate_stdout_online) {
       service->stdout_pipe = si->hStdOutput = 0;
       service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &si->hStdOutput, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, &service->stdout_tid, &service->rotate_stdout_online);
-
       if (! service->stdout_thread) {
-        if (! DuplicateHandle(GetCurrentProcess(), stdout_handle, GetCurrentProcess(), &si->hStdOutput, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
-          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
-          return 4;
-        }
-        service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
+        CloseHandle(service->stdout_pipe);
+        CloseHandle(si->hStdOutput);
       }
+    }
+    else service->stdout_thread = 0;
+
+    if (! service->stdout_thread) {
+      if (! DuplicateHandle(GetCurrentProcess(), stdout_handle, GetCurrentProcess(), &si->hStdOutput, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
+        return 4;
+      }
+      service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
     }
 
     set_flags = true;
@@ -323,14 +327,19 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       if (service->rotate_files && service->rotate_stderr_online) {
         service->stderr_pipe = si->hStdError = 0;
         service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &si->hStdError, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, &service->stderr_tid, &service->rotate_stderr_online);
-
         if (! service->stderr_thread) {
-          if (! DuplicateHandle(GetCurrentProcess(), stderr_handle, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
-            log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDERR, error_string(GetLastError()), 0);
-            return 7;
-          }
-          service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
+          CloseHandle(service->stderr_pipe);
+          CloseHandle(si->hStdError);
         }
+      }
+      else service->stderr_thread = 0;
+
+      if (! service->stderr_thread) {
+        if (! DuplicateHandle(GetCurrentProcess(), stderr_handle, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
+          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDERR, error_string(GetLastError()), 0);
+          return 7;
+        }
+        service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
       }
 
       set_flags = true;
@@ -390,8 +399,8 @@ static int try_read(logger_t *logger, void *address, unsigned long bufsize, unsi
   }
 
 complain_read:
-  /* Ignore the error if we've been requested to exit for rotation anyway. */
-  if (*logger->rotate_online == NSSM_ROTATE_ONLINE_ASAP) return ret;
+  /* Ignore the error if we've been requested to exit anyway. */
+  if (*logger->rotate_online != NSSM_ROTATE_ONLINE) return ret;
   if (! (*complained & COMPLAINED_READ)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_READFILE_FAILED, logger->service_name, logger->path, error_string(error), 0);
   *complained |= COMPLAINED_READ;
   return ret;

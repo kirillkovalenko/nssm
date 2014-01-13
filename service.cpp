@@ -1612,6 +1612,8 @@ int stop_service(nssm_service_t *service, unsigned long exitcode, bool graceful,
     service->wait_handle = 0;
   }
 
+  service->rotate_stdout_online = service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
+
   if (default_action && ! exitcode && ! graceful) {
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_GRACEFUL_SUICIDE, service->name, service->exe, exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_UNCLEAN], exit_action_strings[NSSM_EXIT_REALLY], 0);
     graceful = true;
@@ -1658,6 +1660,8 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   if (service->stopping) return;
 
   service->stopping = true;
+
+  service->rotate_stdout_online = service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
 
   /* Check exit code */
   unsigned long exitcode = 0;
