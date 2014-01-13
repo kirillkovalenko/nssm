@@ -18,6 +18,85 @@ typedef struct {
   int last;
 } list_t;
 
+/*
+  Check the status in response to a control.
+  Returns:  1 if the status is expected, eg STOP following CONTROL_STOP.
+            0 if the status is desired, eg STOPPED following CONTROL_STOP.
+           -1 if the status is undesired, eg STOPPED following CONTROL_START.
+*/
+static inline int service_control_response(unsigned long control, unsigned long status) {
+  switch (control) {
+    case NSSM_SERVICE_CONTROL_START:
+      switch (status) {
+        case SERVICE_START_PENDING:
+          return 1;
+
+        case SERVICE_RUNNING:
+          return 0;
+
+        default:
+          return -1;
+      }
+
+    case SERVICE_CONTROL_STOP:
+    case SERVICE_CONTROL_SHUTDOWN:
+      switch (status) {
+        case SERVICE_STOP_PENDING:
+          return 1;
+
+        case SERVICE_STOPPED:
+          return 0;
+
+        default:
+          return -1;
+      }
+
+    case SERVICE_CONTROL_PAUSE:
+      switch (status) {
+        case SERVICE_PAUSE_PENDING:
+          return 1;
+
+        case SERVICE_PAUSED:
+          return 0;
+
+        default:
+          return -1;
+      }
+
+    case SERVICE_CONTROL_CONTINUE:
+      switch (status) {
+        case SERVICE_CONTINUE_PENDING:
+          return 1;
+
+        case SERVICE_RUNNING:
+          return 0;
+
+        default:
+          return -1;
+      }
+
+    case SERVICE_CONTROL_INTERROGATE:
+      return 0;
+  }
+
+  return 0;
+}
+
+static inline int await_service_control_response(unsigned long control, SC_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long initial_status) {
+  int tries = 0;
+  while (QueryServiceStatus(service_handle, service_status)) {
+    int response = service_control_response(control, service_status->dwCurrentState);
+    /* Alas we can't WaitForSingleObject() on an SC_HANDLE. */
+    if (! response) return response;
+    if (response > 0 || service_status->dwCurrentState == initial_status) {
+      if (++tries > 10) return response;
+      Sleep(50 * tries);
+    }
+    else return response;
+  }
+  return -1;
+}
+
 int affinity_mask_to_string(__int64 mask, TCHAR **string) {
   if (! string) return 1;
   if (! mask) {
@@ -1060,32 +1139,35 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
   unsigned long error;
   SERVICE_STATUS service_status;
   if (control == NSSM_SERVICE_CONTROL_START) {
+    unsigned long initial_status = SERVICE_STOPPED;
     ret = StartService(service_handle, (unsigned long) argc, (const TCHAR **) argv);
     error = GetLastError();
-    CloseHandle(service_handle);
     CloseServiceHandle(services);
 
     if (error == ERROR_IO_PENDING) {
       /*
         Older versions of Windows return immediately with ERROR_IO_PENDING
         indicate that the operation is still in progress.  Newer versions
-        will return it if there really is a delay.  As far as we're
-        concerned the operation is a success.  We don't claim to offer a
-        fully-feature service control method; it's just a quick 'n' dirty
-        interface.
-
-        In the future we may identify and handle this situation properly.
+        will return it if there really is a delay.
       */
       ret = 1;
       error = ERROR_SUCCESS;
     }
 
     if (ret) {
-      _tprintf(_T("%s: %s"), canonical_name, error_string(error));
+      int response = await_service_control_response(control, service_handle, &service_status, initial_status);
+      CloseHandle(service_handle);
+
+      if (response) {
+        print_message(stderr, NSSM_MESSAGE_BAD_CONTROL_RESPONSE, canonical_name, service_status_text(service_status.dwCurrentState), service_control_text(control));
+        return 1;
+      }
+      else _tprintf(_T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       return 0;
     }
     else {
-      _ftprintf(stderr, _T("%s: %s"), canonical_name, error_string(error));
+      CloseHandle(service_handle);
+      _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       return 1;
     }
   }
@@ -1099,16 +1181,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     error = GetLastError();
 
     if (ret) {
-      switch (service_status.dwCurrentState) {
-        case SERVICE_STOPPED: _tprintf(_T("SERVICE_STOPPED\n")); break;
-        case SERVICE_START_PENDING: _tprintf(_T("SERVICE_START_PENDING\n")); break;
-        case SERVICE_STOP_PENDING: _tprintf(_T("SERVICE_STOP_PENDING\n")); break;
-        case SERVICE_RUNNING: _tprintf(_T("SERVICE_RUNNING\n")); break;
-        case SERVICE_CONTINUE_PENDING: _tprintf(_T("SERVICE_CONTINUE_PENDING\n")); break;
-        case SERVICE_PAUSE_PENDING: _tprintf(_T("SERVICE_PAUSE_PENDING\n")); break;
-        case SERVICE_PAUSED: _tprintf(_T("SERVICE_PAUSED\n")); break;
-        default: _tprintf(_T("?\n")); return 1;
-      }
+      _tprintf(_T("%s\n"), service_status_text(service_status.dwCurrentState));
       return 0;
     }
     else {
@@ -1118,8 +1191,8 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
   }
   else {
     ret = ControlService(service_handle, control, &service_status);
+    unsigned long initial_status = service_status.dwCurrentState;
     error = GetLastError();
-    CloseHandle(service_handle);
     CloseServiceHandle(services);
 
     if (error == ERROR_IO_PENDING) {
@@ -1128,11 +1201,19 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     }
 
     if (ret) {
-      _tprintf(_T("%s: %s"), canonical_name, error_string(error));
+      int response = await_service_control_response(control, service_handle, &service_status, initial_status);
+      CloseHandle(service_handle);
+
+      if (response) {
+        print_message(stderr, NSSM_MESSAGE_BAD_CONTROL_RESPONSE, canonical_name, service_status_text(service_status.dwCurrentState), service_control_text(control));
+        return 1;
+      }
+      else _tprintf(_T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       return 0;
     }
     else {
-      _ftprintf(stderr, _T("%s: %s"), canonical_name, error_string(error));
+      CloseHandle(service_handle);
+      _ftprintf(stderr, _T("%s: %s %s"), canonical_name, service_control_text(control), error_string(error));
       return 1;
     }
   }
