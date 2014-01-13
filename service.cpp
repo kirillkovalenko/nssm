@@ -1456,7 +1456,8 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
         ZeroMemory(&service->throttle_duetime, sizeof(service->throttle_duetime));
         SetWaitableTimer(service->throttle_timer, &service->throttle_duetime, 0, 0, 0, 0);
       }
-      service->status.dwCurrentState = SERVICE_CONTINUE_PENDING;
+      /* We can't continue if the application is running! */
+      if (! service->process_handle) service->status.dwCurrentState = SERVICE_CONTINUE_PENDING;
       service->status.dwWaitHint = throttle_milliseconds(service->throttle) + NSSM_WAITHINT_MARGIN;
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_RESET_THROTTLE, service->name, 0);
       SetServiceStatus(service->status_handle, &service->status);
