@@ -1473,8 +1473,8 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
 
     case NSSM_SERVICE_CONTROL_ROTATE:
       log_service_control(service->name, control, true);
-      if (service->rotate_stdout_online) service->rotate_stdout_online = NSSM_ROTATE_ONLINE_ASAP;
-      if (service->rotate_stderr_online) service->rotate_stderr_online = NSSM_ROTATE_ONLINE_ASAP;
+      if (service->rotate_stdout_online == NSSM_ROTATE_ONLINE) service->rotate_stdout_online = NSSM_ROTATE_ONLINE_ASAP;
+      if (service->rotate_stderr_online == NSSM_ROTATE_ONLINE) service->rotate_stderr_online = NSSM_ROTATE_ONLINE_ASAP;
       return NO_ERROR;
   }
 
@@ -1539,7 +1539,7 @@ int start_service(nssm_service_t *service) {
 
   if (get_process_creation_time(service->process_handle, &service->creation_time)) ZeroMemory(&service->creation_time, sizeof(service->creation_time));
 
-  close_output_handles(&si, ! service->rotate_stdout_online, ! service->rotate_stderr_online);
+  close_output_handles(&si);
 
   if (service->affinity) {
     /*
