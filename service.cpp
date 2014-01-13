@@ -1292,6 +1292,19 @@ TCHAR *service_control_text(unsigned long control) {
   }
 }
 
+TCHAR *service_status_text(unsigned long status) {
+  switch (status) {
+    case SERVICE_STOPPED: return _T("SERVICE_STOPPED");
+    case SERVICE_START_PENDING: return _T("SERVICE_START_PENDING");
+    case SERVICE_STOP_PENDING: return _T("SERVICE_STOP_PENDING");
+    case SERVICE_RUNNING: return _T("SERVICE_RUNNING");
+    case SERVICE_CONTINUE_PENDING: return _T("SERVICE_CONTINUE_PENDING");
+    case SERVICE_PAUSE_PENDING: return _T("SERVICE_PAUSE_PENDING");
+    case SERVICE_PAUSED: return _T("SERVICE_PAUSED");
+    default: return 0;
+  }
+}
+
 void log_service_control(TCHAR *service_name, unsigned long control, bool handled) {
   TCHAR *text = service_control_text(control);
   unsigned long event;
