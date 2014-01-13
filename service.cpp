@@ -1213,7 +1213,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     }
     else {
       CloseHandle(service_handle);
-      _ftprintf(stderr, _T("%s: %s %s"), canonical_name, service_control_text(control), error_string(error));
+      _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       return 1;
     }
   }
