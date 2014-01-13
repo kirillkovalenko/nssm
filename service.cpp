@@ -1059,7 +1059,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
   int ret;
   unsigned long error;
   SERVICE_STATUS service_status;
-  if (control == 0) {
+  if (control == NSSM_SERVICE_CONTROL_START) {
     ret = StartService(service_handle, (unsigned long) argc, (const TCHAR **) argv);
     error = GetLastError();
     CloseHandle(service_handle);
@@ -1281,7 +1281,7 @@ int monitor_service(nssm_service_t *service) {
 TCHAR *service_control_text(unsigned long control) {
   switch (control) {
     /* HACK: there is no SERVICE_CONTROL_START constant */
-    case 0: return _T("START");
+    case NSSM_SERVICE_CONTROL_START: return _T("START");
     case SERVICE_CONTROL_STOP: return _T("STOP");
     case SERVICE_CONTROL_SHUTDOWN: return _T("SHUTDOWN");
     case SERVICE_CONTROL_PAUSE: return _T("PAUSE");

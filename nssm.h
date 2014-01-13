@@ -96,6 +96,7 @@ int usage(int);
 #define NSSM_SERVICE_STATUS_DEADLINE 20000
 
 /* User-defined service controls can be in the range 128-255. */
+#define NSSM_SERVICE_CONTROL_START 0
 #define NSSM_SERVICE_CONTROL_ROTATE 128
 
 #endif
