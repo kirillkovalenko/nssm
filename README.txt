@@ -514,6 +514,8 @@ NSSM offers rudimentary service control features.
 
     nssm start <servicename>
 
+    nssm restart <servicename>
+
     nssm stop <servicename>
 
     nssm status <servicename>

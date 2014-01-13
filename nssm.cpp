@@ -105,6 +105,11 @@ int _tmain(int argc, TCHAR **argv) {
     */
     if (str_equiv(argv[1], _T("start"))) exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("stop"))) exit(control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("restart"))) {
+      int ret = control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2);
+      if (ret) exit(ret);
+      exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
+    }
     if (str_equiv(argv[1], _T("pause"))) exit(control_service(SERVICE_CONTROL_PAUSE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("continue"))) exit(control_service(SERVICE_CONTROL_CONTINUE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("status"))) exit(control_service(SERVICE_CONTROL_INTERROGATE, argc - 2, argv + 2));
