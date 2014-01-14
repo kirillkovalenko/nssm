@@ -281,10 +281,10 @@ int unformat_environment(TCHAR *env, unsigned long envlen, TCHAR **unformatted, 
   return 0;
 }
 
-int expand_parameter(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool sanitise, bool must_exist) {
+int get_string(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool expand, bool sanitise, bool must_exist) {
   TCHAR *buffer = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, datalen);
   if (! buffer) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, _T("expand_parameter()"), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, _T("get_string()"), 0);
     return 1;
   }
 
@@ -309,6 +309,11 @@ int expand_parameter(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen,
   /* Paths aren't allowed to contain quotes. */
   if (sanitise) PathUnquoteSpaces(buffer);
 
+  /* Do we want to expand the string? */
+  if (! expand) {
+    if (type == REG_EXPAND_SZ) type = REG_SZ;
+  }
+
   /* Technically we shouldn't expand environment strings from REG_SZ values */
   if (type != REG_EXPAND_SZ) {
     memmove(data, buffer, buflen);
@@ -327,6 +332,14 @@ int expand_parameter(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen,
   return 0;
 }
 
+int get_string(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool sanitise) {
+  return get_string(key, value, data, datalen, false, sanitise, true);
+}
+
+int expand_parameter(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool sanitise, bool must_exist) {
+  return get_string(key, value, data, datalen, true, sanitise, must_exist);
+}
+
 int expand_parameter(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool sanitise) {
   return expand_parameter(key, value, data, datalen, sanitise, true);
 }
@@ -336,9 +349,20 @@ int expand_parameter(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen,
   Returns: 0 if it was set.
            1 on error.
 */
-int set_expand_string(HKEY key, TCHAR *value, TCHAR *string) {
-  if (RegSetValueEx(key, value, 0, REG_EXPAND_SZ, (const unsigned char *) string, (unsigned long) (_tcslen(string) + 1) * sizeof(TCHAR)) == ERROR_SUCCESS) return 0;
+int set_string(HKEY key, TCHAR *value, TCHAR *string, bool expand) {
+  unsigned long type = expand ? REG_EXPAND_SZ : REG_SZ;
+  if (RegSetValueEx(key, value, 0, type, (const unsigned char *) string, (unsigned long) (_tcslen(string) + 1) * sizeof(TCHAR)) == ERROR_SUCCESS) return 0;
   log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETVALUE_FAILED, value, error_string(GetLastError()), 0);
+  return 1;
+}
+
+int set_string(HKEY key, TCHAR *value, TCHAR *string) {
+  return set_string(key, value, string, false);
+  return 1;
+}
+
+int set_expand_string(HKEY key, TCHAR *value, TCHAR *string) {
+  return set_string(key, value, string, true);
   return 1;
 }
 
