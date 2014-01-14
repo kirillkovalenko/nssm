@@ -101,7 +101,7 @@ static int setting_get_string(const TCHAR *service_name, void *param, const TCHA
   HKEY key = (HKEY) param;
   TCHAR buffer[VALUE_LENGTH];
 
-  if (expand_parameter(key, (TCHAR *) name, (TCHAR *) buffer, (unsigned long) sizeof(buffer), false, false)) return -1;
+  if (get_string(key, (TCHAR *) name, (TCHAR *) buffer, (unsigned long) sizeof(buffer), false, false, false)) return -1;
 
   return value_from_string(name, value, buffer);
 }
@@ -266,7 +266,7 @@ static int setting_get_affinity(const TCHAR *service_name, void *param, const TC
     return -1;
   }
 
-  if (expand_parameter(key, (TCHAR *) name, buffer, buflen, false, true)) {
+  if (get_string(key, (TCHAR *) name, buffer, buflen, false, false, true)) {
     HeapFree(GetProcessHeap(), 0, buffer);
     return -1;
   }
