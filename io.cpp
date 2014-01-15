@@ -71,7 +71,7 @@ int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned lon
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, prefix, _T("get_createfile_parameters()"), 0);
     return 1;
   }
-  switch (expand_parameter(key, value, path, MAX_PATH, true, false)) {
+  switch (expand_parameter(key, value, path, PATH_LENGTH, true, false)) {
     case 0: if (! path[0]) return 0; break; /* OK. */
     default: return 2; /* Error. */
   }
@@ -165,10 +165,10 @@ static void rotated_filename(TCHAR *path, TCHAR *rotated, unsigned long rotated_
     GetSystemTime(st);
   }
 
-  TCHAR buffer[MAX_PATH];
+  TCHAR buffer[PATH_LENGTH];
   memmove(buffer, path, sizeof(buffer));
   TCHAR *ext = PathFindExtension(buffer);
-  TCHAR extension[MAX_PATH];
+  TCHAR extension[PATH_LENGTH];
   _sntprintf_s(extension, _countof(extension), _TRUNCATE, _T("-%04u%02u%02uT%02u%02u%02u.%03u%s"), st->wYear, st->wMonth, st->wDay, st->wHour, st->wMinute, st->wSecond, st->wMilliseconds, ext);
   *ext = _T('\0');
   _sntprintf_s(rotated, rotated_len, _TRUNCATE, _T("%s%s"), buffer, extension);
@@ -227,7 +227,7 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
   /* Get new filename. */
   FileTimeToSystemTime(&info.ftLastWriteTime, &st);
 
-  TCHAR rotated[MAX_PATH];
+  TCHAR rotated[PATH_LENGTH];
   rotated_filename(path, rotated, _countof(rotated), &st);
 
   /* Rotate. */
@@ -507,7 +507,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
 
           /* Rotate. */
           *logger->rotate_online = NSSM_ROTATE_ONLINE;
-          TCHAR rotated[MAX_PATH];
+          TCHAR rotated[PATH_LENGTH];
           rotated_filename(logger->path, rotated, _countof(rotated), 0);
 
           /*

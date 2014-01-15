@@ -6,16 +6,16 @@
 /*
   MSDN says the commandline in CreateProcess() is limited to 32768 characters
   and the application name to MAX_PATH.
+  A service name and service display name are limited to 256 characters.
   A registry key is limited to 255 characters.
   A registry value is limited to 16383 characters.
   Therefore we limit the service name to accommodate the path under HKLM.
 */
-#define EXE_LENGTH MAX_PATH
+#define EXE_LENGTH PATH_LENGTH
 #define CMD_LENGTH 32768
 #define KEY_LENGTH 255
 #define VALUE_LENGTH 16383
-#define SERVICE_NAME_LENGTH KEY_LENGTH - 55
-#define SERVICE_DISPLAYNAME_LENGTH 256
+#define SERVICE_NAME_LENGTH 256
 
 #define ACTION_LEN 16
 
@@ -35,7 +35,7 @@
 typedef struct {
   bool native;
   TCHAR name[SERVICE_NAME_LENGTH];
-  TCHAR displayname[SERVICE_DISPLAYNAME_LENGTH];
+  TCHAR displayname[SERVICE_NAME_LENGTH];
   TCHAR description[VALUE_LENGTH];
   unsigned long startup;
   TCHAR *username;
@@ -43,28 +43,28 @@ typedef struct {
   TCHAR *password;
   size_t passwordlen;
   unsigned long type;
-  TCHAR image[MAX_PATH];
+  TCHAR image[PATH_LENGTH];
   TCHAR exe[EXE_LENGTH];
   TCHAR flags[VALUE_LENGTH];
-  TCHAR dir[MAX_PATH];
+  TCHAR dir[DIR_LENGTH];
   TCHAR *env;
   __int64 affinity;
   unsigned long envlen;
   TCHAR *env_extra;
   unsigned long env_extralen;
   unsigned long priority;
-  TCHAR stdin_path[MAX_PATH];
+  TCHAR stdin_path[PATH_LENGTH];
   unsigned long stdin_sharing;
   unsigned long stdin_disposition;
   unsigned long stdin_flags;
-  TCHAR stdout_path[MAX_PATH];
+  TCHAR stdout_path[PATH_LENGTH];
   unsigned long stdout_sharing;
   unsigned long stdout_disposition;
   unsigned long stdout_flags;
   HANDLE stdout_pipe;
   HANDLE stdout_thread;
   unsigned long stdout_tid;
-  TCHAR stderr_path[MAX_PATH];
+  TCHAR stderr_path[PATH_LENGTH];
   unsigned long stderr_sharing;
   unsigned long stderr_disposition;
   unsigned long stderr_flags;

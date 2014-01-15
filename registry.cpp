@@ -17,7 +17,7 @@ int create_messages() {
   }
 
   /* Get path of this program */
-  TCHAR path[MAX_PATH];
+  TCHAR path[PATH_LENGTH];
   GetModuleFileName(0, path, _countof(path));
 
   /* Try to register the module but don't worry so much on failure */
@@ -609,7 +609,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   if (get_number(key, NSSM_REG_ROTATE_BYTES_HIGH, &service->rotate_bytes_high, false) != 1) service->rotate_bytes_high = 0;
 
   /* Change to startup directory in case stdout/stderr are relative paths. */
-  TCHAR cwd[MAX_PATH];
+  TCHAR cwd[PATH_LENGTH];
   GetCurrentDirectory(_countof(cwd), cwd);
   SetCurrentDirectory(service->dir);
 

@@ -314,7 +314,7 @@ void kill_process_tree(nssm_service_t *service, unsigned long pid, unsigned long
            -1 on error.
 */
 int test_environment(TCHAR *env) {
-  TCHAR path[MAX_PATH];
+  TCHAR path[PATH_LENGTH];
   GetModuleFileName(0, path, _countof(path));
   STARTUPINFO si;
   ZeroMemory(&si, sizeof(si));

@@ -746,14 +746,17 @@ void browse(HWND window, TCHAR *current, unsigned long flags, ...) {
     va_end(arg);
     /* Remainder of the buffer is already zeroed */
   }
-  ofn.lpstrFile = new TCHAR[MAX_PATH];
+  ofn.lpstrFile = new TCHAR[PATH_LENGTH];
   if (flags & OFN_NOVALIDATE) {
     /* Directory hack. */
-    _sntprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, _T(":%s:"), message_string(NSSM_GUI_BROWSE_FILTER_DIRECTORIES));
+    _sntprintf_s(ofn.lpstrFile, _countof(ofn.lpstrFile), _TRUNCATE, _T(":%s:"), message_string(NSSM_GUI_BROWSE_FILTER_DIRECTORIES));
+    ofn.nMaxFile = DIR_LENGTH;
   }
-  else _sntprintf_s(ofn.lpstrFile, MAX_PATH, _TRUNCATE, _T("%s"), current);
+  else {
+    _sntprintf_s(ofn.lpstrFile, _countof(ofn.lpstrFile), _TRUNCATE, _T("%s"), current);
+    ofn.nMaxFile = PATH_LENGTH;
+  }
   ofn.lpstrTitle = message_string(NSSM_GUI_BROWSE_TITLE);
-  ofn.nMaxFile = MAX_PATH;
   ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | flags;
 
   if (GetOpenFileName(&ofn)) {
@@ -774,7 +777,7 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
     /* Button was pressed or control was controlled. */
     case WM_COMMAND:
       HWND dlg;
-      TCHAR buffer[MAX_PATH];
+      TCHAR buffer[PATH_LENGTH];
       unsigned char enabled;
 
       switch (LOWORD(w)) {
