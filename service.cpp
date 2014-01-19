@@ -1522,6 +1522,7 @@ int start_service(nssm_service_t *service) {
   bool inherit_handles = false;
   if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
   unsigned long flags = service->priority & priority_mask();
+  if (service->stdin_pipe) flags |= DETACHED_PROCESS;
   if (service->affinity) flags |= CREATE_SUSPENDED;
 #ifdef UNICODE
   flags |= CREATE_UNICODE_ENVIRONMENT;
@@ -1613,6 +1614,10 @@ int stop_service(nssm_service_t *service, unsigned long exitcode, bool graceful,
   if (service->wait_handle) {
     UnregisterWait(service->wait_handle);
     service->wait_handle = 0;
+  }
+  if (service->stdin_pipe) {
+    CloseHandle(service->stdin_pipe);
+    service->stdin_pipe = 0;
   }
 
   service->rotate_stdout_online = service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;

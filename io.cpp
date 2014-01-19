@@ -250,21 +250,6 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   ZeroMemory(&attributes, sizeof(attributes));
   attributes.bInheritHandle = true;
 
-  /* stdin */
-  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
-    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
-    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
-    return 1;
-  }
-  if (si && service->stdin_path[0]) {
-    si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, &attributes, service->stdin_disposition, service->stdin_flags, 0);
-    if (! si->hStdInput) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
-      return 2;
-    }
-    set_flags = true;
-  }
-
   /* stdout */
   if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS)) {
     service->stdout_sharing = service->stdout_disposition = service->stdout_flags = 0;
@@ -340,6 +325,50 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
           return 7;
         }
         service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
+      }
+
+      set_flags = true;
+    }
+  }
+
+  /* stdin */
+  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
+    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
+    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
+    return 1;
+  }
+  if (si && service->stdin_path[0]) {
+    if (str_equiv(service->stdin_path, _T("|"))) {
+      /* Fake stdin with a pipe. */
+      if (set_flags) {
+        /*
+          None of this is necessary if we aren't redirecting stdout and/or
+          stderr as well.
+
+          If we don't redirect any handles the application will start and be
+          quite happy with its console.  If we start it with
+          STARTF_USESTDHANDLES set it will interpret a NULL value for
+          hStdInput as meaning no input.  Because the service starts with
+          no stdin we can't just pass GetStdHandle(STD_INPUT_HANDLE) to
+          the application.
+
+          The only way we can successfully redirect the application's output
+          while preventing programs which exit after reading all input from
+          exiting prematurely is to create a pipe between ourselves and the
+          application but write nothing to it.
+        */
+        if (! CreatePipe(&si->hStdInput, &service->stdin_pipe, 0, 0)) {
+          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_STDIN_CREATEPIPE_FAILED, service->name, error_string(GetLastError()), 0);
+          return 2;
+        }
+        SetHandleInformation(si->hStdInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+      }
+    }
+    else {
+      si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, &attributes, service->stdin_disposition, service->stdin_flags, 0);
+      if (! si->hStdInput) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
+        return 2;
       }
 
       set_flags = true;

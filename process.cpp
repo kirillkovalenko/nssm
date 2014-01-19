@@ -149,6 +149,13 @@ int kill_process(nssm_service_t *service, HANDLE process_handle, unsigned long p
 
   kill_t k = { pid, exitcode, 0 };
 
+  /* Close the stdin pipe. */
+  if (service->stdin_pipe) {
+    CloseHandle(service->stdin_pipe);
+    service->stdin_pipe = 0;
+    if (! await_shutdown(service, _T(__FUNCTION__), service->kill_console_delay)) return 1;
+  }
+
   /* Try to send a Control-C event to the console. */
   if (service->stop_method & NSSM_STOP_METHOD_CONSOLE) {
     if (! kill_console(service)) return 1;
