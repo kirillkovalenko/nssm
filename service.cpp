@@ -1214,6 +1214,9 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     else {
       CloseHandle(service_handle);
       _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
+      if (error == ERROR_SERVICE_NOT_ACTIVE) {
+        if (control == SERVICE_CONTROL_SHUTDOWN || control == SERVICE_CONTROL_STOP) return 0;
+      }
       return 1;
     }
   }
