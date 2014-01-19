@@ -288,7 +288,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
 
     if (! service->stdout_thread) {
       if (! DuplicateHandle(GetCurrentProcess(), stdout_handle, GetCurrentProcess(), &si->hStdOutput, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, _T("stdout"), error_string(GetLastError()), 0);
         return 4;
       }
       service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
@@ -314,7 +314,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       if (si) {
         /* Two handles to the same file will create a race. */
         if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
-          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, error_string(GetLastError()), 0);
+          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, _T("stderr"), error_string(GetLastError()), 0);
           return 6;
         }
       }
@@ -336,7 +336,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
 
       if (! service->stderr_thread) {
         if (! DuplicateHandle(GetCurrentProcess(), stderr_handle, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
-          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDERR, error_string(GetLastError()), 0);
+          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDERR, _T("stderr"), error_string(GetLastError()), 0);
           return 7;
         }
         service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
