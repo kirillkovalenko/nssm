@@ -475,11 +475,11 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\imports.cpp"
+				RelativePath="imports.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\io.cpp"
+				RelativePath="io.cpp"
 				>
 			</File>
 			<File
@@ -627,7 +627,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\settings.cpp"
+				RelativePath="settings.cpp"
 				>
 			</File>
 		</Filter>
@@ -644,11 +644,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\imports.h"
+				RelativePath="imports.h"
 				>
 			</File>
 			<File
-				RelativePath=".\io.h"
+				RelativePath="io.h"
 				>
 			</File>
 			<File
@@ -668,7 +668,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\settings.h"
+				RelativePath="settings.h"
 				>
 			</File>
 		</Filter>
@@ -718,7 +718,7 @@
 			</File>
 		</Filter>
 		<File
-			RelativePath=".\messages.mc"
+			RelativePath="messages.mc"
 			>
 			<FileConfiguration
 				Name="Debug|Win32"
