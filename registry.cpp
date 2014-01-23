@@ -222,64 +222,6 @@ int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   return 0;
 }
 
-/* Replace NULL with CRLF. Leave NULL NULL as the end marker. */
-int format_environment(TCHAR *env, unsigned long envlen, TCHAR **formatted, unsigned long *newlen) {
-  unsigned long i, j;
-  *newlen = envlen;
-
-  if (! *newlen) {
-    *formatted = 0;
-    return 0;
-  }
-
-  for (i = 0; i < envlen; i++) if (! env[i] && env[i + 1]) ++*newlen;
-
-  *formatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *newlen * sizeof(TCHAR));
-  if (! *formatted) {
-    *newlen = 0;
-    return 1;
-  }
-
-  for (i = 0, j = 0; i < envlen; i++) {
-    (*formatted)[j] = env[i];
-    if (! env[i]) {
-      if (env[i + 1]) {
-        (*formatted)[j] = _T('\r');
-        (*formatted)[++j] = _T('\n');
-      }
-    }
-    j++;
-  }
-
-  return 0;
-}
-
-/* Strip CR and replace LF with NULL. */
-int unformat_environment(TCHAR *env, unsigned long envlen, TCHAR **unformatted, unsigned long *newlen) {
-  unsigned long i, j;
-  *newlen = 0;
-
-  if (! envlen) {
-    *unformatted = 0;
-    return 0;
-  }
-
-  for (i = 0; i < envlen; i++) if (env[i] != _T('\r')) ++*newlen;
-  /* Must end with two NULLs. */
-  *newlen += 2;
-
-  *unformatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *newlen * sizeof(TCHAR));
-  if (! *unformatted) return 1;
-
-  for (i = 0, j = 0; i < envlen; i++) {
-    if (env[i] == _T('\r')) continue;
-    if (env[i] == _T('\n')) (*unformatted)[j] = _T('\0');
-    else (*unformatted)[j] = env[i];
-    j++;
-  }
-
-  return 0;
-}
 
 int get_string(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool expand, bool sanitise, bool must_exist) {
   TCHAR *buffer = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, datalen);

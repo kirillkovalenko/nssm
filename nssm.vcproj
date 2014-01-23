@@ -403,6 +403,10 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
+				RelativePath="env.cpp"
+				>
+			</File>
+			<File
 				RelativePath="event.cpp"
 				>
 				<FileConfiguration
@@ -635,6 +639,10 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
+			<File
+				RelativePath="env.h"
+				>
+			</File>
 			<File
 				RelativePath="event.h"
 				>

@@ -313,39 +313,3 @@ void kill_process_tree(nssm_service_t *service, unsigned long pid, unsigned long
 
   CloseHandle(process_handle);
 }
-
-/*
-  Verify an environment block.
-  Returns:  1 if environment is invalid.
-            0 if environment is OK.
-           -1 on error.
-*/
-int test_environment(TCHAR *env) {
-  TCHAR path[PATH_LENGTH];
-  GetModuleFileName(0, path, _countof(path));
-  STARTUPINFO si;
-  ZeroMemory(&si, sizeof(si));
-  si.cb = sizeof(si);
-  PROCESS_INFORMATION pi;
-  ZeroMemory(&pi, sizeof(pi));
-  unsigned long flags = CREATE_SUSPENDED;
-#ifdef UNICODE
-  flags |= CREATE_UNICODE_ENVIRONMENT;
-#endif
-
-  /*
-    Try to relaunch ourselves but with the candidate environment set.
-    Assuming no solar flare activity, the only reason this would fail is if
-    the environment were invalid.
-  */
-  if (CreateProcess(0, path, 0, 0, 0, flags, env, 0, &si, &pi)) {
-    TerminateProcess(pi.hProcess, 0);
-  }
-  else {
-    unsigned long error = GetLastError();
-    if (error == ERROR_INVALID_PARAMETER) return 1;
-    else return -1;
-  }
-
-  return 0;
-}

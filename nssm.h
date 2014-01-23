@@ -41,6 +41,7 @@
 #include <tchar.h>
 #include <windows.h>
 #include "service.h"
+#include "env.h"
 #include "event.h"
 #include "imports.h"
 #include "messages.h"
