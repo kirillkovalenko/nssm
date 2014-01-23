@@ -34,7 +34,7 @@ HKEY open_registry(const TCHAR *, REGSAM sam);
 int create_messages();
 int create_parameters(nssm_service_t *, bool);
 int create_exit_action(TCHAR *, const TCHAR *, bool);
-int set_environment(TCHAR *, HKEY, TCHAR *, TCHAR **, unsigned long *);
+int get_environment(TCHAR *, HKEY, TCHAR *, TCHAR **, unsigned long *);
 int get_string(HKEY, TCHAR *, TCHAR *, unsigned long, bool, bool, bool);
 int get_string(HKEY, TCHAR *, TCHAR *, unsigned long, bool);
 int expand_parameter(HKEY, TCHAR *, TCHAR *, unsigned long, bool, bool);

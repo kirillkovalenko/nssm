@@ -329,7 +329,7 @@ static int setting_get_environment(const TCHAR *service_name, void *param, const
 
   TCHAR *env = 0;
   unsigned long envlen;
-  if (set_environment((TCHAR *) service_name, key, (TCHAR *) name, &env, &envlen)) return -1;
+  if (get_environment((TCHAR *) service_name, key, (TCHAR *) name, &env, &envlen)) return -1;
   if (! envlen) return 0;
 
   TCHAR *formatted;

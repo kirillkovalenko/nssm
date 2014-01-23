@@ -175,7 +175,7 @@ int create_exit_action(TCHAR *service_name, const TCHAR *action_string, bool edi
   return 0;
 }
 
-int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, unsigned long *envlen) {
+int get_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, unsigned long *envlen) {
   unsigned long type = REG_MULTI_SZ;
 
   /* Dummy test to find buffer size */
@@ -205,7 +205,7 @@ int set_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, *envlen);
   if (! *env) {
     *envlen = 0;
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, _T("set_environment()"), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, _T("get_environment()"), 0);
     return 3;
   }
 
@@ -462,9 +462,9 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   }
 
   /* Try to get environment variables - may fail */
-  set_environment(service->name, key, NSSM_REG_ENV, &service->env, &service->envlen);
+  get_environment(service->name, key, NSSM_REG_ENV, &service->env, &service->envlen);
   /* Environment variables to add to existing rather than replace - may fail. */
-  set_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
+  get_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
 
   if (si) {
     if (service->env_extra) {
