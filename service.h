@@ -101,6 +101,7 @@ typedef struct {
   LARGE_INTEGER throttle_duetime;
   FILETIME creation_time;
   FILETIME exit_time;
+  TCHAR *initial_env;
 } nssm_service_t;
 
 void WINAPI service_main(unsigned long, TCHAR **);

@@ -466,67 +466,6 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   /* Environment variables to add to existing rather than replace - may fail. */
   get_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
 
-  if (si) {
-    if (service->env_extra) {
-      TCHAR *env;
-      unsigned long envlen;
-
-      /* Copy our environment for the application. */
-      if (! service->env) {
-        TCHAR *rawenv = GetEnvironmentStrings();
-        env = rawenv;
-        if (env) {
-          /*
-            The environment block starts with variables of the form
-            =C:=C:\Windows\System32 which we ignore.
-          */
-          while (*env == _T('=')) {
-            for ( ; *env; env++);
-            env++;
-          }
-          envlen = 0;
-          if (*env) {
-            while (true) {
-              for ( ; env[envlen]; envlen++);
-              if (! env[++envlen]) break;
-            }
-            envlen++;
-
-            service->envlen = envlen * sizeof(TCHAR);
-            service->env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->envlen);
-            memmove(service->env, env, service->envlen);
-            FreeEnvironmentStrings(rawenv);
-          }
-        }
-      }
-
-      /* Append extra variables to configured variables. */
-      if (service->env) {
-        envlen = service->envlen + service->env_extralen - sizeof(TCHAR)/*?*/;
-        env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, envlen);
-        if (env) {
-          memmove(env, service->env, service->envlen - sizeof(TCHAR));
-          /* envlen is in bytes but env[i] is in characters. */
-          memmove(env + (service->envlen / sizeof(TCHAR)) - 1, service->env_extra, service->env_extralen);
-
-          HeapFree(GetProcessHeap(), 0, service->env);
-          HeapFree(GetProcessHeap(), 0, service->env_extra);
-          service->env = env;
-          service->envlen = envlen;
-        }
-        else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("get_parameters()"), 0);
-      }
-      else {
-        /* Huh?  No environment at all? */
-        service->env = service->env_extra;
-        service->envlen = service->env_extralen;
-      }
-    }
-
-    service->env_extra = 0;
-    service->env_extralen = 0;
-  }
-
   /* Try to get priority - may fail. */
   unsigned long priority;
   if (get_number(key, NSSM_REG_PRIORITY, &priority, false) == 1) {

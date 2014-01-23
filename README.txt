@@ -354,7 +354,33 @@ environment variables which will be added to the service's environment.
 Each entry in the list should be of the form KEY=VALUE.  It is possible to
 omit the VALUE but the = symbol is mandatory.
 
-srvany only supports AppEnvironment.
+Environment variables listed in both AppEnvironment and AppEnvironmentExtra
+are subject to normal expansion, so it is possible, for example, to update the
+system path by setting "PATH=C:\bin;%PATH%" in AppEnvironmentExtra.  Variables
+are expanded in the order in which they appear, so if you want to include the
+value of one variable in another variable you should declare the dependency
+first.
+
+Because variables defined in AppEnvironment override the existing
+environment it is not possible to refer to any variables which were previously
+defined.
+
+For example, the following AppEnvironment block:
+
+      PATH=C:\Windows\System32;C:\Windows
+      PATH=C:\bin;%PATH%
+
+Would result in a PATH of "C:\bin;C:\Windows\System32;C:\Windows" as expected.
+
+Whereas the following AppEnvironment block:
+
+      PATH=C:\bin;%PATH%
+
+Would result in a path containing only C:\bin and probably cause the
+application to fail to start.
+
+Most people will want to use AppEnvironmentExtra exclusively.  srvany only
+supports AppEnvironment.
 
 
 Managing services using the GUI

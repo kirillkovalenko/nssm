@@ -681,6 +681,7 @@ void cleanup_nssm_service(nssm_service_t *service) {
   if (service->wait_handle) UnregisterWait(service->process_handle);
   if (service->throttle_section_initialised) DeleteCriticalSection(&service->throttle_section);
   if (service->throttle_timer) CloseHandle(service->throttle_timer);
+  if (service->initial_env) FreeEnvironmentStrings(service->initial_env);
   HeapFree(GetProcessHeap(), 0, service);
 }
 
@@ -1324,6 +1325,9 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
     }
   }
 
+  /* Remember our initial environment. */
+  service->initial_env = GetEnvironmentStrings();
+
   monitor_service(service);
 }
 
@@ -1519,23 +1523,21 @@ int start_service(nssm_service_t *service) {
 
   throttle_restart(service);
 
+  /* Set the environment. */
+  if (service->env) duplicate_environment(service->env);
+  if (service->env_extra) set_environment_block(service->env_extra);
+
   bool inherit_handles = false;
   if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
   unsigned long flags = service->priority & priority_mask();
   if (service->stdin_pipe) flags |= DETACHED_PROCESS;
   if (service->affinity) flags |= CREATE_SUSPENDED;
-#ifdef UNICODE
-  flags |= CREATE_UNICODE_ENVIRONMENT;
-#endif
-  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, flags, service->env, service->dir, &si, &pi)) {
+  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, flags, 0, service->dir, &si, &pi)) {
     unsigned long exitcode = 3;
     unsigned long error = GetLastError();
-    if (error == ERROR_INVALID_PARAMETER && service->env) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED_INVALID_ENVIRONMENT, service->name, service->exe, NSSM_REG_ENV, 0);
-      if (test_environment(service->env)) exitcode = 4;
-    }
-    else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
     close_output_handles(&si);
+    duplicate_environment(service->initial_env);
     return stop_service(service, exitcode, true, true);
   }
   service->process_handle = pi.hProcess;
@@ -1544,6 +1546,9 @@ int start_service(nssm_service_t *service) {
   if (get_process_creation_time(service->process_handle, &service->creation_time)) ZeroMemory(&service->creation_time, sizeof(service->creation_time));
 
   close_output_handles(&si);
+
+  /* Restore our environment. */
+  duplicate_environment(service->initial_env);
 
   if (service->affinity) {
     /*
