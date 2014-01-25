@@ -262,6 +262,17 @@ so the actual time to shutdown may be longer than the sum of all configured
 timeouts if the application spawns multiple subprocesses.
 
 
+Console window
+--------------
+By default, NSSM will create a console window so that applications which
+are capable of reading user input can do so - subject to the service being
+allowed to interact with the desktop.
+
+Creation of the console can be suppressed by setting the integer (REG_DWORD)
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppNoConsole
+registry value to 1.
+
+
 I/O redirection
 ---------------
 NSSM can redirect the managed application's I/O to any path capable of being

@@ -18,6 +18,10 @@ Changes since 2.21
   * NSSM can now set the service display name, description,
     startup type and log on details.
 
+  * All services now receive a standard console window,
+    allowing them to read input correctly (if running in
+    interactive mode).
+
 Changes since 2.20
 ------------------
   * Services installed from the GUI no longer have incorrect
@@ -221,6 +225,6 @@ Changes since 2.1
 
 Changes since 2.0
 -----------------
-  * Added support for building a 64-bit executable. 
+  * Added support for building a 64-bit executable.
 
   * Added project files for newer versions of Visual Studio.

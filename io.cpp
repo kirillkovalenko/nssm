@@ -231,7 +231,26 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
 }
 
 int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
-  bool redirect = false;
+  /* Allocate a new console so we get a fresh stdin, stdout and stderr. */
+  if (si && ! service->no_console) {
+    FreeConsole();
+    AllocConsole();
+    banner();
+
+    /* Set a title like "[NSSM] Jenkins" */
+    TCHAR displayname[SERVICE_NAME_LENGTH];
+    unsigned long len = _countof(displayname);
+    SC_HANDLE services = open_service_manager();
+    if (services) {
+      if (! GetServiceDisplayName(services, service->name, displayname, &len)) ZeroMemory(displayname, sizeof(displayname));
+      CloseServiceHandle(services);
+    }
+    if (! displayname[0]) _sntprintf_s(displayname, _countof(displayname), _TRUNCATE, _T("%s"), service->name);
+
+    TCHAR title[65535];
+    _sntprintf_s(title, _countof(title), _TRUNCATE, _T("[%s] %s"), NSSM, displayname);
+    SetConsoleTitle(title);
+  }
 
   /* stdin */
   if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
@@ -245,8 +264,6 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
       return 2;
     }
-
-    redirect = true;
   }
 
   /* stdout */
@@ -277,8 +294,6 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       }
       service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
     }
-
-    redirect = true;
   }
 
   /* stderr */
@@ -325,35 +340,18 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
         }
         service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
       }
-
-      redirect = true;
     }
   }
 
-  if (! redirect || ! si) return 0;
-
-  /* Allocate a new console so we get a fresh stdin, stdout and stderr. */
-  FreeConsole();
-  AllocConsole();
-
-  /* Set a title like "[NSSM] Jenkins" */
-  TCHAR displayname[SERVICE_NAME_LENGTH];
-  unsigned long len = _countof(displayname);
-  SC_HANDLE services = open_service_manager();
-  if (services) {
-    if (! GetServiceDisplayName(services, service->name, displayname, &len)) _sntprintf_s(displayname, _countof(displayname), _TRUNCATE, _T("%s"), service->name);
-    CloseServiceHandle(services);
-  }
-
-  TCHAR title[65535];
-  _sntprintf_s(title, _countof(title), _TRUNCATE, _T("[%s] %s\n"), NSSM, displayname);
-  SetConsoleTitle(title);
+  if (! si) return 0;
 
   /*
     We need to set the startup_info flags to make the new handles
     inheritable by the new process.
   */
-  if (si) si->dwFlags |= STARTF_USESTDHANDLES;
+  si->dwFlags |= STARTF_USESTDHANDLES;
+
+  if (service->no_console) return 0;
 
   /* Redirect other handles. */
   if (! si->hStdInput) {

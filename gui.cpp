@@ -117,6 +117,10 @@ int nssm_gui(int resource, nssm_service_t *service) {
       }
     }
 
+    if (service->no_console) {
+      SendDlgItemMessage(tablist[NSSM_TAB_PROCESS], IDC_CONSOLE, BM_SETCHECK, BST_UNCHECKED, 0);
+    }
+
     /* Shutdown tab. */
     if (! (service->stop_method & NSSM_STOP_METHOD_CONSOLE)) {
       SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_CONSOLE, BM_SETCHECK, BST_UNCHECKED, 0);
@@ -477,6 +481,9 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
       }
     }
   }
+
+  if (SendDlgItemMessage(tablist[NSSM_TAB_PROCESS], IDC_CONSOLE, BM_GETCHECK, 0, 0) & BST_CHECKED) service->no_console = 0;
+  else service->no_console = 1;
 
   /* Get stop method stuff. */
   check_stop_method(service, NSSM_STOP_METHOD_CONSOLE, IDC_METHOD_CONSOLE);
@@ -955,6 +962,8 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(combo, CB_INSERTSTRING, NSSM_BELOW_NORMAL_PRIORITY, (LPARAM) message_string(NSSM_GUI_BELOW_NORMAL_PRIORITY_CLASS));
       SendMessage(combo, CB_INSERTSTRING, NSSM_IDLE_PRIORITY, (LPARAM) message_string(NSSM_GUI_IDLE_PRIORITY_CLASS));
       SendMessage(combo, CB_SETCURSEL, NSSM_NORMAL_PRIORITY, 0);
+
+      SendDlgItemMessage(tablist[NSSM_TAB_PROCESS], IDC_CONSOLE, BM_SETCHECK, BST_CHECKED, 0);
 
       list = GetDlgItem(tablist[NSSM_TAB_PROCESS], IDC_AFFINITY);
       n = num_cpus();

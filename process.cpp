@@ -208,8 +208,6 @@ int kill_console(nssm_service_t *service) {
         return 2;
 
       case ERROR_ACCESS_DENIED:
-        /* Maybe we already allocated a console for output. */
-        if (service->stdin_path[0] || service->stdout_path[0] || service->stderr_path[0]) break;
       default:
         /* We already have a console. */
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ATTACHCONSOLE_FAILED, service->name, error_string(ret), 0);

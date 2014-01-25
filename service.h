@@ -53,6 +53,7 @@ typedef struct {
   TCHAR *env_extra;
   unsigned long env_extralen;
   unsigned long priority;
+  unsigned long no_console;
   TCHAR stdin_path[PATH_LENGTH];
   unsigned long stdin_sharing;
   unsigned long stdin_disposition;

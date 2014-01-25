@@ -27,6 +27,7 @@
 #define NSSM_REG_ROTATE_BYTES_HIGH _T("AppRotateBytesHigh")
 #define NSSM_REG_PRIORITY _T("AppPriority")
 #define NSSM_REG_AFFINITY _T("AppAffinity")
+#define NSSM_REG_NO_CONSOLE _T("AppNoConsole")
 #define NSSM_STDIO_LENGTH 29
 
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam);

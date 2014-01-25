@@ -57,6 +57,7 @@ int str_number(const TCHAR *, unsigned long *, TCHAR **);
 int str_number(const TCHAR *, unsigned long *);
 int num_cpus();
 int usage(int);
+void banner();
 
 #define NSSM _T("NSSM")
 #ifdef _WIN64
