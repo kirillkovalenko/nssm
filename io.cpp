@@ -135,26 +135,14 @@ int delete_createfile_parameter(HKEY key, TCHAR *prefix, TCHAR *suffix) {
   return 1;
 }
 
-HANDLE append_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
-  HANDLE ret;
-
-  /* Try to append to the file first. */
-  ret = CreateFile(path, FILE_APPEND_DATA, sharing, attributes, disposition, flags, 0);
+HANDLE write_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
+  HANDLE ret = CreateFile(path, FILE_WRITE_DATA, sharing, attributes, disposition, flags, 0);
   if (ret) {
-    SetEndOfFile(ret);
+    if (SetFilePointer(ret, 0, 0, FILE_END) != INVALID_SET_FILE_POINTER) SetEndOfFile(ret);
     return ret;
   }
 
-  unsigned long error = GetLastError();
-  if (error != ERROR_FILE_NOT_FOUND) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(error), 0);
-    return (HANDLE) 0;
-  }
-
-  /* It didn't exist.  Create it. */
-  ret = CreateFile(path, FILE_WRITE_DATA, sharing, attributes, disposition, flags, 0);
-  if (! ret) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()), 0);
-
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, path, error_string(GetLastError()), 0);
   return ret;
 }
 
@@ -258,7 +246,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   }
   if (si && service->stdout_path[0]) {
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
-    HANDLE stdout_handle = append_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
+    HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (! stdout_handle) return 4;
 
     if (service->rotate_files && service->rotate_stdout_online) {
@@ -306,7 +294,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
     }
     else if (si) {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
-      HANDLE stderr_handle = append_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
+      HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (! stderr_handle) return 7;
 
       if (service->rotate_files && service->rotate_stderr_online) {
@@ -560,7 +548,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
           }
 
           /* Reopen. */
-          logger->write_handle = append_to_file(logger->path, logger->sharing, 0, logger->disposition, logger->flags);
+          logger->write_handle = write_to_file(logger->path, logger->sharing, 0, logger->disposition, logger->flags);
           if (! logger->write_handle) {
             error = GetLastError();
             log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, logger->path, error_string(error), 0);
