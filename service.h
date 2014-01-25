@@ -57,7 +57,6 @@ typedef struct {
   unsigned long stdin_sharing;
   unsigned long stdin_disposition;
   unsigned long stdin_flags;
-  HANDLE stdin_pipe;
   TCHAR stdout_path[PATH_LENGTH];
   unsigned long stdout_sharing;
   unsigned long stdout_disposition;

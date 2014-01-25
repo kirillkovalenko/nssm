@@ -288,13 +288,6 @@ AppStderr to the same path, eg C:\Users\Public\service.log, and it should
 work.  Remember, however, that the path must be accessible to the user
 running the service.
 
-Note that if you set AppStdout and/or AppStderr, applications which attempt
-to read stdin will fail due to a combination of factors including the way I/O
-redirection is configured on Windows and how a console application starts in
-a service context.  NSSM can fake a stdin stream so that applications can
-still work when they would otherwise exit when at end of file on stdin.  Set
-AppStdin to "|" (a single pipe character) to invoke the fake stdin.
-
 
 File rotation
 -------------

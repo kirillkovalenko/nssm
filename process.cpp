@@ -149,13 +149,6 @@ int kill_process(nssm_service_t *service, HANDLE process_handle, unsigned long p
 
   kill_t k = { pid, exitcode, 0 };
 
-  /* Close the stdin pipe. */
-  if (service->stdin_pipe) {
-    CloseHandle(service->stdin_pipe);
-    service->stdin_pipe = 0;
-    if (! await_shutdown(service, _T(__FUNCTION__), service->kill_console_delay)) return 1;
-  }
-
   /* Try to send a Control-C event to the console. */
   if (service->stop_method & NSSM_STOP_METHOD_CONSOLE) {
     if (! kill_console(service)) return 1;
@@ -215,6 +208,8 @@ int kill_console(nssm_service_t *service) {
         return 2;
 
       case ERROR_ACCESS_DENIED:
+        /* Maybe we already allocated a console for output. */
+        if (service->stdin_path[0] || service->stdout_path[0] || service->stderr_path[0]) break;
       default:
         /* We already have a console. */
         log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ATTACHCONSOLE_FAILED, service->name, error_string(ret), 0);

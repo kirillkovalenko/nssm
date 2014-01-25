@@ -231,12 +231,23 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
 }
 
 int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
-  bool set_flags = false;
+  bool redirect = false;
 
-  /* Standard security attributes allowing inheritance. */
-  SECURITY_ATTRIBUTES attributes;
-  ZeroMemory(&attributes, sizeof(attributes));
-  attributes.bInheritHandle = true;
+  /* stdin */
+  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
+    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
+    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
+    return 1;
+  }
+  if (si && service->stdin_path[0]) {
+    si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, 0, service->stdin_disposition, service->stdin_flags, 0);
+    if (! si->hStdInput) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
+      return 2;
+    }
+
+    redirect = true;
+  }
 
   /* stdout */
   if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS)) {
@@ -267,7 +278,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
     }
 
-    set_flags = true;
+    redirect = true;
   }
 
   /* stderr */
@@ -315,61 +326,54 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
         service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
       }
 
-      set_flags = true;
+      redirect = true;
     }
   }
 
-  /* stdin */
-  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
-    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
-    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
-    return 1;
-  }
-  if (si && service->stdin_path[0]) {
-    if (str_equiv(service->stdin_path, _T("|"))) {
-      /* Fake stdin with a pipe. */
-      if (set_flags) {
-        /*
-          None of this is necessary if we aren't redirecting stdout and/or
-          stderr as well.
+  if (! redirect || ! si) return 0;
 
-          If we don't redirect any handles the application will start and be
-          quite happy with its console.  If we start it with
-          STARTF_USESTDHANDLES set it will interpret a NULL value for
-          hStdInput as meaning no input.  Because the service starts with
-          no stdin we can't just pass GetStdHandle(STD_INPUT_HANDLE) to
-          the application.
+  /* Allocate a new console so we get a fresh stdin, stdout and stderr. */
+  FreeConsole();
+  AllocConsole();
 
-          The only way we can successfully redirect the application's output
-          while preventing programs which exit after reading all input from
-          exiting prematurely is to create a pipe between ourselves and the
-          application but write nothing to it.
-        */
-        if (! CreatePipe(&si->hStdInput, &service->stdin_pipe, 0, 0)) {
-          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_STDIN_CREATEPIPE_FAILED, service->name, error_string(GetLastError()), 0);
-          return 2;
-        }
-        SetHandleInformation(si->hStdInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-      }
-    }
-    else {
-      si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, &attributes, service->stdin_disposition, service->stdin_flags, 0);
-      if (! si->hStdInput) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
-        return 2;
-      }
-
-      set_flags = true;
-    }
+  /* Set a title like "[NSSM] Jenkins" */
+  TCHAR displayname[SERVICE_NAME_LENGTH];
+  unsigned long len = _countof(displayname);
+  SC_HANDLE services = open_service_manager();
+  if (services) {
+    if (! GetServiceDisplayName(services, service->name, displayname, &len)) _sntprintf_s(displayname, _countof(displayname), _TRUNCATE, _T("%s"), service->name);
+    CloseServiceHandle(services);
   }
 
-  if (! set_flags) return 0;
+  TCHAR title[65535];
+  _sntprintf_s(title, _countof(title), _TRUNCATE, _T("[%s] %s\n"), NSSM, displayname);
+  SetConsoleTitle(title);
 
   /*
     We need to set the startup_info flags to make the new handles
     inheritable by the new process.
   */
   if (si) si->dwFlags |= STARTF_USESTDHANDLES;
+
+  /* Redirect other handles. */
+  if (! si->hStdInput) {
+    if (! DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_INPUT_HANDLE), GetCurrentProcess(), &si->hStdInput, 0, true, DUPLICATE_SAME_ACCESS)) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, _T("STD_INPUT_HANDLE"), _T("stdin"), error_string(GetLastError()), 0);
+      return 8;
+    }
+  }
+  if (! si->hStdOutput) {
+    if (! DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_OUTPUT_HANDLE), GetCurrentProcess(), &si->hStdOutput, 0, true, DUPLICATE_SAME_ACCESS)) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, _T("STD_OUTPUT_HANDLE"), _T("stdout"), error_string(GetLastError()), 0);
+      return 9;
+    }
+  }
+  if (! si->hStdError)  {
+    if (! DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_ERROR_HANDLE), GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, _T("STD_ERROR_HANDLE"), _T("stderr"), error_string(GetLastError()), 0);
+      return 10;
+    }
+  }
 
   return 0;
 }
