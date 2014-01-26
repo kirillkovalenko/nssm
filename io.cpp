@@ -230,17 +230,14 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
   return;
 }
 
-int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
+int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
+  if (! si) return 1;
+
   /* Allocate a new console so we get a fresh stdin, stdout and stderr. */
-  if (si) alloc_console(service);
+  alloc_console(service);
 
   /* stdin */
-  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
-    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
-    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
-    return 1;
-  }
-  if (si && service->stdin_path[0]) {
+  if (service->stdin_path[0]) {
     si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, 0, service->stdin_disposition, service->stdin_flags, 0);
     if (! si->hStdInput) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
@@ -249,12 +246,7 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   }
 
   /* stdout */
-  if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS)) {
-    service->stdout_sharing = service->stdout_disposition = service->stdout_flags = 0;
-    ZeroMemory(service->stdout_path, _countof(service->stdout_path) * sizeof(TCHAR));
-    return 3;
-  }
-  if (si && service->stdout_path[0]) {
+  if (service->stdout_path[0]) {
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (! stdout_handle) return 4;
@@ -279,11 +271,6 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
   }
 
   /* stderr */
-  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stderr_sharing, NSSM_STDERR_SHARING, &service->stderr_disposition, NSSM_STDERR_DISPOSITION, &service->stderr_flags, NSSM_STDERR_FLAGS)) {
-    service->stderr_sharing = service->stderr_disposition = service->stderr_flags = 0;
-    ZeroMemory(service->stderr_path, _countof(service->stderr_path) * sizeof(TCHAR));
-    return 5;
-  }
   if (service->stderr_path[0]) {
     /* Same as stdout? */
     if (str_equiv(service->stderr_path, service->stdout_path)) {
@@ -292,15 +279,13 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       service->stderr_flags = service->stdout_flags;
       service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
 
-      if (si) {
-        /* Two handles to the same file will create a race. */
-        if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
-          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, _T("stderr"), error_string(GetLastError()), 0);
-          return 6;
-        }
+      /* Two handles to the same file will create a race. */
+      if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, _T("stderr"), error_string(GetLastError()), 0);
+        return 6;
       }
     }
-    else if (si) {
+    else {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (! stderr_handle) return 7;
@@ -324,8 +309,6 @@ int get_output_handles(nssm_service_t *service, HKEY key, STARTUPINFO *si) {
       }
     }
   }
-
-  if (! si) return 0;
 
   /*
     We need to set the startup_info flags to make the new handles

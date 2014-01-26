@@ -29,7 +29,7 @@ int set_createfile_parameter(HKEY, TCHAR *, TCHAR *, unsigned long);
 int delete_createfile_parameter(HKEY, TCHAR *, TCHAR *);
 HANDLE write_to_file(TCHAR *, unsigned long, SECURITY_ATTRIBUTES *, unsigned long, unsigned long);
 void rotate_file(TCHAR *, TCHAR *, unsigned long, unsigned long, unsigned long);
-int get_output_handles(nssm_service_t *, HKEY, STARTUPINFO *);
+int get_output_handles(nssm_service_t *, STARTUPINFO *);
 void close_output_handles(STARTUPINFO *);
 unsigned long WINAPI log_and_rotate(void *);
 

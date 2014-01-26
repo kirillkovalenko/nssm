@@ -402,6 +402,31 @@ HKEY open_registry(const TCHAR *service_name, REGSAM sam) {
   return open_registry(service_name, 0, sam);
 }
 
+int get_io_parameters(nssm_service_t *service, HKEY key) {
+  /* stdin */
+  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
+    service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
+    ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
+    return 1;
+  }
+
+  /* stdout */
+  if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS)) {
+    service->stdout_sharing = service->stdout_disposition = service->stdout_flags = 0;
+    ZeroMemory(service->stdout_path, _countof(service->stdout_path) * sizeof(TCHAR));
+    return 2;
+  }
+
+  /* stderr */
+  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stderr_sharing, NSSM_STDERR_SHARING, &service->stderr_disposition, NSSM_STDERR_DISPOSITION, &service->stderr_flags, NSSM_STDERR_FLAGS)) {
+    service->stderr_sharing = service->stderr_disposition = service->stderr_flags = 0;
+    ZeroMemory(service->stderr_path, _countof(service->stderr_path) * sizeof(TCHAR));
+    return 3;
+  }
+
+  return 0;
+}
+
 int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   unsigned long ret;
 
@@ -500,7 +525,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   SetCurrentDirectory(service->dir);
 
   /* Try to get stdout and stderr */
-  if (get_output_handles(service, key, si)) {
+  if (get_io_parameters(service, key)) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
     RegCloseKey(key);
     SetCurrentDirectory(cwd);

@@ -1517,7 +1517,6 @@ int start_service(nssm_service_t *service) {
   TCHAR cmd[CMD_LENGTH];
   if (_sntprintf_s(cmd, _countof(cmd), _TRUNCATE, _T("\"%s\" %s"), service->exe, service->flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("command line"), _T("start_service"), 0);
-    close_output_handles(&si);
     return stop_service(service, 2, true, true);
   }
 
@@ -1526,6 +1525,14 @@ int start_service(nssm_service_t *service) {
   /* Set the environment. */
   if (service->env) duplicate_environment(service->env);
   if (service->env_extra) set_environment_block(service->env_extra);
+
+  /* Set up I/O redirection. */
+  if (get_output_handles(service, &si)) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
+    if (! service->no_console) FreeConsole();
+    close_output_handles(&si);
+    return stop_service(service, 4, true, true);
+  }
 
   bool inherit_handles = false;
   if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
