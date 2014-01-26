@@ -403,6 +403,10 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
+				RelativePath="console.cpp"
+				>
+			</File>
+			<File
 				RelativePath="env.cpp"
 				>
 			</File>
@@ -639,6 +643,10 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
+			<File
+				RelativePath="console.h"
+				>
+			</File>
 			<File
 				RelativePath="env.h"
 				>

@@ -1546,6 +1546,8 @@ int start_service(nssm_service_t *service) {
 
   close_output_handles(&si);
 
+  if (! service->no_console) FreeConsole();
+
   /* Restore our environment. */
   duplicate_environment(service->initial_env);
 
@@ -1696,8 +1698,6 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   if (exitcode == STILL_ACTIVE) exitcode = 0;
   if (service->pid) kill_process_tree(service, service->pid, exitcode, service->pid);
   service->pid = 0;
-
-  if (! service->no_console) FreeConsole();
 
   /*
     The why argument is true if our wait timed out or false otherwise.
