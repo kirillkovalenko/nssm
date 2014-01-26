@@ -165,7 +165,7 @@ int nssm_gui(int resource, nssm_service_t *service) {
     if (! service->rotate_bytes_high) SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, service->rotate_bytes_low, 0);
 
     /* Check if advanced settings are in use. */
-    if (service->stdout_disposition != service->stderr_disposition || (service->stdout_disposition != NSSM_STDOUT_DISPOSITION && service->stdout_disposition != CREATE_ALWAYS) || (service->stderr_disposition != NSSM_STDERR_DISPOSITION && service->stderr_disposition != CREATE_ALWAYS)) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_STDIO);
+    if (service->stdout_disposition != service->stderr_disposition || (service->stdout_disposition && service->stdout_disposition != NSSM_STDOUT_DISPOSITION && service->stdout_disposition != CREATE_ALWAYS) || (service->stderr_disposition && service->stderr_disposition != NSSM_STDERR_DISPOSITION && service->stderr_disposition != CREATE_ALWAYS)) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_STDIO);
     if (service->rotate_bytes_high) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ROTATE_BYTES);
 
     /* Environment tab. */
