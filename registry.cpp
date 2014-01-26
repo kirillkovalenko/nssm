@@ -434,20 +434,23 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   HKEY key = open_registry(service->name, KEY_READ);
   if (! key) return 1;
 
+  /* Don't expand parameters when retrieving for the GUI. */
+  bool expand = si ? true : false;
+
   /* Try to get executable file - MUST succeed */
-  if (expand_parameter(key, NSSM_REG_EXE, service->exe, sizeof(service->exe), false)) {
+  if (get_string(key, NSSM_REG_EXE, service->exe, sizeof(service->exe), expand, false, true)) {
     RegCloseKey(key);
     return 3;
   }
 
   /* Try to get flags - may fail and we don't care */
-  if (expand_parameter(key, NSSM_REG_FLAGS, service->flags, sizeof(service->flags), false)) {
+  if (get_string(key, NSSM_REG_FLAGS, service->flags, sizeof(service->flags), expand, false, true)) {
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_NO_FLAGS, NSSM_REG_FLAGS, service->name, service->exe, 0);
     ZeroMemory(service->flags, sizeof(service->flags));
   }
 
   /* Try to get startup directory - may fail and we fall back to a default */
-  if (expand_parameter(key, NSSM_REG_DIR, service->dir, sizeof(service->dir), true) || ! service->dir[0]) {
+  if (get_string(key, NSSM_REG_DIR, service->dir, sizeof(service->dir), expand, true, true) || ! service->dir[0]) {
     _sntprintf_s(service->dir, _countof(service->dir), _TRUNCATE, _T("%s"), service->exe);
     strip_basename(service->dir);
     if (service->dir[0] == _T('\0')) {
@@ -464,7 +467,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
 
   /* Try to get processor affinity - may fail. */
   TCHAR buffer[512];
-  if (expand_parameter(key, NSSM_REG_AFFINITY, buffer, sizeof(buffer), false, false) || ! buffer[0]) service->affinity = 0LL;
+  if (get_string(key, NSSM_REG_AFFINITY, buffer, sizeof(buffer), false, false, false) || ! buffer[0]) service->affinity = 0LL;
   else if (affinity_string_to_mask(buffer, &service->affinity)) {
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_AFFINITY_MASK, service->name, buffer);
     service->affinity = 0LL;
