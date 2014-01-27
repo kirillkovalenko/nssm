@@ -136,7 +136,7 @@ int _tmain(int argc, TCHAR **argv) {
     actually running as a service.
     This will save time when running with no arguments from a command prompt.
   */
-  if (_fileno(stdin) < 0) {
+  if (! GetStdHandle(STD_INPUT_HANDLE)) {
     /* Set up function pointers. */
     if (get_imports()) exit(111);
 
