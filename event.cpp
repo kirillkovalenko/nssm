@@ -81,7 +81,7 @@ int popup_message(HWND owner, unsigned int type, unsigned long id, ...) {
     return MessageBox(0, _T("The message which was supposed to go here is missing!"), NSSM, MB_OK | MB_ICONEXCLAMATION);
   }
 
-  TCHAR blurb[1024];
+  TCHAR blurb[NSSM_ERROR_BUFSIZE];
   va_start(arg, id);
   if (_vsntprintf_s(blurb, _countof(blurb), _TRUNCATE, format, arg) < 0) {
     va_end(arg);
