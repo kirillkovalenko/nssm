@@ -663,6 +663,7 @@ affinity support.
 Thanks to Andrew RedzMax for suggesting an unconditional restart delay.
 Thanks to Bryan Senseman for noticing that applications with redirected stdout
 and/or stderr which attempt to read from stdin would fail.
+Thanks to Czenda Czendov for help with Visual Studio 2013 and Server 2012R2.
 
 Licence
 -------

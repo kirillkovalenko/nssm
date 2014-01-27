@@ -251,6 +251,26 @@ void kill_process_tree(nssm_service_t *service, unsigned long pid, unsigned long
   _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), exitcode);
   log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILLING, service->name, pid_string, code, 0);
 
+  /* We will need a process handle in order to call TerminateProcess() later. */
+  HANDLE process_handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_TERMINATE, false, pid);
+  if (process_handle) {
+    /* Kill this process first, then its descendents. */
+    TCHAR ppid_string[16];
+    _sntprintf_s(ppid_string, _countof(ppid_string), _TRUNCATE, _T("%lu"), ppid);
+    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, service->name, 0);
+    if (! kill_process(service, process_handle, pid, exitcode)) {
+      /* Maybe it already died. */
+      unsigned long ret;
+      if (! GetExitCodeProcess(process_handle, &ret) || ret == STILL_ACTIVE) {
+        if (service->stop_method & NSSM_STOP_METHOD_TERMINATE) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_TERMINATEPROCESS_FAILED, pid_string, service->name, error_string(GetLastError()), 0);
+        else log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_PROCESS_STILL_ACTIVE, service->name, pid_string, NSSM, NSSM_REG_STOP_METHOD_SKIP, 0);
+      }
+    }
+
+    CloseHandle(process_handle);
+  }
+  else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENPROCESS_FAILED, pid_string, service->name, error_string(GetLastError()), 0);
+
   /* Get a snapshot of all processes in the system. */
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (! snapshot) {
@@ -285,25 +305,4 @@ void kill_process_tree(nssm_service_t *service, unsigned long pid, unsigned long
   }
 
   CloseHandle(snapshot);
-
-  /* We will need a process handle in order to call TerminateProcess() later. */
-  HANDLE process_handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_TERMINATE, false, pid);
-  if (! process_handle) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENPROCESS_FAILED, pid_string, service->name, error_string(GetLastError()), 0);
-    return;
-  }
-
-  TCHAR ppid_string[16];
-  _sntprintf_s(ppid_string, _countof(ppid_string), _TRUNCATE, _T("%lu"), ppid);
-  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, service->name, 0);
-  if (! kill_process(service, process_handle, pid, exitcode)) {
-    /* Maybe it already died. */
-    unsigned long ret;
-    if (! GetExitCodeProcess(process_handle, &ret) || ret == STILL_ACTIVE) {
-      if (service->stop_method & NSSM_STOP_METHOD_TERMINATE) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_TERMINATEPROCESS_FAILED, pid_string, service->name, error_string(GetLastError()), 0);
-      else log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_PROCESS_STILL_ACTIVE, service->name, pid_string, NSSM, NSSM_REG_STOP_METHOD_SKIP, 0);
-    }
-  }
-
-  CloseHandle(process_handle);
 }
