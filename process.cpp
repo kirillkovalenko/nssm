@@ -23,6 +23,7 @@ int get_process_exit_time(HANDLE process_handle, FILETIME *ft) {
     return 1;
   }
 
+  if (! (exit_time.dwLowDateTime || exit_time.dwHighDateTime)) return 2;
   memmove(ft, &exit_time, sizeof(exit_time));
 
   return 0;

@@ -1680,15 +1680,18 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   service->rotate_stdout_online = service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
 
+  /* Use now as a dummy exit time. */
+  GetSystemTimeAsFileTime(&service->exit_time);
+
   /* Check exit code */
   unsigned long exitcode = 0;
   TCHAR code[16];
   if (service->process_handle) {
     GetExitCodeProcess(service->process_handle, &exitcode);
-    if (exitcode == STILL_ACTIVE || get_process_exit_time(service->process_handle, &service->exit_time)) GetSystemTimeAsFileTime(&service->exit_time);
+    /* Check real exit time. */
+    if (exitcode != STILL_ACTIVE) get_process_exit_time(service->process_handle, &service->exit_time);
     CloseHandle(service->process_handle);
   }
-  else GetSystemTimeAsFileTime(&service->exit_time);
 
   service->process_handle = 0;
 
