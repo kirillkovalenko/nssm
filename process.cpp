@@ -151,7 +151,7 @@ int kill_process(nssm_service_t *service, HANDLE process_handle, unsigned long p
 
   /* Try to send a Control-C event to the console. */
   if (service->stop_method & NSSM_STOP_METHOD_CONSOLE) {
-    if (! kill_console(service)) return 1;
+    if (! kill_console(service, &k)) return 1;
   }
 
   /*
@@ -186,7 +186,7 @@ int kill_process(nssm_service_t *service, HANDLE process_handle, unsigned long p
 }
 
 /* Simulate a Control-C event to our console (shared with the app). */
-int kill_console(nssm_service_t *service) {
+int kill_console(nssm_service_t *service, kill_t *k) {
   unsigned long ret;
 
   if (! service) return 1;
@@ -195,7 +195,7 @@ int kill_console(nssm_service_t *service) {
   if (! imports.AttachConsole) return 4;
 
   /* Try to attach to the process's console. */
-  if (! imports.AttachConsole(service->pid)) {
+  if (! imports.AttachConsole(k->pid)) {
     ret = GetLastError();
 
     switch (ret) {
