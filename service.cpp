@@ -791,6 +791,10 @@ int pre_edit_service(int argc, TCHAR **argv) {
       additional = argv[3];
       remainder = 4;
     }
+    else if (str_equiv(setting->name, NSSM_NATIVE_OBJECTNAME) && mode == MODE_SETTING) {
+      additional = argv[3];
+      remainder = 4;
+    }
     else {
       additional = argv[remainder];
       if (argc < mandatory) return usage(1);
@@ -931,6 +935,9 @@ int pre_edit_service(int argc, TCHAR **argv) {
   /* Build the value. */
   if (mode == MODE_RESETTING) {
     /* Unset the parameter. */
+    value.string = 0;
+  }
+  else if (remainder == argc) {
     value.string = 0;
   }
   else {
