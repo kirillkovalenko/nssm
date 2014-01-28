@@ -69,10 +69,24 @@ int get_imports() {
   }
   else if (error != ERROR_MOD_NOT_FOUND) return 1;
 
+  imports.advapi32 = get_dll(_T("advapi32.dll"), &error);
+  if (imports.advapi32) {
+    imports.CreateWellKnownSid = (CreateWellKnownSid_ptr) get_import(imports.advapi32, "CreateWellKnownSid", &error);
+    if (! imports.CreateWellKnownSid) {
+      if (error != ERROR_PROC_NOT_FOUND) return 6;
+    }
+    imports.IsWellKnownSid = (IsWellKnownSid_ptr) get_import(imports.advapi32, "IsWellKnownSid", &error);
+    if (! imports.IsWellKnownSid) {
+      if (error != ERROR_PROC_NOT_FOUND) return 7;
+    }
+  }
+  else if (error != ERROR_MOD_NOT_FOUND) return 5;
+
   return 0;
 }
 
 void free_imports() {
   if (imports.kernel32) FreeLibrary(imports.kernel32);
+  if (imports.advapi32) FreeLibrary(imports.advapi32);
   ZeroMemory(&imports, sizeof(imports));
 }
