@@ -527,19 +527,32 @@ int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *n
     Logical syntax is: nssm set <service> ObjectName <username> <password>
     That means the username is actually passed in the additional parameter.
   */
-  bool localsystem = true;
+  bool localsystem = false;
   TCHAR *username = NSSM_LOCALSYSTEM_ACCOUNT;
   TCHAR *password = 0;
+  TCHAR *canon = 0;
   if (additional) {
-    if (! str_equiv(additional, NSSM_LOCALSYSTEM_ACCOUNT)) {
-      localsystem = false;
-      username = (TCHAR *) additional;
-      if (value && value->string) password = value->string;
-      else {
-        /* We need a password if the account is not LOCALSYSTEM. */
-        print_message(stderr, NSSM_MESSAGE_MISSING_PASSWORD, name);
-        return -1;
-      }
+    username = (TCHAR *) additional;
+    if (value && value->string) password = value->string;
+  }
+  else if (value && value->string) username = value->string;
+
+  if (requires_password(username)) {
+    if (! password) {
+      /* We need a password if the account requires it. */
+      print_message(stderr, NSSM_MESSAGE_MISSING_PASSWORD, name);
+      return -1;
+    }
+  }
+  else {
+    password = 0;
+    if (is_localsystem(username)) {
+      localsystem = true;
+      username = NSSM_LOCALSYSTEM_ACCOUNT;
+    }
+    else {
+      canon = canonical_username(username);
+      if (canon) username = canon;
     }
   }
 
@@ -552,6 +565,7 @@ int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *n
     QUERY_SERVICE_CONFIG *qsc = query_service_config(service_name, service_handle);
     if (! qsc) {
       if (password) SecureZeroMemory(password, _tcslen(password) * sizeof(TCHAR));
+      if (canon) LocalFree(canon);
       return -1;
     }
 
@@ -559,19 +573,24 @@ int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *n
     HeapFree(GetProcessHeap(), 0, qsc);
   }
 
-  if (grant_logon_as_service(username)) {
-    if (password) SecureZeroMemory(password, _tcslen(password) * sizeof(TCHAR));
-    print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
-    return -1;
+  if (password) {
+    if (grant_logon_as_service(username)) {
+      if (password) SecureZeroMemory(password, _tcslen(password) * sizeof(TCHAR));
+      if (canon) LocalFree(canon);
+      print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
+      return -1;
+    }
   }
 
   if (! ChangeServiceConfig(service_handle, type, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, 0, 0, 0, 0, username, password, 0)) {
     if (password) SecureZeroMemory(password, _tcslen(password) * sizeof(TCHAR));
+    if (canon) LocalFree(canon);
     print_message(stderr, NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED, error_string(GetLastError()));
     return -1;
   }
   if (password) SecureZeroMemory(password, _tcslen(password) * sizeof(TCHAR));
 
+  if (canon) LocalFree(canon);
   if (localsystem) return 0;
 
   return 1;

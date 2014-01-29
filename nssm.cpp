@@ -77,6 +77,9 @@ int _tmain(int argc, TCHAR **argv) {
   /* Remember if we are admin */
   check_admin();
 
+  /* Set up function pointers. */
+  if (get_imports()) exit(111);
+
   /* Elevate */
   if (argc > 1) {
     /*
@@ -137,9 +140,6 @@ int _tmain(int argc, TCHAR **argv) {
     This will save time when running with no arguments from a command prompt.
   */
   if (! GetStdHandle(STD_INPUT_HANDLE)) {
-    /* Set up function pointers. */
-    if (get_imports()) exit(111);
-
     /* Start service magic */
     SERVICE_TABLE_ENTRY table[] = { { NSSM, service_main }, { 0, 0 } };
     if (! StartServiceCtrlDispatcher(table)) {

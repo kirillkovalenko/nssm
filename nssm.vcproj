@@ -403,6 +403,10 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
+				RelativePath="account.cpp"
+				>
+			</File>
+			<File
 				RelativePath="console.cpp"
 				>
 			</File>
@@ -643,6 +647,10 @@
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl"
 			>
+			<File
+				RelativePath="account.h"
+				>
+			</File>
 			<File
 				RelativePath="console.h"
 				>

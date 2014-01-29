@@ -41,6 +41,7 @@
 #include <tchar.h>
 #include <windows.h>
 #include "service.h"
+#include "account.h"
 #include "console.h"
 #include "env.h"
 #include "event.h"

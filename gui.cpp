@@ -367,13 +367,33 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
     }
 
     /*
-      Special case LOCALSYSTEM.
+      Special case for well-known accounts.
       Ignore the password if we're editing and the username hasn't changed.
     */
-    if (str_equiv(service->username, NSSM_LOCALSYSTEM_ACCOUNT)) {
-      HeapFree(GetProcessHeap(), 0, service->username);
-      service->username = 0;
-      service->usernamelen = 0;
+    if (! requires_password(service->username)) {
+      if (is_localsystem(service->username)) {
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+      }
+      else {
+        TCHAR *canon = canonical_username(service->username);
+        HeapFree(GetProcessHeap(), 0, service->username);
+        service->username = 0;
+        service->usernamelen = 0;
+        if (canon) {
+          service->usernamelen = _tcslen(canon) + 1;
+          service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
+          if (! service->username) {
+            LocalFree(canon);
+            print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("install()"));
+            return 6;
+          }
+          memmove(service->username, canon, service->usernamelen * sizeof(TCHAR));
+          LocalFree(canon);
+        }
+        else return 6;
+      }
     }
     else {
       /* Password. */
