@@ -934,7 +934,8 @@ int edit_service(nssm_service_t *service, bool editing) {
   }
   else if (editing) username = NSSM_LOCALSYSTEM_ACCOUNT;
 
-  if (requires_password(username)) {
+  if (well_known_username(username)) password = _T("");
+  else {
     if (grant_logon_as_service(username)) {
       print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
       return 5;

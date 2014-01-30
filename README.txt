@@ -520,8 +520,8 @@ The following well-known usernames do not need a password.  The password
 parameter can be omitted when using them:
 
   "LocalSystem" aka "System" aka "NT Authority\System"
-  "Local Service" aka "NT Authority\Local Service"
-  "Network Service" aka "NT Authority\Network Service"
+  "LocalService" aka "Local Service" aka "NT Authority\Local Service"
+  "NetworkService" aka "Network Service" aka "NT Authority\Network Service"
 
 
 The Start parameter is used to query or set the startup type of the service.

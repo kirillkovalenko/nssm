@@ -370,29 +370,21 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
       Special case for well-known accounts.
       Ignore the password if we're editing and the username hasn't changed.
     */
-    if (! requires_password(service->username)) {
-      if (is_localsystem(service->username)) {
+    const TCHAR *well_known = well_known_username(service->username);
+    if (well_known) {
+      if (str_equiv(well_known, NSSM_LOCALSYSTEM_ACCOUNT)) {
         HeapFree(GetProcessHeap(), 0, service->username);
         service->username = 0;
         service->usernamelen = 0;
       }
       else {
-        TCHAR *canon = canonical_username(service->username);
-        HeapFree(GetProcessHeap(), 0, service->username);
-        service->username = 0;
-        service->usernamelen = 0;
-        if (canon) {
-          service->usernamelen = _tcslen(canon) + 1;
-          service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
-          if (! service->username) {
-            LocalFree(canon);
-            print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("install()"));
-            return 6;
-          }
-          memmove(service->username, canon, service->usernamelen * sizeof(TCHAR));
-          LocalFree(canon);
+        service->usernamelen = _tcslen(well_known) + 1;
+        service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
+        if (! service->username) {
+          print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("install()"));
+          return 6;
         }
-        else return 6;
+        memmove(service->username, well_known, service->usernamelen * sizeof(TCHAR));
       }
     }
     else {
