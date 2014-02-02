@@ -655,7 +655,7 @@ Thanks to Szymon Nowak for help with Windows 2000 compatibility.
 Thanks to François-Régis Tardy for French translation.
 Thanks to Emilio Frini for spotting that French was inadvertently set as
 the default language when the user's display language was not translated.
-Thanks to Riccardo Gusmeroli for Italian translation.
+Thanks to Riccardo Gusmeroli and Marco Certelli for Italian translation.
 Thanks to Eric Cheldelin for the inspiration to generate a Control-C event
 on shutdown.
 Thanks to Brian Baxter for suggesting how to escape quotes from the command
