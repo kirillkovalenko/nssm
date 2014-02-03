@@ -472,17 +472,19 @@ int get_service_username(const TCHAR *service_name, const QUERY_SERVICE_CONFIG *
 
   if (! qsc) return 1;
 
-  if (is_localsystem(qsc->lpServiceStartName)) return 0;
+  if (qsc->lpServiceStartName[0]) {
+    if (is_localsystem(qsc->lpServiceStartName)) return 0;
 
-  size_t len = _tcslen(qsc->lpServiceStartName);
-  *username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
-  if (! *username) {
-    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("username"), _T("get_service_username()"));
-    return 2;
+    size_t len = _tcslen(qsc->lpServiceStartName);
+    *username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
+    if (! *username) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("username"), _T("get_service_username()"));
+      return 2;
+    }
+
+    memmove(*username, qsc->lpServiceStartName, (len + 1) * sizeof(TCHAR));
+    *usernamelen = len;
   }
-
-  memmove(*username, qsc->lpServiceStartName, (len + 1) * sizeof(TCHAR));
-  *usernamelen = len;
 
   return 0;
 }
