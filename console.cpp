@@ -51,7 +51,7 @@ void alloc_console(nssm_service_t *service) {
   /* Set a title like "[NSSM] Jenkins" */
   TCHAR displayname[SERVICE_NAME_LENGTH];
   unsigned long len = _countof(displayname);
-  SC_HANDLE services = open_service_manager();
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT);
   if (services) {
     if (! GetServiceDisplayName(services, service->name, displayname, &len)) ZeroMemory(displayname, sizeof(displayname));
     CloseServiceHandle(services);

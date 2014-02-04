@@ -253,8 +253,8 @@ static unsigned long WINAPI shutdown_service(void *arg) {
 }
 
 /* Connect to the service manager */
-SC_HANDLE open_service_manager() {
-  SC_HANDLE ret = OpenSCManager(0, SERVICES_ACTIVE_DATABASE, SC_MANAGER_ALL_ACCESS);
+SC_HANDLE open_service_manager(unsigned long access) {
+  SC_HANDLE ret = OpenSCManager(0, SERVICES_ACTIVE_DATABASE, access);
   if (! ret) {
     if (is_admin) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENSCMANAGER_FAILED, 0);
     return 0;
@@ -264,8 +264,8 @@ SC_HANDLE open_service_manager() {
 }
 
 /* Open a service by name or display name. */
-SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, TCHAR *canonical_name, unsigned long canonical_namelen) {
-  SC_HANDLE service_handle = OpenService(services, service_name, SERVICE_ALL_ACCESS);
+SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, unsigned long access, TCHAR *canonical_name, unsigned long canonical_namelen) {
+  SC_HANDLE service_handle = OpenService(services, service_name, access);
   if (service_handle) {
     if (canonical_name && canonical_name != service_name) {
       if (_sntprintf_s(canonical_name, canonical_namelen, _TRUNCATE, _T("%s"), service_name) < 0) {
@@ -331,7 +331,7 @@ SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, TCHAR *canonical
         }
 
         HeapFree(GetProcessHeap(), 0, status);
-        return open_service(services, canonical_name, 0, 0);
+        return open_service(services, canonical_name, access, 0, 0);
       }
     }
 
@@ -339,7 +339,7 @@ SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, TCHAR *canonical
   }
 
   /* Recurse so we can get an error message. */
-  return open_service(services, service_name, 0, 0);
+  return open_service(services, service_name, access, 0, 0);
 }
 
 QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE service_handle) {
@@ -657,14 +657,16 @@ int pre_edit_service(int argc, TCHAR **argv) {
   _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), service_name);
 
   /* Open service manager */
-  SC_HANDLE services = open_service_manager();
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
   if (! services) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
 
   /* Try to open the service */
-  service->handle = open_service(services, service->name, service->name, _countof(service->name));
+  unsigned long access = SERVICE_QUERY_CONFIG;
+  if (mode != MODE_GETTING) access |= SERVICE_CHANGE_CONFIG;
+  service->handle = open_service(services, service->name, access, service->name, _countof(service->name));
   if (! service->handle) {
     CloseServiceHandle(services);
     return 3;
@@ -867,7 +869,7 @@ int install_service(nssm_service_t *service) {
   if (! service) return 1;
 
   /* Open service manager */
-  SC_HANDLE services = open_service_manager();
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_CREATE_SERVICE);
   if (! services) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     cleanup_nssm_service(service);
@@ -986,13 +988,33 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
   TCHAR *service_name = argv[0];
   TCHAR canonical_name[SERVICE_NAME_LENGTH];
 
-  SC_HANDLE services = open_service_manager();
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
   if (! services) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
 
-  SC_HANDLE service_handle = open_service(services, service_name, canonical_name, _countof(canonical_name));
+  unsigned long access = SERVICE_QUERY_STATUS;
+  switch (control) {
+    case NSSM_SERVICE_CONTROL_START:
+      access |= SERVICE_START;
+    break;
+
+    case SERVICE_CONTROL_CONTINUE:
+    case SERVICE_CONTROL_PAUSE:
+      access |= SERVICE_PAUSE_CONTINUE;
+      break;
+
+    case SERVICE_CONTROL_STOP:
+      access |= SERVICE_STOP;
+      break;
+
+    case NSSM_SERVICE_CONTROL_ROTATE:
+      access |= SERVICE_USER_DEFINED_CONTROL;
+      break;
+  }
+
+  SC_HANDLE service_handle = open_service(services, service_name, access, canonical_name, _countof(canonical_name));
   if (! service_handle) {
     CloseServiceHandle(services);
     return 3;
@@ -1090,14 +1112,14 @@ int remove_service(nssm_service_t *service) {
   if (! service) return 1;
 
   /* Open service manager */
-  SC_HANDLE services = open_service_manager();
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
   if (! services) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
     return 2;
   }
 
   /* Try to open the service */
-  service->handle = open_service(services, service->name, service->name, _countof(service->name));
+  service->handle = open_service(services, service->name, DELETE, service->name, _countof(service->name));
   if (! service->handle) {
     CloseServiceHandle(services);
     return 3;
@@ -1167,9 +1189,9 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
     /* Try to create the exit action parameters; we don't care if it fails */
     create_exit_action(service->name, exit_action_strings[0], false);
 
-    SC_HANDLE services = open_service_manager();
+    SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT);
     if (services) {
-      service->handle = OpenService(services, service->name, SC_MANAGER_ALL_ACCESS);
+      service->handle = open_service(services, service->name, SERVICE_CHANGE_CONFIG, 0, 0);
       set_service_recovery(service);
       CloseServiceHandle(services);
     }
