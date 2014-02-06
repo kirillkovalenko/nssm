@@ -55,6 +55,44 @@ void check_admin() {
   FreeSid(AdministratorsGroup);
 }
 
+static int elevate(int argc, TCHAR **argv, unsigned long message) {
+  print_message(stderr, message);
+
+  SHELLEXECUTEINFO sei;
+  ZeroMemory(&sei, sizeof(sei));
+  sei.cbSize = sizeof(sei);
+  sei.lpVerb = _T("runas");
+  sei.lpFile = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, PATH_LENGTH);
+  if (! sei.lpFile) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("GetModuleFileName()"), _T("elevate()"));
+    return 111;
+  }
+  GetModuleFileName(0, (TCHAR *) sei.lpFile, PATH_LENGTH);
+
+  TCHAR *args = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, EXE_LENGTH * sizeof(TCHAR));
+  if (! args) {
+    HeapFree(GetProcessHeap(), 0, (void *) sei.lpFile);
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("GetCommandLine()"), _T("elevate()"));
+    return 111;
+  }
+
+  /* Get command line, which includes the path to NSSM, and skip that part. */
+  _sntprintf_s(args, EXE_LENGTH, _TRUNCATE, _T("%s"), GetCommandLine());
+  size_t s = _tcslen(argv[0]) + 1;
+  if (args[0] == _T('"')) s += 2;
+  while (isspace(args[s])) s++;
+
+  sei.lpParameters = args + s;
+  sei.nShow = SW_SHOW;
+
+  unsigned long exitcode = 0;
+  if (! ShellExecuteEx(&sei)) exitcode = 100;
+
+  HeapFree(GetProcessHeap(), 0, (void *) sei.lpFile);
+  HeapFree(GetProcessHeap(), 0, (void *) args);
+  return exitcode;
+}
+
 int num_cpus() {
   DWORD_PTR i, affinity, system_affinity;
   if (! GetProcessAffinityMask(GetCurrentProcess(), &affinity, &system_affinity)) return 64;
@@ -98,27 +136,18 @@ int _tmain(int argc, TCHAR **argv) {
     if (str_equiv(argv[1], _T("status"))) exit(control_service(SERVICE_CONTROL_INTERROGATE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("rotate"))) exit(control_service(NSSM_SERVICE_CONTROL_ROTATE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("install"))) {
-      if (! is_admin) {
-        print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL);
-        exit(100);
-      }
+      if (! is_admin) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL));
       exit(pre_install_service(argc - 2, argv + 2));
     }
     if (str_equiv(argv[1], _T("edit")) || str_equiv(argv[1], _T("get")) || str_equiv(argv[1], _T("set")) || str_equiv(argv[1], _T("reset")) || str_equiv(argv[1], _T("unset"))) {
-      if (! is_admin) {
-        print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT);
-        exit(100);
-      }
       int ret = pre_edit_service(argc - 1, argv + 1);
+      if (ret == 3 && ! is_admin && argc == 3) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT));
       /* There might be a password here. */
       for (int i = 0; i < argc; i++) SecureZeroMemory(argv[i], _tcslen(argv[i]) * sizeof(TCHAR));
       exit(ret);
     }
     if (str_equiv(argv[1], _T("remove"))) {
-      if (! is_admin) {
-        print_message(stderr, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE);
-        exit(100);
-      }
+      if (! is_admin) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE));
       exit(pre_remove_service(argc - 2, argv + 2));
     }
   }
