@@ -349,6 +349,65 @@ int get_number(HKEY key, TCHAR *value, unsigned long *number) {
   return get_number(key, value, number, true);
 }
 
+/* Replace NULL with CRLF. Leave NULL NULL as the end marker. */
+int format_double_null(TCHAR *dn, unsigned long dnlen, TCHAR **formatted, unsigned long *newlen) {
+  unsigned long i, j;
+  *newlen = dnlen;
+
+  if (! *newlen) {
+    *formatted = 0;
+    return 0;
+  }
+
+  for (i = 0; i < dnlen; i++) if (! dn[i] && dn[i + 1]) ++*newlen;
+
+  *formatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *newlen * sizeof(TCHAR));
+  if (! *formatted) {
+    *newlen = 0;
+    return 1;
+  }
+
+  for (i = 0, j = 0; i < dnlen; i++) {
+    (*formatted)[j] = dn[i];
+    if (! dn[i]) {
+      if (dn[i + 1]) {
+        (*formatted)[j] = _T('\r');
+        (*formatted)[++j] = _T('\n');
+      }
+    }
+    j++;
+  }
+
+  return 0;
+}
+
+/* Strip CR and replace LF with NULL. */
+int unformat_double_null(TCHAR *dn, unsigned long dnlen, TCHAR **unformatted, unsigned long *newlen) {
+  unsigned long i, j;
+  *newlen = 0;
+
+  if (! dnlen) {
+    *unformatted = 0;
+    return 0;
+  }
+
+  for (i = 0; i < dnlen; i++) if (dn[i] != _T('\r')) ++*newlen;
+  /* Must end with two NULLs. */
+  *newlen += 2;
+
+  *unformatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *newlen * sizeof(TCHAR));
+  if (! *unformatted) return 1;
+
+  for (i = 0, j = 0; i < dnlen; i++) {
+    if (dn[i] == _T('\r')) continue;
+    if (dn[i] == _T('\n')) (*unformatted)[j] = _T('\0');
+    else (*unformatted)[j] = dn[i];
+    j++;
+  }
+
+  return 0;
+}
+
 void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned long *buffer, unsigned long default_value, unsigned long event) {
   unsigned long type = REG_DWORD;
   unsigned long buflen = sizeof(unsigned long);

@@ -46,6 +46,8 @@ int set_expand_string(HKEY, TCHAR *, TCHAR *);
 int set_number(HKEY, TCHAR *, unsigned long);
 int get_number(HKEY, TCHAR *, unsigned long *, bool);
 int get_number(HKEY, TCHAR *, unsigned long *);
+int format_double_null(TCHAR *, unsigned long, TCHAR **, unsigned long *);
+int unformat_double_null(TCHAR *, unsigned long, TCHAR **, unsigned long *);
 void override_milliseconds(TCHAR *, HKEY, TCHAR *, unsigned long *, unsigned long, unsigned long);
 int get_io_parameters(nssm_service_t *, HKEY);
 int get_parameters(nssm_service_t *, STARTUPINFO *);

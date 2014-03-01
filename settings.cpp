@@ -305,7 +305,7 @@ static int setting_set_environment(const TCHAR *service_name, void *param, const
   unsigned long envlen = (unsigned long) _tcslen(value->string) + 1;
   TCHAR *unformatted = 0;
   unsigned long newlen;
-  if (unformat_environment(value->string, envlen, &unformatted, &newlen)) return -1;
+  if (unformat_double_null(value->string, envlen, &unformatted, &newlen)) return -1;
 
   if (test_environment(unformatted)) {
     HeapFree(GetProcessHeap(), 0, unformatted);
@@ -334,7 +334,7 @@ static int setting_get_environment(const TCHAR *service_name, void *param, const
 
   TCHAR *formatted;
   unsigned long newlen;
-  if (format_environment(env, envlen, &formatted, &newlen)) return -1;
+  if (format_double_null(env, envlen, &formatted, &newlen)) return -1;
 
   int ret;
   if (additional) {

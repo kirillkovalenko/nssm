@@ -184,7 +184,7 @@ int nssm_gui(int resource, nssm_service_t *service) {
     if (envlen) {
       TCHAR *formatted;
       unsigned long newlen;
-      if (format_environment(env, envlen, &formatted, &newlen)) {
+      if (format_double_null(env, envlen, &formatted, &newlen)) {
         popup_message(dlg, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("nssm_dlg()"));
       }
       else {
@@ -551,7 +551,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
 
     TCHAR *newenv;
     unsigned long newlen;
-    if (unformat_environment(env, envlen, &newenv, &newlen)) {
+    if (unformat_double_null(env, envlen, &newenv, &newlen)) {
       HeapFree(GetProcessHeap(), 0, env);
       popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("install()"));
       cleanup_nssm_service(service);
