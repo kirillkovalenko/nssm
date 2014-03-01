@@ -392,6 +392,27 @@ int unformat_double_null(TCHAR *dn, unsigned long dnlen, TCHAR **unformatted, un
   }
 
   for (i = 0; i < dnlen; i++) if (dn[i] != _T('\r')) ++*newlen;
+
+  /* Skip blank lines. */
+  for (i = 0; i < dnlen; i++) {
+    if (dn[i] == _T('\r') && dn[i + 1] == _T('\n')) {
+      /* This is the last CRLF. */
+      if (i >= dnlen - 2) break;
+
+      /*
+        Strip at the start of the block or if the next characters are
+        CRLF too.
+      */
+      if (! i || (dn[i + 2] == _T('\r') && dn[i + 3] == _T('\n'))) {
+        for (j = i + 2; j < dnlen; j++) dn[j - 2] = dn[j];
+        dn[dnlen--] = _T('\0');
+        dn[dnlen--] = _T('\0');
+        i--;
+        --*newlen;
+      }
+    }
+  }
+
   /* Must end with two NULLs. */
   *newlen += 2;
 
