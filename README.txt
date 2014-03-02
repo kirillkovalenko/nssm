@@ -62,7 +62,7 @@ an application which has exited.
 Since version 2.22, NSSM can rotate existing output files when redirecting I/O.
 
 Since version 2.22, NSSM can set service display name, description, startup
-type and log on details.
+type, log on details and dependencies.
 
 Since version 2.22, NSSM can manage existing services.
 
@@ -492,6 +492,14 @@ managed application.  Valid priorities are as follows:
   NORMAL_PRIORITY_CLASS
   BELOW_NORMAL_PRIORITY_CLASS
   IDLE_PRIORITY_CLASS
+
+
+The DependOnGroup and DependOnService parameters are used to query or set
+the dependencies for the service.  When setting dependencies, each service
+or service group (preceded with the + symbol) should be specified in
+separate command line arguments.  For example:
+
+    nssm set <servicename> DependOnService RpcSs LanmanWorkstation
 
 
 The Name parameter can only be queried, not set.  It returns the service's

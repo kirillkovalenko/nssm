@@ -17,6 +17,7 @@
 #define IDD_ENVIRONMENT                 112
 #define IDD_NATIVE                      113
 #define IDD_PROCESS                     114
+#define IDD_DEPENDENCIES                115
 #define IDC_PATH                        1000
 #define IDC_TAB1                        1001
 #define IDC_CANCEL                      1002
@@ -62,6 +63,7 @@
 #define IDC_AFFINITY_ALL                1043
 #define IDC_AFFINITY                    1044
 #define IDC_CONSOLE                     1045
+#define IDC_DEPENDENCIES                1046
 
 // Next default values for new objects
 // 
@@ -69,7 +71,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        115
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1046
+#define _APS_NEXT_CONTROL_VALUE         1047
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

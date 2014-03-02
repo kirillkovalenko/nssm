@@ -416,6 +416,209 @@ static int setting_get_priority(const TCHAR *service_name, void *param, const TC
 }
 
 /* Functions to manage native service settings. */
+static int native_set_dependongroup(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  SC_HANDLE service_handle = (SC_HANDLE) param;
+  if (! service_handle) return -1;
+
+  /*
+    Get existing service dependencies because we must set both types together.
+  */
+  TCHAR *buffer;
+  unsigned long buflen;
+  if (get_service_dependencies(service_name, service_handle, &buffer, &buflen, DEPENDENCY_SERVICES)) return -1;
+
+  if (! value || ! value->string || ! value->string[0]) {
+    if (! ChangeServiceConfig(service_handle, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, 0, 0, 0, buffer, 0, 0, 0)) {
+      print_message(stderr, NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED, error_string(GetLastError()));
+      if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+    return 0;
+  }
+
+  unsigned long len = (unsigned long) _tcslen(value->string) + 1;
+  TCHAR *unformatted = 0;
+  unsigned long newlen;
+  if (unformat_double_null(value->string, len, &unformatted, &newlen)) {
+    if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+    return -1;
+  }
+
+  /* Prepend group identifier. */
+  unsigned long missing = 0;
+  TCHAR *canon = unformatted;
+  size_t canonlen = 0;
+  TCHAR *s;
+  for (s = unformatted; *s; s++) {
+    if (*s != SC_GROUP_IDENTIFIER) missing++;
+    size_t len = _tcslen(s);
+    canonlen += len + 1;
+    s += len;
+  }
+
+  if (missing) {
+    /* Missing identifiers plus double NULL terminator. */
+    canonlen += missing + 1;
+    newlen = (unsigned long) canonlen;
+
+    canon = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, canonlen * sizeof(TCHAR));
+    if (! canon) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("native_set_dependongroup"));
+      if (unformatted) HeapFree(GetProcessHeap(), 0, unformatted);
+      if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    size_t i = 0;
+    for (s = unformatted; *s; s++) {
+      if (*s != SC_GROUP_IDENTIFIER) canon[i++] = SC_GROUP_IDENTIFIER;
+      size_t len = _tcslen(s);
+      memmove(canon + i, s, (len + 1) * sizeof(TCHAR));
+      i += len + 1;
+      s += len;
+    }
+  }
+
+  TCHAR *dependencies;
+  if (buflen > 2) {
+    dependencies = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (newlen + buflen) * sizeof(TCHAR));
+    if (! dependencies) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("dependencies"), _T("native_set_dependongroup"));
+      if (canon != unformatted) HeapFree(GetProcessHeap(), 0, canon);
+      if (unformatted) HeapFree(GetProcessHeap(), 0, unformatted);
+      if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    memmove(dependencies, buffer, buflen * sizeof(TCHAR));
+    memmove(dependencies + buflen - 1, canon, newlen * sizeof(TCHAR));
+  }
+  else dependencies = canon;
+
+  int ret = 1;
+  if (set_service_dependencies(service_name, service_handle, dependencies)) ret = -1;
+  if (dependencies != unformatted) HeapFree(GetProcessHeap(), 0, dependencies);
+  if (canon != unformatted) HeapFree(GetProcessHeap(), 0, canon);
+  if (unformatted) HeapFree(GetProcessHeap(), 0, unformatted);
+  if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+
+  return ret;
+}
+
+static int native_get_dependongroup(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  SC_HANDLE service_handle = (SC_HANDLE) param;
+  if (! service_handle) return -1;
+
+  TCHAR *buffer;
+  unsigned long buflen;
+  if (get_service_dependencies(service_name, service_handle, &buffer, &buflen, DEPENDENCY_GROUPS)) return -1;
+
+  int ret;
+  if (buflen) {
+    TCHAR *formatted;
+    unsigned long newlen;
+    if (format_double_null(buffer, buflen, &formatted, &newlen)) {
+      HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    ret = value_from_string(name, value, formatted);
+    HeapFree(GetProcessHeap(), 0, formatted);
+    HeapFree(GetProcessHeap(), 0, buffer);
+  }
+  else {
+    value->string = 0;
+    ret = 0;
+  }
+
+  return ret;
+}
+
+static int native_set_dependonservice(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  SC_HANDLE service_handle = (SC_HANDLE) param;
+  if (! service_handle) return -1;
+
+  /*
+    Get existing group dependencies because we must set both types together.
+  */
+  TCHAR *buffer;
+  unsigned long buflen;
+  if (get_service_dependencies(service_name, service_handle, &buffer, &buflen, DEPENDENCY_GROUPS)) return -1;
+
+  if (! value || ! value->string || ! value->string[0]) {
+    if (! ChangeServiceConfig(service_handle, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, 0, 0, 0, buffer, 0, 0, 0)) {
+      print_message(stderr, NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED, error_string(GetLastError()));
+      if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+    return 0;
+  }
+
+  unsigned long len = (unsigned long) _tcslen(value->string) + 1;
+  TCHAR *unformatted = 0;
+  unsigned long newlen;
+  if (unformat_double_null(value->string, len, &unformatted, &newlen)) {
+    if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+    return -1;
+  }
+
+  TCHAR *dependencies;
+  if (buflen > 2) {
+    dependencies = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (newlen + buflen) * sizeof(TCHAR));
+    if (! dependencies) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("dependencies"), _T("native_set_dependonservice"));
+      if (unformatted) HeapFree(GetProcessHeap(), 0, unformatted);
+      if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    memmove(dependencies, buffer, buflen * sizeof(TCHAR));
+    memmove(dependencies + buflen - 1, unformatted, newlen * sizeof(TCHAR));
+  }
+  else dependencies = unformatted;
+
+  int ret = 1;
+  if (set_service_dependencies(service_name, service_handle, dependencies)) ret = -1;
+  if (dependencies != unformatted) HeapFree(GetProcessHeap(), 0, dependencies);
+  if (unformatted) HeapFree(GetProcessHeap(), 0, unformatted);
+  if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+
+  return ret;
+}
+
+static int native_get_dependonservice(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  SC_HANDLE service_handle = (SC_HANDLE) param;
+  if (! service_handle) return -1;
+
+  TCHAR *buffer;
+  unsigned long buflen;
+  if (get_service_dependencies(service_name, service_handle, &buffer, &buflen, DEPENDENCY_SERVICES)) return -1;
+
+  int ret;
+  if (buflen) {
+    TCHAR *formatted;
+    unsigned long newlen;
+    if (format_double_null(buffer, buflen, &formatted, &newlen)) {
+      HeapFree(GetProcessHeap(), 0, buffer);
+      return -1;
+    }
+
+    ret = value_from_string(name, value, formatted);
+    HeapFree(GetProcessHeap(), 0, formatted);
+    HeapFree(GetProcessHeap(), 0, buffer);
+  }
+  else {
+    value->string = 0;
+    ret = 0;
+  }
+
+  return ret;
+}
+
 int native_set_description(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   SC_HANDLE service_handle = (SC_HANDLE) param;
   if (! service_handle) return -1;
@@ -845,6 +1048,8 @@ settings_t settings[] = {
   { NSSM_REG_ROTATE_SECONDS, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_ROTATE_BYTES_LOW, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
   { NSSM_REG_ROTATE_BYTES_HIGH, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
+  { NSSM_NATIVE_DEPENDONGROUP, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependongroup, native_get_dependongroup },
+  { NSSM_NATIVE_DEPENDONSERVICE, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependonservice, native_get_dependonservice },
   { NSSM_NATIVE_DESCRIPTION, REG_SZ, _T(""), true, 0, native_set_description, native_get_description },
   { NSSM_NATIVE_DISPLAYNAME, REG_SZ, NULL, true, 0, native_set_displayname, native_get_displayname },
   { NSSM_NATIVE_IMAGEPATH, REG_EXPAND_SZ, NULL, true, 0, native_set_imagepath, native_get_imagepath },

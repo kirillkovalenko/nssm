@@ -1,6 +1,6 @@
 #include "nssm.h"
 
-static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_PROCESS, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
+static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_DEPENDENCIES, NSSM_TAB_PROCESS, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_NUM_TABS };
 static HWND tablist[NSSM_NUM_TABS];
 static int selected_tab;
 
@@ -93,6 +93,19 @@ int nssm_gui(int resource, nssm_service_t *service) {
     else {
       CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
       if (service->type & SERVICE_INTERACTIVE_PROCESS) SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_SETCHECK, BST_CHECKED, 0);
+    }
+
+    /* Dependencies tab. */
+    if (service->dependencieslen) {
+      TCHAR *formatted;
+      unsigned long newlen;
+      if (format_double_null(service->dependencies, service->dependencieslen, &formatted, &newlen)) {
+        popup_message(dlg, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("dependencies"), _T("nssm_dlg()"));
+      }
+      else {
+        SetDlgItemText(tablist[NSSM_TAB_DEPENDENCIES], IDC_DEPENDENCIES, formatted);
+        HeapFree(GetProcessHeap(), 0, formatted);
+      }
     }
 
     /* Process tab. */
@@ -469,6 +482,33 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
         }
       }
     }
+  }
+
+  /* Get dependencies. */
+  unsigned long dependencieslen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_DEPENDENCIES], IDC_DEPENDENCIES), WM_GETTEXTLENGTH, 0, 0);
+  if (dependencieslen) {
+    TCHAR *dependencies = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (dependencieslen + 2) * sizeof(TCHAR));
+    if (! dependencies) {
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("dependencies"), _T("install()"));
+      cleanup_nssm_service(service);
+      return 6;
+    }
+
+    if (! GetDlgItemText(tablist[NSSM_TAB_DEPENDENCIES], IDC_DEPENDENCIES, dependencies, dependencieslen + 1)) {
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_INVALID_DEPENDENCIES);
+      HeapFree(GetProcessHeap(), 0, dependencies);
+      cleanup_nssm_service(service);
+      return 6;
+    }
+
+    if (unformat_double_null(dependencies, dependencieslen, &service->dependencies, &service->dependencieslen)) {
+      HeapFree(GetProcessHeap(), 0, dependencies);
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("dependencies"), _T("install()"));
+      cleanup_nssm_service(service);
+      return 6;
+    }
+
+    HeapFree(GetProcessHeap(), 0, dependencies);
   }
 
   /* Remaining tabs are only for services we manage. */
@@ -954,6 +994,13 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       /* Set defaults. */
       CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
       set_logon_enabled(0);
+
+      /* Dependencies tab. */
+      tab.pszText = message_string(NSSM_GUI_TAB_DEPENDENCIES);
+      tab.cchTextMax = (int) _tcslen(tab.pszText);
+      SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_DEPENDENCIES, (LPARAM) &tab);
+      tablist[NSSM_TAB_DEPENDENCIES] = dialog(MAKEINTRESOURCE(IDD_DEPENDENCIES), window, tab_dlg);
+      ShowWindow(tablist[NSSM_TAB_DEPENDENCIES], SW_HIDE);
 
       /* Remaining tabs are only for services we manage. */
       if (service->native) return 1;
