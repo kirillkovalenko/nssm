@@ -268,10 +268,11 @@ SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, unsigned long ac
   SC_HANDLE service_handle = OpenService(services, service_name, access);
   if (service_handle) {
     if (canonical_name && canonical_name != service_name) {
-      if (_sntprintf_s(canonical_name, canonical_namelen, _TRUNCATE, _T("%s"), service_name) < 0) {
-        print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canonical_name"), _T("open_service()"));
-        return 0;
-      }
+      TCHAR displayname[SERVICE_NAME_LENGTH];
+      unsigned long displayname_len = (unsigned long) _countof(displayname);
+      GetServiceDisplayName(services, service_name, displayname, &displayname_len);
+      unsigned long keyname_len = canonical_namelen;
+      GetServiceKeyName(services, displayname, canonical_name, &keyname_len);
     }
     return service_handle;
   }
