@@ -214,10 +214,10 @@ int get_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   /* Actually get the strings */
   ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) *env, envlen);
   if (ret != ERROR_SUCCESS) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, *env);
     *env = 0;
     *envlen = 0;
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
     return 4;
   }
 
