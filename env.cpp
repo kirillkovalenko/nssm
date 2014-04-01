@@ -1,5 +1,23 @@
 #include "nssm.h"
 
+/* Copy an environment block. */
+TCHAR *copy_environment_block(TCHAR *env) {
+  unsigned long len;
+
+  if (! env) return 0;
+  for (len = 0; env[len]; len++) while (env[len]) len++;
+  if (! len++) return 0;
+
+  TCHAR *newenv = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, len * sizeof(TCHAR));
+  if (! newenv) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("environment"), _T("copy_environment_block()"), 0);
+    return 0;
+  }
+
+  memmove(newenv, env, len * sizeof(TCHAR));
+  return newenv;
+}
+
 /*
   The environment block starts with variables of the form
   =C:=C:\Windows\System32 which we ignore.
@@ -138,4 +156,18 @@ int test_environment(TCHAR *env) {
   }
 
   return 0;
+}
+
+/*
+  Duplicate an environment block returned by GetEnvironmentStrings().
+  Since such a block is by definition readonly, and duplicate_environment()
+  modifies its inputs, this function takes a copy of the input and operates
+  on that.
+*/
+void duplicate_environment_strings(TCHAR *env) {
+  TCHAR *newenv = copy_environment_block(env);
+  if (! newenv) return;
+
+  duplicate_environment(newenv);
+  HeapFree(GetProcessHeap(), 0, newenv);
 }

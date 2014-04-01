@@ -1623,7 +1623,7 @@ int start_service(nssm_service_t *service) {
     unsigned long error = GetLastError();
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
     close_output_handles(&si);
-    duplicate_environment(service->initial_env);
+    duplicate_environment_strings(service->initial_env);
     return stop_service(service, exitcode, true, true);
   }
   service->process_handle = pi.hProcess;
@@ -1636,7 +1636,7 @@ int start_service(nssm_service_t *service) {
   if (! service->no_console) FreeConsole();
 
   /* Restore our environment. */
-  duplicate_environment(service->initial_env);
+  duplicate_environment_strings(service->initial_env);
 
   if (service->affinity) {
     /*
