@@ -48,6 +48,11 @@ void alloc_console(nssm_service_t *service) {
 
   AllocConsole();
 
+  /* Disable accidental closure. */
+  HWND window = GetConsoleWindow();
+  HMENU menu = GetSystemMenu(window, false);
+  EnableMenuItem(menu, SC_CLOSE, MF_GRAYED);
+
   /* Set a title like "[NSSM] Jenkins" */
   TCHAR displayname[SERVICE_NAME_LENGTH];
   unsigned long len = _countof(displayname);
