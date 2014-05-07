@@ -1362,7 +1362,7 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
   /* Initialise status */
   ZeroMemory(&service->status, sizeof(service->status));
   service->status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
-  service->status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE;
+  service->status.dwControlsAccepted = SERVICE_ACCEPT_POWEREVENT | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE;
   service->status.dwWin32ExitCode = NO_ERROR;
   service->status.dwServiceSpecificExitCode = 0;
   service->status.dwCheckPoint = 0;
@@ -1460,6 +1460,7 @@ TCHAR *service_control_text(unsigned long control) {
     case SERVICE_CONTROL_CONTINUE: return _T("CONTINUE");
     case SERVICE_CONTROL_INTERROGATE: return _T("INTERROGATE");
     case NSSM_SERVICE_CONTROL_ROTATE: return _T("ROTATE");
+    case SERVICE_CONTROL_POWEREVENT: return _T("POWEREVENT");
     default: return 0;
   }
 }
@@ -1566,6 +1567,15 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
       log_service_control(service->name, control, true);
       if (service->rotate_stdout_online == NSSM_ROTATE_ONLINE) service->rotate_stdout_online = NSSM_ROTATE_ONLINE_ASAP;
       if (service->rotate_stderr_online == NSSM_ROTATE_ONLINE) service->rotate_stderr_online = NSSM_ROTATE_ONLINE_ASAP;
+      return NO_ERROR;
+
+    case SERVICE_CONTROL_POWEREVENT:
+      if (event != PBT_APMRESUMEAUTOMATIC) {
+        log_service_control(service->name, control, false);
+        return NO_ERROR;
+      }
+      log_service_control(service->name, control, true);
+      end_service((void *) service, false);
       return NO_ERROR;
   }
 
