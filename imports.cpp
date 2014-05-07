@@ -82,6 +82,15 @@ int get_imports() {
   }
   else if (error != ERROR_MOD_NOT_FOUND) return 5;
 
+  imports.user32 = get_dll(_T("user32.dll"), &error);
+  if (imports.user32) {
+    imports.RegisterPowerSettingNotification = (RegisterPowerSettingNotification_ptr) get_import(imports.user32, "RegisterPowerSettingNotification", &error);
+    if (! imports.RegisterPowerSettingNotification) {
+      if (error != ERROR_PROC_NOT_FOUND) return 9;
+    }
+  }
+  else if (error != ERROR_MOD_NOT_FOUND) return 8;
+
   return 0;
 }
 
