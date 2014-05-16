@@ -1,5 +1,5 @@
 NSSM: The Non-Sucking Service Manager
-Version 2.21, 2013-11-24
+Version 2.22, 2014-05-16
 
 NSSM is a service helper program similar to srvany and cygrunsrv.  It can 
 start any application as an NT service and will restart the service if it 
@@ -660,7 +660,7 @@ advising how to build messages.mc correctly in paths containing spaces.
 Thanks to Rob Sharp for pointing out that NSSM did not respect the
 AppEnvironment registry value used by srvany.
 Thanks to Szymon Nowak for help with Windows 2000 compatibility.
-Thanks to François-Régis Tardy for French translation.
+Thanks to François-Régis Tardy and Gildas le Nadan for French translation.
 Thanks to Emilio Frini for spotting that French was inadvertently set as
 the default language when the user's display language was not translated.
 Thanks to Riccardo Gusmeroli and Marco Certelli for Italian translation.
