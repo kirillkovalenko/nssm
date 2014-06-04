@@ -36,7 +36,7 @@ FARPROC get_import(HMODULE library, const char *function, unsigned long *error) 
 #else
     function_name = (TCHAR *) function;
 #endif
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function_name, error_string(*error), 0);
+    if (*error != ERROR_PROC_NOT_FOUND) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function_name, error_string(*error), 0);
 #ifdef UNICODE
     if (function_name) HeapFree(GetProcessHeap(), 0, function_name);
 #endif
