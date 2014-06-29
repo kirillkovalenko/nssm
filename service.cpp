@@ -1119,17 +1119,19 @@ int edit_service(nssm_service_t *service, bool editing) {
     Empty passwords are valid but we won't allow them in the GUI.
   */
   TCHAR *username = 0;
+  TCHAR *canon = 0;
   TCHAR *password = 0;
   if (service->usernamelen) {
     username = service->username;
+    if (canonicalise_username(username, &canon)) return 5;
     if (service->passwordlen) password = service->password;
-    else password = _T("");
   }
-  else if (editing) username = NSSM_LOCALSYSTEM_ACCOUNT;
+  else if (editing) username = canon = NSSM_LOCALSYSTEM_ACCOUNT;
 
-  if (well_known_username(username)) password = _T("");
+  if (well_known_username(canon)) password = _T("");
   else {
-    if (grant_logon_as_service(username)) {
+    if (grant_logon_as_service(canon)) {
+      if (canon != username) HeapFree(GetProcessHeap(), 0, canon);
       print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
       return 5;
     }
@@ -1138,10 +1140,12 @@ int edit_service(nssm_service_t *service, bool editing) {
   TCHAR *dependencies = _T("");
   if (service->dependencieslen) dependencies = 0; /* Change later. */
 
-  if (! ChangeServiceConfig(service->handle, service->type, startup, SERVICE_NO_CHANGE, 0, 0, 0, dependencies, username, password, service->displayname)) {
+  if (! ChangeServiceConfig(service->handle, service->type, startup, SERVICE_NO_CHANGE, 0, 0, 0, dependencies, canon, password, service->displayname)) {
+    if (canon != username) HeapFree(GetProcessHeap(), 0, canon);
     print_message(stderr, NSSM_MESSAGE_CHANGESERVICECONFIG_FAILED, error_string(GetLastError()));
     return 5;
   }
+  if (canon != username) HeapFree(GetProcessHeap(), 0, canon);
 
   if (service->dependencieslen) {
     if (set_service_dependencies(service->name, service->handle, service->dependencies)) return 5;

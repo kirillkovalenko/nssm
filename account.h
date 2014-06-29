@@ -15,6 +15,7 @@ int open_lsa_policy(LSA_HANDLE *);
 int username_sid(const TCHAR *, SID **, LSA_HANDLE *);
 int username_sid(const TCHAR *, SID **);
 int username_equiv(const TCHAR *, const TCHAR *);
+int canonicalise_username(const TCHAR *, TCHAR **);
 int is_localsystem(const TCHAR *);
 const TCHAR *well_known_sid(SID *);
 const TCHAR *well_known_username(const TCHAR *);

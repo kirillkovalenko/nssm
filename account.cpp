@@ -26,22 +26,58 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
     if (open_lsa_policy(policy)) return 1;
   }
 
+  /*
+    LsaLookupNames() can't look up .\username but can look up
+    %COMPUTERNAME%\username.  ChangeServiceConfig() writes .\username to the
+    registry when %COMPUTERNAME%\username is a passed as a parameter.  We
+    need to preserve .\username when calling ChangeServiceConfig() without
+    changing the username, but expand to %COMPUTERNAME%\username when calling
+    LsaLookupNames().
+  */
+  TCHAR *expanded;
+  unsigned long expandedlen;
+  if (_tcsnicmp(_T(".\\"), username, 2)) {
+    expandedlen = (unsigned long) (_tcslen(username) + 1) * sizeof(TCHAR);
+    expanded = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, expandedlen);
+    if (! expanded) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("expanded"), _T("username_sid"));
+      if (policy == &handle) LsaClose(handle);
+      return 2;
+    }
+    memmove(expanded, username, expandedlen);
+  }
+  else {
+    TCHAR computername[MAX_COMPUTERNAME_LENGTH + 1];
+    expandedlen = _countof(computername);
+    GetComputerName(computername, &expandedlen);
+    expandedlen += (unsigned long) _tcslen(username);
+
+    expanded = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, expandedlen * sizeof(TCHAR));
+    if (! expanded) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("expanded"), _T("username_sid"));
+      if (policy == &handle) LsaClose(handle);
+      return 2;
+    }
+    _sntprintf_s(expanded, expandedlen, _TRUNCATE, _T("%s\\%s"), computername, username + 2);
+  }
+
   LSA_UNICODE_STRING lsa_username;
 #ifdef UNICODE
-  lsa_username.Buffer = (wchar_t *) username;
-  lsa_username.Length = (unsigned short) _tcslen(username) * sizeof(TCHAR);
+  lsa_username.Buffer = (wchar_t *) expanded;
+  lsa_username.Length = (unsigned short) _tcslen(expanded) * sizeof(TCHAR);
   lsa_username.MaximumLength = lsa_username.Length + sizeof(TCHAR);
 #else
   size_t buflen;
-  mbstowcs_s(&buflen, NULL, 0, username, _TRUNCATE);
+  mbstowcs_s(&buflen, NULL, 0, expanded, _TRUNCATE);
   lsa_username.MaximumLength = (unsigned short) buflen * sizeof(wchar_t);
   lsa_username.Length = lsa_username.MaximumLength - sizeof(wchar_t);
   lsa_username.Buffer = (wchar_t *) HeapAlloc(GetProcessHeap(), 0, lsa_username.MaximumLength);
-  if (lsa_username.Buffer) mbstowcs_s(&buflen, lsa_username.Buffer, lsa_username.MaximumLength, username, _TRUNCATE);
+  if (lsa_username.Buffer) mbstowcs_s(&buflen, lsa_username.Buffer, lsa_username.MaximumLength, expanded, _TRUNCATE);
   else {
     if (policy == &handle) LsaClose(handle);
+    HeapFree(GetProcessHeap(), 0, expanded);
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("LSA_UNICODE_STRING"), _T("username_sid()"));
-    return 2;
+    return 4;
   }
 #endif
 
@@ -51,19 +87,20 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
 #ifndef UNICODE
   HeapFree(GetProcessHeap(), 0, lsa_username.Buffer);
 #endif
+  HeapFree(GetProcessHeap(), 0, expanded);
   if (policy == &handle) LsaClose(handle);
   if (status) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_sid);
     print_message(stderr, NSSM_MESSAGE_LSALOOKUPNAMES_FAILED, username, error_string(LsaNtStatusToWinError(status)));
-    return 3;
+    return 5;
   }
 
   if (translated_sid->Use != SidTypeUser && translated_sid->Use != SidTypeWellKnownGroup) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_sid);
     print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
-    return 4;
+    return 6;
   }
 
   LSA_TRUST_INFORMATION *trust = &translated_domains->Domains[translated_sid->DomainIndex];
@@ -71,7 +108,7 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_sid);
     print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
-    return 5;
+    return 7;
   }
 
   /* GetSidSubAuthority*() return pointers! */
@@ -82,8 +119,8 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
   if (! *sid) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_sid);
-    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SID"), _T("grant_logon_as_service"));
-    return 6;
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("SID"), _T("username_sid"));
+    return 8;
   }
 
   unsigned long error;
@@ -93,7 +130,7 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_sid);
     print_message(stderr, NSSM_MESSAGE_INITIALIZESID_FAILED, username, error_string(error));
-    return 7;
+    return 9;
   }
 
   for (unsigned char i = 0; i <= *n; i++) {
@@ -105,7 +142,7 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
   int ret = 0;
   if (translated_sid->Use == SidTypeWellKnownGroup && ! well_known_sid(*sid)) {
     print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
-    ret = 8;
+    ret = 10;
   }
 
   LsaFreeMemory(translated_domains);
@@ -116,6 +153,63 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
 
 int username_sid(const TCHAR *username, SID **sid) {
   return username_sid(username, sid, 0);
+}
+
+int canonicalise_username(const TCHAR *username, TCHAR **canon) {
+  LSA_HANDLE policy;
+  if (open_lsa_policy(&policy)) return 1;
+
+  SID *sid;
+  if (username_sid(username, &sid, &policy)) return 2;
+  PSID sids = { sid };
+
+  LSA_REFERENCED_DOMAIN_LIST *translated_domains;
+  LSA_TRANSLATED_NAME *translated_name;
+  NTSTATUS status = LsaLookupSids(policy, 1, &sids, &translated_domains, &translated_name);
+  if (status) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_name);
+    print_message(stderr, NSSM_MESSAGE_LSALOOKUPSIDS_FAILED, error_string(LsaNtStatusToWinError(status)));
+    return 3;
+  }
+
+  LSA_TRUST_INFORMATION *trust = &translated_domains->Domains[translated_name->DomainIndex];
+  LSA_UNICODE_STRING lsa_canon;
+  lsa_canon.Length = translated_name->Name.Length + trust->Name.Length + sizeof(wchar_t);
+  lsa_canon.MaximumLength = lsa_canon.Length + sizeof(wchar_t);
+  lsa_canon.Buffer = (wchar_t *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, lsa_canon.MaximumLength);
+  if (! lsa_canon.Buffer) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_name);
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("lsa_canon"), _T("username_sid"));
+    return 9;
+  }
+
+  /* Buffer is wchar_t but Length is in bytes. */
+  memmove((char *) lsa_canon.Buffer, trust->Name.Buffer, trust->Name.Length);
+  memmove((char *) lsa_canon.Buffer + trust->Name.Length, L"\\", sizeof(wchar_t));
+  memmove((char *) lsa_canon.Buffer + trust->Name.Length + sizeof(wchar_t), translated_name->Name.Buffer, translated_name->Name.Length);
+
+#ifdef UNICODE
+  *canon = lsa_canon.Buffer;
+#else
+  size_t buflen;
+  wcstombs_s(&buflen, NULL, 0, lsa_canon.Buffer, _TRUNCATE);
+  *canon = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, buflen);
+  if (! *canon) {
+    LsaFreeMemory(translated_domains);
+    LsaFreeMemory(translated_name);
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("username_sid"));
+    return 10;
+  }
+  wcstombs_s(&buflen, *canon, buflen, lsa_canon.Buffer, _TRUNCATE);
+  HeapFree(GetProcessHeap(), 0, lsa_canon.Buffer);
+#endif
+
+  LsaFreeMemory(translated_domains);
+  LsaFreeMemory(translated_name);
+
+  return 0;
 }
 
 /* Do two usernames map to the same SID? */

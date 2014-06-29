@@ -682,6 +682,8 @@ Thanks to Czenda Czendov for help with Visual Studio 2013 and Server 2012R2.
 Thanks to Alessandro Gherardi for reporting and draft fix of the bug whereby
 the second restart of the application would have a corrupted environment.
 Thanks to Hadrien Kohl for suggesting to disable the console window's menu.
+Thanks to Allen Vailliencourt for noticing bugs with configuring the service to
+run under a local user account.
 
 Licence
 -------
