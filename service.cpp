@@ -711,7 +711,7 @@ void cleanup_nssm_service(nssm_service_t *service) {
   if (service->env_extra) HeapFree(GetProcessHeap(), 0, service->env_extra);
   if (service->handle) CloseHandle(service->handle);
   if (service->process_handle) CloseHandle(service->process_handle);
-  if (service->wait_handle) UnregisterWait(service->process_handle);
+  if (service->wait_handle) UnregisterWait(service->wait_handle);
   if (service->throttle_section_initialised) DeleteCriticalSection(&service->throttle_section);
   if (service->throttle_timer) CloseHandle(service->throttle_timer);
   if (service->initial_env) FreeEnvironmentStrings(service->initial_env);

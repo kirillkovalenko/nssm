@@ -263,7 +263,6 @@ const TCHAR *well_known_username(const TCHAR *username) {
   if (! username) return NSSM_LOCALSYSTEM_ACCOUNT;
   if (str_equiv(username, NSSM_LOCALSYSTEM_ACCOUNT)) return NSSM_LOCALSYSTEM_ACCOUNT;
   SID *sid;
-  int r = username_sid(username, &sid);
   if (username_sid(username, &sid)) return 0;
 
   const TCHAR *well_known = well_known_sid(sid);
