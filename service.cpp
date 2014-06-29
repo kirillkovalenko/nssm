@@ -709,7 +709,7 @@ void cleanup_nssm_service(nssm_service_t *service) {
   if (service->dependencies) HeapFree(GetProcessHeap(), 0, service->dependencies);
   if (service->env) HeapFree(GetProcessHeap(), 0, service->env);
   if (service->env_extra) HeapFree(GetProcessHeap(), 0, service->env_extra);
-  if (service->handle) CloseHandle(service->handle);
+  if (service->handle) CloseServiceHandle(service->handle);
   if (service->process_handle) CloseHandle(service->process_handle);
   if (service->wait_handle) UnregisterWait(service->wait_handle);
   if (service->throttle_section_initialised) DeleteCriticalSection(&service->throttle_section);
@@ -856,7 +856,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   /* Get system details. */
   QUERY_SERVICE_CONFIG *qsc = query_service_config(service->name, service->handle);
   if (! qsc) {
-    CloseHandle(service->handle);
+    CloseServiceHandle(service->handle);
     CloseServiceHandle(services);
     return 4;
   }
@@ -865,7 +865,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   if (! (service->type & SERVICE_WIN32_OWN_PROCESS)) {
     if (mode != MODE_GETTING) {
       HeapFree(GetProcessHeap(), 0, qsc);
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       print_message(stderr, NSSM_MESSAGE_CANNOT_EDIT, service->name, NSSM_WIN32_OWN_PROCESS, 0);
       return 3;
@@ -875,7 +875,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   if (get_service_startup(service->name, service->handle, qsc, &service->startup)) {
     if (mode != MODE_GETTING) {
       HeapFree(GetProcessHeap(), 0, qsc);
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       return 4;
     }
@@ -884,7 +884,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   if (get_service_username(service->name, qsc, &service->username, &service->usernamelen)) {
     if (mode != MODE_GETTING) {
       HeapFree(GetProcessHeap(), 0, qsc);
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       return 5;
     }
@@ -903,7 +903,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   /* Get extended system details. */
   if (get_service_description(service->name, service->handle, _countof(service->description), service->description)) {
     if (mode != MODE_GETTING) {
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       return 6;
     }
@@ -911,7 +911,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   if (get_service_dependencies(service->name, service->handle, &service->dependencies, &service->dependencieslen)) {
     if (mode != MODE_GETTING) {
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       return 7;
     }
@@ -935,7 +935,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   /* Trying to manage App* parameters for a non-NSSM service. */
   if (! setting->native && service->native) {
-    CloseHandle(service->handle);
+    CloseServiceHandle(service->handle);
     print_message(stderr, NSSM_MESSAGE_NATIVE_PARAMETER, setting->name, NSSM);
     return 1;
   }
@@ -953,7 +953,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
     if (setting->native) ret = get_setting(service->name, service->handle, setting, &value, additional);
     else ret = get_setting(service->name, key, setting, &value, additional);
     if (ret < 0) {
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       return 5;
     }
 
@@ -971,7 +971,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
     }
 
     if (! service->native) RegCloseKey(key);
-    CloseHandle(service->handle);
+    CloseServiceHandle(service->handle);
     return 0;
   }
 
@@ -993,7 +993,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
     value.string = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, len * sizeof(TCHAR));
     if (! value.string) {
       print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("value"), _T("edit_service()"));
-      CloseHandle(service->handle);
+      CloseServiceHandle(service->handle);
       return 2;
     }
 
@@ -1026,12 +1026,12 @@ int pre_edit_service(int argc, TCHAR **argv) {
   if (value.string) HeapFree(GetProcessHeap(), 0, value.string);
   if (ret < 0) {
     if (! service->native) RegCloseKey(key);
-    CloseHandle(service->handle);
+    CloseServiceHandle(service->handle);
     return 6;
   }
 
   if (! service->native) RegCloseKey(key);
-  CloseHandle(service->handle);
+  CloseServiceHandle(service->handle);
 
   return 0;
 }
@@ -1241,7 +1241,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
 
     if (ret) {
       int response = await_service_control_response(control, service_handle, &service_status, initial_status);
-      CloseHandle(service_handle);
+      CloseServiceHandle(service_handle);
 
       if (response) {
         print_message(stderr, NSSM_MESSAGE_BAD_CONTROL_RESPONSE, canonical_name, service_status_text(service_status.dwCurrentState), service_control_text(control));
@@ -1251,7 +1251,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
       return 0;
     }
     else {
-      CloseHandle(service_handle);
+      CloseServiceHandle(service_handle);
       _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       return 1;
     }
@@ -1287,7 +1287,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
 
     if (ret) {
       int response = await_service_control_response(control, service_handle, &service_status, initial_status);
-      CloseHandle(service_handle);
+      CloseServiceHandle(service_handle);
 
       if (response) {
         print_message(stderr, NSSM_MESSAGE_BAD_CONTROL_RESPONSE, canonical_name, service_status_text(service_status.dwCurrentState), service_control_text(control));
@@ -1297,7 +1297,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
       return 0;
     }
     else {
-      CloseHandle(service_handle);
+      CloseServiceHandle(service_handle);
       _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       if (error == ERROR_SERVICE_NOT_ACTIVE) {
         if (control == SERVICE_CONTROL_SHUTDOWN || control == SERVICE_CONTROL_STOP) return 0;
