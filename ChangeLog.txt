@@ -1,3 +1,10 @@
+Changes since 2.22
+------------------
+  * NSSM no longer clutters the event log with "The specified
+    procedure could not be found" on legacy Windows releases.
+
+  * Fixed failure to set a local username to run the service.
+
 Changes since 2.21
 ------------------
   * Existing services can now be managed using the GUI
