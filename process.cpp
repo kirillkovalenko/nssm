@@ -180,7 +180,7 @@ int kill_process(nssm_service_t *service, HANDLE process_handle, unsigned long p
 
   /* We tried being nice.  Time for extreme prejudice. */
   if (service->stop_method & NSSM_STOP_METHOD_TERMINATE) {
-    return TerminateProcess(service->process_handle, exitcode);
+    return TerminateProcess(process_handle, exitcode);
   }
 
   return 0;
