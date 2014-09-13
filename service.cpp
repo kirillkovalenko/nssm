@@ -689,6 +689,7 @@ void set_nssm_service_defaults(nssm_service_t *service) {
   service->kill_console_delay = NSSM_KILL_CONSOLE_GRACE_PERIOD;
   service->kill_window_delay = NSSM_KILL_WINDOW_GRACE_PERIOD;
   service->kill_threads_delay = NSSM_KILL_THREADS_GRACE_PERIOD;
+  service->kill_process_tree = 1;
 }
 
 /* Allocate and zero memory for a service. */
@@ -1800,7 +1801,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* Clean up. */
   if (exitcode == STILL_ACTIVE) exitcode = 0;
-  if (service->pid) kill_process_tree(service, service->pid, exitcode, service->pid);
+  if (service->pid && service->kill_process_tree) kill_process_tree(service, service->pid, exitcode, service->pid);
   service->pid = 0;
 
   /*

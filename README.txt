@@ -261,6 +261,11 @@ that the timeout applies to each process in the application's process tree,
 so the actual time to shutdown may be longer than the sum of all configured
 timeouts if the application spawns multiple subprocesses.
 
+To skip applying the above stop methods to all processes in the application's
+process tree, applying them only to the original application process, set the
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppKillProcessTree
+registry value, which should be of type REG_DWORD, to 0.
+
 
 Console window
 --------------
@@ -685,6 +690,8 @@ Thanks to Hadrien Kohl for suggesting to disable the console window's menu.
 Thanks to Allen Vailliencourt for noticing bugs with configuring the service to
 run under a local user account.
 Thanks to Sam Townsend for noticing a regression with TerminateProcess().
+Thanks to Barrett Lewis for suggesting the option to skip terminating the
+application's child processes.
 
 Licence
 -------

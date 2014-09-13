@@ -1,3 +1,7 @@
+Changes since 2.24
+------------------
+  * Allow skipping kill_process_tree().
+
 Changes since 2.23
 ------------------
   * NSSM once again calls TerminateProcess() correctly.

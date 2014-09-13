@@ -79,6 +79,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
   else if (editing) RegDeleteValue(key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD);
   if (service->kill_threads_delay != NSSM_KILL_THREADS_GRACE_PERIOD) set_number(key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, service->kill_threads_delay);
   else if (editing) RegDeleteValue(key, NSSM_REG_KILL_THREADS_GRACE_PERIOD);
+  if (! service->kill_process_tree) set_number(key, NSSM_REG_KILL_PROCESS_TREE, 0);
+  else if (editing) RegDeleteValue(key, NSSM_REG_KILL_PROCESS_TREE);
   if (service->stdin_path[0] || editing) {
     if (service->stdin_path[0]) set_expand_string(key, NSSM_REG_STDIN, service->stdin_path);
     else if (editing) RegDeleteValue(key, NSSM_REG_STDIN);
@@ -648,6 +650,14 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   override_milliseconds(service->name, key, NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, &service->kill_console_delay, NSSM_KILL_CONSOLE_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_CONSOLE_GRACE_PERIOD);
   override_milliseconds(service->name, key, NSSM_REG_KILL_WINDOW_GRACE_PERIOD, &service->kill_window_delay, NSSM_KILL_WINDOW_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_WINDOW_GRACE_PERIOD);
   override_milliseconds(service->name, key, NSSM_REG_KILL_THREADS_GRACE_PERIOD, &service->kill_threads_delay, NSSM_KILL_THREADS_GRACE_PERIOD, NSSM_EVENT_BOGUS_KILL_THREADS_GRACE_PERIOD);
+
+  /* Try to get process tree settings - may fail. */
+  unsigned long kill_process_tree;
+  if (get_number(key, NSSM_REG_KILL_PROCESS_TREE, &kill_process_tree, false) == 1) {
+    if (kill_process_tree) service->kill_process_tree = true;
+    else service->kill_process_tree = false;
+  }
+  else service->kill_process_tree = true;
 
   /* Try to get default exit action. */
   bool default_action;

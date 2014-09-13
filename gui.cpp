@@ -153,6 +153,9 @@ int nssm_gui(int resource, nssm_service_t *service) {
     if (! (service->stop_method & NSSM_STOP_METHOD_TERMINATE)) {
       SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_TERMINATE, BM_SETCHECK, BST_UNCHECKED, 0);
     }
+    if (! service->kill_process_tree) {
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_PROCESS_TREE, BM_SETCHECK, BST_UNCHECKED, 0);
+    }
 
     /* Restart tab. */
     SetDlgItemInt(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, service->throttle_delay, 0);
@@ -545,6 +548,8 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_CONSOLE, &service->kill_console_delay);
   check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_WINDOW, &service->kill_window_delay);
   check_number(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, &service->kill_threads_delay);
+  if (SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_PROCESS_TREE, BM_GETCHECK, 0, 0) & BST_CHECKED) service->kill_process_tree = 1;
+  else service->kill_process_tree = 0;
 
   /* Get exit action stuff. */
   check_number(tablist[NSSM_TAB_EXIT], IDC_THROTTLE, &service->throttle_delay);
@@ -1070,6 +1075,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_THREADS, BM_SETCHECK, BST_CHECKED, 0);
       SetDlgItemInt(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_THREADS, NSSM_KILL_THREADS_GRACE_PERIOD, 0);
       SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_METHOD_TERMINATE, BM_SETCHECK, BST_CHECKED, 0);
+      SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], IDC_KILL_PROCESS_TREE, BM_SETCHECK, BST_CHECKED, 1);
 
       /* Restart tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_EXIT);

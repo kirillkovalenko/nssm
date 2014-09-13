@@ -16,6 +16,7 @@
 #define NSSM_REG_KILL_CONSOLE_GRACE_PERIOD _T("AppStopMethodConsole")
 #define NSSM_REG_KILL_WINDOW_GRACE_PERIOD _T("AppStopMethodWindow")
 #define NSSM_REG_KILL_THREADS_GRACE_PERIOD _T("AppStopMethodThreads")
+#define NSSM_REG_KILL_PROCESS_TREE _T("AppKillProcessTree")
 #define NSSM_REG_STDIN _T("AppStdin")
 #define NSSM_REG_STDOUT _T("AppStdout")
 #define NSSM_REG_STDERR _T("AppStderr")

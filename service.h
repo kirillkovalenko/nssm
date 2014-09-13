@@ -84,6 +84,7 @@ typedef struct {
   unsigned long kill_console_delay;
   unsigned long kill_window_delay;
   unsigned long kill_threads_delay;
+  bool kill_process_tree;
   SC_HANDLE handle;
   SERVICE_STATUS status;
   SERVICE_STATUS_HANDLE status_handle;
