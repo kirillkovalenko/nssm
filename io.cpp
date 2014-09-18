@@ -4,7 +4,7 @@
 #define COMPLAINED_WRITE (1 << 1)
 #define COMPLAINED_ROTATE (1 << 2)
 
-static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned long sharing, unsigned long disposition, unsigned long flags, HANDLE *read_handle_ptr, HANDLE *pipe_handle_ptr, HANDLE *write_handle_ptr, unsigned long rotate_bytes_low, unsigned long rotate_bytes_high, unsigned long *tid_ptr, unsigned long *rotate_online) {
+static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned long sharing, unsigned long disposition, unsigned long flags, HANDLE *read_handle_ptr, HANDLE *pipe_handle_ptr, HANDLE *write_handle_ptr, unsigned long rotate_bytes_low, unsigned long rotate_bytes_high, unsigned long rotate_delay, unsigned long *tid_ptr, unsigned long *rotate_online, bool copy_and_truncate) {
   *tid_ptr = 0;
 
   /* Pipe between application's stdout/stderr and our logging handle. */
@@ -40,6 +40,8 @@ static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned l
   logger->size = (__int64) size.QuadPart;
   logger->tid_ptr = tid_ptr;
   logger->rotate_online = rotate_online;
+  logger->rotate_delay = rotate_delay;
+  logger->copy_and_truncate = copy_and_truncate;
 
   HANDLE thread_handle = CreateThread(NULL, 0, log_and_rotate, (void *) logger, 0, logger->tid_ptr);
   if (! thread_handle) {
@@ -63,7 +65,7 @@ static inline void write_bom(logger_t *logger, unsigned long *out) {
 }
 
 /* Get path, share mode, creation disposition and flags for a stream. */
-int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned long *sharing, unsigned long default_sharing, unsigned long *disposition, unsigned long default_disposition, unsigned long *flags, unsigned long default_flags) {
+int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned long *sharing, unsigned long default_sharing, unsigned long *disposition, unsigned long default_disposition, unsigned long *flags, unsigned long default_flags, bool *copy_and_truncate) {
   TCHAR value[NSSM_STDIO_LENGTH];
 
   /* Path. */
@@ -107,6 +109,23 @@ int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned lon
     case 0: *flags = default_flags; break; /* Missing. */
     case 1: break; /* Found. */
     case -2: return 8; break; /* Error. */
+  }
+
+  /* Rotate with CopyFile() and SetEndOfFile(). */
+  if (copy_and_truncate) {
+    unsigned long data;
+    if (_sntprintf_s(value, _countof(value), _TRUNCATE, _T("%s%s"), prefix, NSSM_REG_STDIO_COPY_AND_TRUNCATE) < 0) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REG_STDIO_COPY_AND_TRUNCATE, _T("get_createfile_parameters()"), 0);
+      return 9;
+    }
+    switch (get_number(key, value, &data, false)) {
+      case 0: *copy_and_truncate = false; break; /* Missing. */
+      case 1: /* Found. */
+        if (data) *copy_and_truncate = true;
+        else *copy_and_truncate = false;
+        break;
+      case -2: return 9; break; /* Error. */
+    }
   }
 
   return 0;
@@ -162,7 +181,7 @@ static void rotated_filename(TCHAR *path, TCHAR *rotated, unsigned long rotated_
   _sntprintf_s(rotated, rotated_len, _TRUNCATE, _T("%s%s"), buffer, extension);
 }
 
-void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsigned long low, unsigned long high) {
+void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsigned long delay, unsigned long low, unsigned long high, bool copy_and_truncate) {
   unsigned long error;
 
   /* Now. */
@@ -219,14 +238,31 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
   rotated_filename(path, rotated, _countof(rotated), &st);
 
   /* Rotate. */
-  if (MoveFile(path, rotated)) {
+  bool ok = true;
+  TCHAR *function;
+  if (copy_and_truncate) {
+    function = _T("CopyFile()");
+    if (CopyFile(path, rotated, TRUE)) {
+      file = write_to_file(path, NSSM_STDOUT_SHARING, 0, NSSM_STDOUT_DISPOSITION, NSSM_STDOUT_FLAGS);
+      Sleep(delay);
+      SetFilePointer(file, 0, 0, FILE_BEGIN);
+      SetEndOfFile(file);
+      CloseHandle(file);
+    }
+    else ok = false;
+  }
+  else {
+    function = _T("MoveFile()");
+    if (! MoveFile(path, rotated)) ok = false;
+  }
+  if (ok) {
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ROTATED, service_name, path, rotated, 0);
     return;
   }
   error = GetLastError();
 
   if (error == ERROR_FILE_NOT_FOUND) return;
-  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, service_name, path, _T("MoveFile()"), rotated, error_string(error), 0);
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, service_name, path, function, rotated, error_string(error), 0);
   return;
 }
 
@@ -247,13 +283,13 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
   /* stdout */
   if (service->stdout_path[0]) {
-    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
+    if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stdout_copy_and_truncate);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (! stdout_handle) return 4;
 
     if (service->rotate_files && service->rotate_stdout_online) {
       service->stdout_pipe = si->hStdOutput = 0;
-      service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &si->hStdOutput, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, &service->stdout_tid, &service->rotate_stdout_online);
+      service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &si->hStdOutput, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stdout_tid, &service->rotate_stdout_online, service->stdout_copy_and_truncate);
       if (! service->stdout_thread) {
         CloseHandle(service->stdout_pipe);
         CloseHandle(si->hStdOutput);
@@ -286,13 +322,13 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       }
     }
     else {
-      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high);
+      if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (! stderr_handle) return 7;
 
       if (service->rotate_files && service->rotate_stderr_online) {
         service->stderr_pipe = si->hStdError = 0;
-        service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &si->hStdError, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, &service->stderr_tid, &service->rotate_stderr_online);
+        service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &si->hStdError, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stderr_tid, &service->rotate_stderr_online, service->stderr_copy_and_truncate);
         if (! service->stderr_thread) {
           CloseHandle(service->stderr_pipe);
           CloseHandle(si->hStdError);
@@ -499,15 +535,33 @@ unsigned long WINAPI log_and_rotate(void *arg) {
             MoveFile() will fail if the handle is still open so we must
             risk losing everything.
           */
+          if (logger->copy_and_truncate) FlushFileBuffers(logger->write_handle);
           CloseHandle(logger->write_handle);
-          if (MoveFile(logger->path, rotated)) {
+          bool ok = true;
+          TCHAR *function;
+          if (logger->copy_and_truncate) {
+            function = _T("CopyFile()");
+            if (CopyFile(logger->path, rotated, TRUE)) {
+              HANDLE file = write_to_file(logger->path, NSSM_STDOUT_SHARING, 0, NSSM_STDOUT_DISPOSITION, NSSM_STDOUT_FLAGS);
+              Sleep(logger->rotate_delay);
+              SetFilePointer(file, 0, 0, FILE_BEGIN);
+              SetEndOfFile(file);
+              CloseHandle(file);
+            }
+            else ok = false;
+          }
+          else {
+            function = _T("MoveFile()");
+            if (! MoveFile(logger->path, rotated)) ok = false;
+          }
+          if (ok) {
             log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_ROTATED, logger->service_name, logger->path, rotated, 0);
             size = 0LL;
           }
           else {
             error = GetLastError();
             if (error != ERROR_FILE_NOT_FOUND) {
-              if (! (complained & COMPLAINED_ROTATE)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, logger->service_name, logger->path, _T("MoveFile()"), rotated, error_string(error), 0);
+              if (! (complained & COMPLAINED_ROTATE)) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_ROTATE_FILE_FAILED, logger->service_name, logger->path, function, rotated, error_string(error), 0);
               complained |= COMPLAINED_ROTATE;
               /* We can at least try to re-open the existing file. */
               logger->disposition = OPEN_ALWAYS;

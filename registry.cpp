@@ -100,6 +100,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
     else if (editing) delete_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_DISPOSITION);
     if (service->stdout_flags != NSSM_STDOUT_FLAGS) set_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_FLAGS, service->stdout_flags);
     else if (editing) delete_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_FLAGS);
+    if (service->stdout_copy_and_truncate) set_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_COPY_AND_TRUNCATE, 1);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDOUT, NSSM_REG_STDIO_COPY_AND_TRUNCATE);
   }
   if (service->stderr_path[0] || editing) {
     if (service->stderr_path[0]) set_expand_string(key, NSSM_REG_STDERR, service->stderr_path);
@@ -110,6 +112,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
     else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_DISPOSITION);
     if (service->stderr_flags != NSSM_STDERR_FLAGS) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_FLAGS, service->stderr_flags);
     else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_FLAGS);
+    if (service->stderr_copy_and_truncate) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_COPY_AND_TRUNCATE, 1);
+    else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_COPY_AND_TRUNCATE);
   }
   if (service->rotate_files) set_number(key, NSSM_REG_ROTATE, 1);
   else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE);
@@ -121,6 +125,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
   else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_BYTES_LOW);
   if (service->rotate_bytes_high) set_number(key, NSSM_REG_ROTATE_BYTES_HIGH, service->rotate_bytes_high);
   else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_BYTES_HIGH);
+  if (service->rotate_delay != NSSM_ROTATE_DELAY) set_number(key, NSSM_REG_ROTATE_DELAY, service->rotate_delay);
+  else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE_DELAY);
   if (service->no_console) set_number(key, NSSM_REG_NO_CONSOLE, 1);
   else if (editing) RegDeleteValue(key, NSSM_REG_NO_CONSOLE);
 
@@ -486,21 +492,21 @@ HKEY open_registry(const TCHAR *service_name, REGSAM sam) {
 
 int get_io_parameters(nssm_service_t *service, HKEY key) {
   /* stdin */
-  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS)) {
+  if (get_createfile_parameters(key, NSSM_REG_STDIN, service->stdin_path, &service->stdin_sharing, NSSM_STDIN_SHARING, &service->stdin_disposition, NSSM_STDIN_DISPOSITION, &service->stdin_flags, NSSM_STDIN_FLAGS, 0)) {
     service->stdin_sharing = service->stdin_disposition = service->stdin_flags = 0;
     ZeroMemory(service->stdin_path, _countof(service->stdin_path) * sizeof(TCHAR));
     return 1;
   }
 
   /* stdout */
-  if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS)) {
+  if (get_createfile_parameters(key, NSSM_REG_STDOUT, service->stdout_path, &service->stdout_sharing, NSSM_STDOUT_SHARING, &service->stdout_disposition, NSSM_STDOUT_DISPOSITION, &service->stdout_flags, NSSM_STDOUT_FLAGS, &service->stdout_copy_and_truncate)) {
     service->stdout_sharing = service->stdout_disposition = service->stdout_flags = 0;
     ZeroMemory(service->stdout_path, _countof(service->stdout_path) * sizeof(TCHAR));
     return 2;
   }
 
   /* stderr */
-  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stderr_sharing, NSSM_STDERR_SHARING, &service->stderr_disposition, NSSM_STDERR_DISPOSITION, &service->stderr_flags, NSSM_STDERR_FLAGS)) {
+  if (get_createfile_parameters(key, NSSM_REG_STDERR, service->stderr_path, &service->stderr_sharing, NSSM_STDERR_SHARING, &service->stderr_disposition, NSSM_STDERR_DISPOSITION, &service->stderr_flags, NSSM_STDERR_FLAGS, &service->stderr_copy_and_truncate)) {
     service->stderr_sharing = service->stderr_disposition = service->stderr_flags = 0;
     ZeroMemory(service->stderr_path, _countof(service->stderr_path) * sizeof(TCHAR));
     return 3;
@@ -600,6 +606,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   if (get_number(key, NSSM_REG_ROTATE_SECONDS, &service->rotate_seconds, false) != 1) service->rotate_seconds = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_LOW, &service->rotate_bytes_low, false) != 1) service->rotate_bytes_low = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_HIGH, &service->rotate_bytes_high, false) != 1) service->rotate_bytes_high = 0;
+  override_milliseconds(service->name, key, NSSM_REG_ROTATE_DELAY, &service->rotate_delay, NSSM_ROTATE_DELAY, NSSM_EVENT_BOGUS_THROTTLE);
 
   /* Try to get force new console setting - may fail. */
   if (get_number(key, NSSM_REG_NO_CONSOLE, &service->no_console, false) != 1) service->no_console = 0;

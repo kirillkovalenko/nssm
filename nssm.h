@@ -96,6 +96,9 @@ int usage(int);
 */
 #define NSSM_KILL_THREADS_GRACE_PERIOD 1500
 
+/* How many milliseconds to pause after rotating logs. */
+#define NSSM_ROTATE_DELAY 0
+
 /* Margin of error for service status wait hints in milliseconds. */
 #define NSSM_WAITHINT_MARGIN 2000
 

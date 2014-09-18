@@ -72,11 +72,14 @@ typedef struct {
   HANDLE stderr_thread;
   unsigned long stderr_tid;
   bool rotate_files;
+  bool stdout_copy_and_truncate;
+  bool stderr_copy_and_truncate;
   unsigned long rotate_stdout_online;
   unsigned long rotate_stderr_online;
   unsigned long rotate_seconds;
   unsigned long rotate_bytes_low;
   unsigned long rotate_bytes_high;
+  unsigned long rotate_delay;
   unsigned long default_exit_action;
   unsigned long restart_delay;
   unsigned long throttle_delay;

@@ -326,6 +326,19 @@ If AppRotateBytes is non-zero, a file will not be rotated if it is smaller
 than the given number of bytes.  64-bit file sizes can be handled by setting
 a non-zero value of AppRotateBytesHigh.
 
+If AppRotateDelay is non-zero, NSSM will pause for the given number of
+milliseconds after rotation.
+
+If AppStdoutCopyAndTruncate or AppStdErrCopyAndTruncate are non-zero, the
+stdout (or stderr respectively) file will be rotated by first taking a copy
+of the file then truncating the original file to zero size.  This allows
+NSSM to rotate files which are held open by other processes, preventing the
+usual MoveFile() from succeeding.  Note that the copy process may take some
+time if the file is large, and will temporarily consume twice as much disk
+space as the original file.  Note also that applications reading the log file
+may not notice that the file size changed.  Using this option in conjunction
+with AppRotateDelay may help in that case.
+
 Rotation is independent of the CreateFile() parameters used to open the files.
 They will be rotated regardless of whether NSSM would otherwise have appended
 or replaced them.
@@ -692,6 +705,7 @@ run under a local user account.
 Thanks to Sam Townsend for noticing a regression with TerminateProcess().
 Thanks to Barrett Lewis for suggesting the option to skip terminating the
 application's child processes.
+Thanks to Miguel Angel Terrón for suggesting copy/truncate rotation.
 
 Licence
 -------
