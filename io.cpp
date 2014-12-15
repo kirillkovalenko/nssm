@@ -518,9 +518,9 @@ unsigned long WINAPI log_and_rotate(void *arg) {
           /* Write up to the newline. */
           ret = try_write(logger, address, i, &out, &complained);
           if (ret < 0) {
-            HeapFree(GetProcessHeap(), 0, logger);
             CloseHandle(logger->read_handle);
             CloseHandle(logger->write_handle);
+            HeapFree(GetProcessHeap(), 0, logger);
             return 3;
           }
           size += (__int64) out;
@@ -574,9 +574,9 @@ unsigned long WINAPI log_and_rotate(void *arg) {
             error = GetLastError();
             log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, logger->path, error_string(error), 0);
             /* Oh dear.  Now we can't log anything further. */
-            HeapFree(GetProcessHeap(), 0, logger);
             CloseHandle(logger->read_handle);
             CloseHandle(logger->write_handle);
+            HeapFree(GetProcessHeap(), 0, logger);
             return 4;
           }
 
@@ -600,15 +600,15 @@ unsigned long WINAPI log_and_rotate(void *arg) {
     ret = try_write(logger, address, in, &out, &complained);
     size += (__int64) out;
     if (ret < 0) {
-      HeapFree(GetProcessHeap(), 0, logger);
       CloseHandle(logger->read_handle);
       CloseHandle(logger->write_handle);
+      HeapFree(GetProcessHeap(), 0, logger);
       return 3;
     }
   }
 
-  HeapFree(GetProcessHeap(), 0, logger);
   CloseHandle(logger->read_handle);
   CloseHandle(logger->write_handle);
+  HeapFree(GetProcessHeap(), 0, logger);
   return 0;
 }
