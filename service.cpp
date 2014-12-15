@@ -1394,6 +1394,7 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
     if (services) {
       service->handle = open_service(services, service->name, SERVICE_CHANGE_CONFIG, 0, 0);
       set_service_recovery(service);
+
       CloseServiceHandle(services);
     }
   }
@@ -1687,16 +1688,7 @@ int start_service(nssm_service_t *service) {
     but be mindful of the fact that we are blocking the service control manager
     so abandon the wait before too much time has elapsed.
   */
-  unsigned long delay = service->throttle_delay;
-  if (delay > NSSM_SERVICE_STATUS_DEADLINE) {
-    TCHAR delay_milliseconds[16];
-    _sntprintf_s(delay_milliseconds, _countof(delay_milliseconds), _TRUNCATE, _T("%lu"), delay);
-    TCHAR deadline_milliseconds[16];
-    _sntprintf_s(deadline_milliseconds, _countof(deadline_milliseconds), _TRUNCATE, _T("%lu"), NSSM_SERVICE_STATUS_DEADLINE);
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_STARTUP_DELAY_TOO_LONG, service->name, delay_milliseconds, NSSM, deadline_milliseconds, 0);
-    delay = NSSM_SERVICE_STATUS_DEADLINE;
-  }
-  unsigned long deadline = WaitForSingleObject(service->process_handle, delay);
+  await_startup(service);
 
   /* Signal successful start */
   service->status.dwCurrentState = SERVICE_RUNNING;
@@ -1984,4 +1976,39 @@ awaited:
   if (func) HeapFree(GetProcessHeap(), 0, func);
 
   return ret;
+}
+
+int await_startup(nssm_service_t *service) {
+  unsigned long interval;
+  unsigned long waithint;
+  unsigned long waited;
+
+  waithint = service->status.dwWaitHint;
+  waited = 0;
+  while (waited < service->throttle_delay) {
+    interval = service->throttle_delay - waited;
+    if (interval > NSSM_SERVICE_STATUS_DEADLINE) interval = NSSM_SERVICE_STATUS_DEADLINE;
+
+    service->status.dwCurrentState = SERVICE_START_PENDING;
+    service->status.dwWaitHint += interval;
+    service->status.dwCheckPoint++;
+    SetServiceStatus(service->status_handle, &service->status);
+
+    switch (WaitForSingleObject(service->process_handle, interval)) {
+      case WAIT_OBJECT_0:
+        return 1;
+
+      case WAIT_TIMEOUT:
+      break;
+
+      default:
+        return -1;
+    }
+
+    waited += interval;
+  }
+
+  service->throttle = 0;
+
+  return 0;
 }

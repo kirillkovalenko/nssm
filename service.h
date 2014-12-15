@@ -146,5 +146,6 @@ int stop_service(nssm_service_t *, unsigned long, bool, bool);
 void CALLBACK end_service(void *, unsigned char);
 void throttle_restart(nssm_service_t *);
 int await_shutdown(nssm_service_t *, TCHAR *, unsigned long);
+int await_startup(nssm_service_t *);
 
 #endif
