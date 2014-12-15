@@ -145,7 +145,6 @@ int start_service(nssm_service_t *);
 int stop_service(nssm_service_t *, unsigned long, bool, bool);
 void CALLBACK end_service(void *, unsigned char);
 void throttle_restart(nssm_service_t *);
-int await_shutdown(nssm_service_t *, TCHAR *, unsigned long);
-int await_startup(nssm_service_t *);
+int await_service_status_change(nssm_service_t *, unsigned long, unsigned long, TCHAR *, unsigned long);
 
 #endif

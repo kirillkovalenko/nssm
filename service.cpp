@@ -1688,7 +1688,7 @@ int start_service(nssm_service_t *service) {
     but be mindful of the fact that we are blocking the service control manager
     so abandon the wait before too much time has elapsed.
   */
-  await_startup(service);
+  if (await_service_status_change(service, SERVICE_START_PENDING, _T("start_service"), service->throttle_delay) == 1) service->throttle = 0;
 
   /* Signal successful start */
   service->status.dwCurrentState = SERVICE_RUNNING;
@@ -1919,7 +1919,7 @@ void throttle_restart(nssm_service_t *service) {
            0 if the wait completed.
           -1 on error.
 */
-int await_shutdown(nssm_service_t *service, TCHAR *function_name, unsigned long timeout) {
+int await_service_status_change(nssm_service_t *service, unsigned long status, unsigned long desired, TCHAR *function_name, unsigned long timeout) {
   unsigned long interval;
   unsigned long waithint;
   unsigned long ret;
@@ -1944,7 +1944,7 @@ int await_shutdown(nssm_service_t *service, TCHAR *function_name, unsigned long 
     interval = timeout - waited;
     if (interval > NSSM_SERVICE_STATUS_DEADLINE) interval = NSSM_SERVICE_STATUS_DEADLINE;
 
-    service->status.dwCurrentState = SERVICE_STOP_PENDING;
+    service->status.dwCurrentState = control;
     service->status.dwWaitHint += interval;
     service->status.dwCheckPoint++;
     SetServiceStatus(service->status_handle, &service->status);
@@ -1952,7 +1952,7 @@ int await_shutdown(nssm_service_t *service, TCHAR *function_name, unsigned long 
     if (waited) {
       _sntprintf_s(waited_milliseconds, _countof(waited_milliseconds), _TRUNCATE, _T("%lu"), waited);
       _sntprintf_s(interval_milliseconds, _countof(interval_milliseconds), _TRUNCATE, _T("%lu"), interval);
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SHUTDOWN, function, service->name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, 0);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SERVICE, function, service->name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, service_status_text(status), 0);
     }
 
     switch (WaitForSingleObject(service->process_handle, interval)) {
@@ -1962,7 +1962,7 @@ int await_shutdown(nssm_service_t *service, TCHAR *function_name, unsigned long 
 
       case WAIT_TIMEOUT:
         ret = 1;
-      break;
+        break;
 
       default:
         ret = -1;
@@ -1976,39 +1976,4 @@ awaited:
   if (func) HeapFree(GetProcessHeap(), 0, func);
 
   return ret;
-}
-
-int await_startup(nssm_service_t *service) {
-  unsigned long interval;
-  unsigned long waithint;
-  unsigned long waited;
-
-  waithint = service->status.dwWaitHint;
-  waited = 0;
-  while (waited < service->throttle_delay) {
-    interval = service->throttle_delay - waited;
-    if (interval > NSSM_SERVICE_STATUS_DEADLINE) interval = NSSM_SERVICE_STATUS_DEADLINE;
-
-    service->status.dwCurrentState = SERVICE_START_PENDING;
-    service->status.dwWaitHint += interval;
-    service->status.dwCheckPoint++;
-    SetServiceStatus(service->status_handle, &service->status);
-
-    switch (WaitForSingleObject(service->process_handle, interval)) {
-      case WAIT_OBJECT_0:
-        return 1;
-
-      case WAIT_TIMEOUT:
-      break;
-
-      default:
-        return -1;
-    }
-
-    waited += interval;
-  }
-
-  service->throttle = 0;
-
-  return 0;
 }
