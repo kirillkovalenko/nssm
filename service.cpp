@@ -1688,7 +1688,8 @@ int start_service(nssm_service_t *service) {
     but be mindful of the fact that we are blocking the service control manager
     so abandon the wait before too much time has elapsed.
   */
-  if (await_service_status_change(service, SERVICE_START_PENDING, _T("start_service"), service->throttle_delay) == 1) service->throttle = 0;
+  service->status.dwCurrentState = SERVICE_START_PENDING;
+  if (await_single_handle(service->status_handle, &service->status, service->process_handle, service->name, _T("start_service"), service->throttle_delay) == 1) service->throttle = 0;
 
   /* Signal successful start */
   service->status.dwCurrentState = SERVICE_RUNNING;
@@ -1734,7 +1735,10 @@ int stop_service(nssm_service_t *service, unsigned long exitcode, bool graceful,
   if (service->pid) {
     /* Shut down service */
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_TERMINATEPROCESS, service->name, service->exe, 0);
-    kill_process(service, service->process_handle, service->pid, 0);
+    kill_t k;
+    service_kill_t(service, &k);
+    k.exitcode = 0;
+    kill_process(&k);
   }
   else log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_PROCESS_ALREADY_STOPPED, service->name, service->exe, 0);
 
@@ -1793,7 +1797,11 @@ void CALLBACK end_service(void *arg, unsigned char why) {
 
   /* Clean up. */
   if (exitcode == STILL_ACTIVE) exitcode = 0;
-  if (service->pid && service->kill_process_tree) kill_process_tree(service, service->pid, exitcode, service->pid);
+  if (service->pid && service->kill_process_tree) {
+    kill_t k;
+    service_kill_t(service, &k);
+    kill_process_tree(&k, service->pid);
+  }
   service->pid = 0;
 
   /*
@@ -1915,13 +1923,16 @@ void throttle_restart(nssm_service_t *service) {
 
   Only doing both these things will prevent the system from killing the service.
 
+  If the status_handle and service_status arguments are omitted, this function
+  will not try to update the service manager but it will still log to the
+  event log that it is waiting for a handle.
+
   Returns: 1 if the wait timed out.
            0 if the wait completed.
           -1 on error.
 */
-int await_service_status_change(nssm_service_t *service, unsigned long status, unsigned long desired, TCHAR *function_name, unsigned long timeout) {
+int await_single_handle(SERVICE_STATUS_HANDLE status_handle, SERVICE_STATUS *status, HANDLE handle, TCHAR *name, TCHAR *function_name, unsigned long timeout) {
   unsigned long interval;
-  unsigned long waithint;
   unsigned long ret;
   unsigned long waited;
   TCHAR interval_milliseconds[16];
@@ -1938,24 +1949,24 @@ int await_service_status_change(nssm_service_t *service, unsigned long status, u
 
   _sntprintf_s(timeout_milliseconds, _countof(timeout_milliseconds), _TRUNCATE, _T("%lu"), timeout);
 
-  waithint = service->status.dwWaitHint;
   waited = 0;
   while (waited < timeout) {
     interval = timeout - waited;
     if (interval > NSSM_SERVICE_STATUS_DEADLINE) interval = NSSM_SERVICE_STATUS_DEADLINE;
 
-    service->status.dwCurrentState = control;
-    service->status.dwWaitHint += interval;
-    service->status.dwCheckPoint++;
-    SetServiceStatus(service->status_handle, &service->status);
+    if (status) {
+      status->dwWaitHint += interval;
+      status->dwCheckPoint++;
+      SetServiceStatus(status_handle, status);
+    }
 
     if (waited) {
       _sntprintf_s(waited_milliseconds, _countof(waited_milliseconds), _TRUNCATE, _T("%lu"), waited);
       _sntprintf_s(interval_milliseconds, _countof(interval_milliseconds), _TRUNCATE, _T("%lu"), interval);
-      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SERVICE, function, service->name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, service_status_text(status), 0);
+      log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_AWAITING_SINGLE_HANDLE, function, name, waited_milliseconds, interval_milliseconds, timeout_milliseconds, 0);
     }
 
-    switch (WaitForSingleObject(service->process_handle, interval)) {
+    switch (WaitForSingleObject(handle, interval)) {
       case WAIT_OBJECT_0:
         ret = 0;
         goto awaited;
