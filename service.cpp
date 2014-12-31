@@ -38,6 +38,7 @@ static inline int service_control_response(unsigned long control, unsigned long 
     case SERVICE_CONTROL_STOP:
     case SERVICE_CONTROL_SHUTDOWN:
       switch (status) {
+        case SERVICE_RUNNING:
         case SERVICE_STOP_PENDING:
           return 1;
 
@@ -73,6 +74,7 @@ static inline int service_control_response(unsigned long control, unsigned long 
       }
 
     case SERVICE_CONTROL_INTERROGATE:
+    case NSSM_SERVICE_CONTROL_ROTATE:
       return 0;
   }
 
@@ -81,12 +83,17 @@ static inline int service_control_response(unsigned long control, unsigned long 
 
 static inline int await_service_control_response(unsigned long control, SC_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long initial_status) {
   int tries = 0;
+  unsigned long checkpoint = 0;
+  unsigned long waithint = 0;
   while (QueryServiceStatus(service_handle, service_status)) {
     int response = service_control_response(control, service_status->dwCurrentState);
     /* Alas we can't WaitForSingleObject() on an SC_HANDLE. */
     if (! response) return response;
     if (response > 0 || service_status->dwCurrentState == initial_status) {
-      if (++tries > 10) return response;
+      if (service_status->dwCheckPoint != checkpoint || service_status->dwWaitHint != waithint) tries = 0;
+      checkpoint = service_status->dwCheckPoint;
+      waithint = service_status->dwWaitHint;
+      if (++tries > 10) tries = 10;
       Sleep(50 * tries);
     }
     else return response;
