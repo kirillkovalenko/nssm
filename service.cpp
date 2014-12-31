@@ -1363,7 +1363,7 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
   /* Initialise status */
   ZeroMemory(&service->status, sizeof(service->status));
   service->status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
-  service->status.dwControlsAccepted = SERVICE_ACCEPT_POWEREVENT | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PAUSE_CONTINUE;
+  service->status.dwControlsAccepted = 0;
   service->status.dwWin32ExitCode = NO_ERROR;
   service->status.dwServiceSpecificExitCode = 0;
   service->status.dwCheckPoint = 0;
@@ -1689,10 +1689,12 @@ int start_service(nssm_service_t *service) {
     so abandon the wait before too much time has elapsed.
   */
   service->status.dwCurrentState = SERVICE_START_PENDING;
+  service->status.dwControlsAccepted = SERVICE_ACCEPT_POWEREVENT | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP;
   if (await_single_handle(service->status_handle, &service->status, service->process_handle, service->name, _T("start_service"), service->throttle_delay) == 1) service->throttle = 0;
 
   /* Signal successful start */
   service->status.dwCurrentState = SERVICE_RUNNING;
+  service->status.dwControlsAccepted &= ~SERVICE_ACCEPT_PAUSE_CONTINUE;
   SetServiceStatus(service->status_handle, &service->status);
 
   /* Continue waiting for a clean startup. */
@@ -1728,8 +1730,9 @@ int stop_service(nssm_service_t *service, unsigned long exitcode, bool graceful,
   if (graceful) {
     service->status.dwCurrentState = SERVICE_STOP_PENDING;
     service->status.dwWaitHint = NSSM_WAITHINT_MARGIN;
-    SetServiceStatus(service->status_handle, &service->status);
   }
+  service->status.dwControlsAccepted = 0;
+  SetServiceStatus(service->status_handle, &service->status);
 
   /* Nothing to do if service isn't running */
   if (service->pid) {
@@ -1887,6 +1890,7 @@ void throttle_restart(nssm_service_t *service) {
   }
 
   service->status.dwCurrentState = SERVICE_PAUSED;
+  service->status.dwControlsAccepted |= SERVICE_ACCEPT_PAUSE_CONTINUE;
   SetServiceStatus(service->status_handle, &service->status);
 
   if (use_critical_section) {
