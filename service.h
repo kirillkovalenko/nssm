@@ -94,17 +94,25 @@ typedef struct {
   HANDLE process_handle;
   unsigned long pid;
   HANDLE wait_handle;
+  unsigned long exitcode;
   bool stopping;
   bool allow_restart;
   unsigned long throttle;
   CRITICAL_SECTION throttle_section;
   bool throttle_section_initialised;
+  CRITICAL_SECTION hook_section;
+  bool hook_section_initialised;
   CONDITION_VARIABLE throttle_condition;
   HANDLE throttle_timer;
   LARGE_INTEGER throttle_duetime;
+  FILETIME nssm_creation_time;
   FILETIME creation_time;
   FILETIME exit_time;
   TCHAR *initial_env;
+  unsigned long last_control;
+  unsigned long start_requested_count;
+  unsigned long start_count;
+  unsigned long exit_count;
 } nssm_service_t;
 
 void WINAPI service_main(unsigned long, TCHAR **);

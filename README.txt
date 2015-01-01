@@ -66,6 +66,8 @@ type, log on details and dependencies.
 
 Since version 2.22, NSSM can manage existing services.
 
+Since version 2.25, NSSM can execute commands in response to service events.
+
 
 Usage
 -----
@@ -403,6 +405,118 @@ application to fail to start.
 
 Most people will want to use AppEnvironmentExtra exclusively.  srvany only
 supports AppEnvironment.
+
+
+Event hooks
+-----------
+NSSM can run user-configurable commands in response to application events.
+These commands are referred to as "hooks" below.
+
+All hooks are optional.  Any hooks which are run will be launched with the
+environment configured for the service.  NSSM will place additional
+variables into the environment which hooks can query to learn how and why
+they were called.
+
+Hooks are categorised by Event and Action.  Some hooks are run synchronously
+and some are run asynchronously.  Hooks prefixed with an *asterisk are run
+synchronously.  NSSM will wait for these hooks to complete before continuing
+its work.  Note, however, that ALL hooks are subject to a deadline after which
+they will be killed, regardless of whether they are run asynchronously
+or not.
+
+  Event: Start - Triggered when the service is requested to start.
+   *Action: Pre - Called before NSSM attempts to launch the application.
+    Action: Post - Called after the application successfully starts.
+
+  Event: Stop - Triggered when the service is requested to stop.
+   *Action: Pre - Called before NSSM attempts to kill the application.
+
+  Event: Exit - Triggered when the application exits.
+   *Action: Post - Called after NSSM has cleaned up the application.
+
+  Event: Rotate - Triggered when online log rotation is requested.
+   *Action: Pre - Called before NSSM rotates logs.
+    Action: Post - Called after NSSM rotates logs.
+
+  Event: Power
+    Action: Change - Called when the system power status has changed.
+    Action: Resume - Called when the system has resumed from standby.
+
+Note that there is no Stop/Post hook.  This is because Exit/Post is called
+when the application exits, regardless of whether it did so in response to
+a service shutdown request.  Stop/Pre is only called before a graceful
+shutdown attempt.
+
+NSSM sets the environment variable NSSM_HOOK_VERSION to a positive number.
+Hooks can check the value of the number to determine which other environment
+variables are available to them.
+
+If NSSM_HOOK_VERSION is 1 or greater, these variables are provided:
+
+  NSSM_EXE - Path to NSSM itself.
+  NSSM_CONFIGURATION - Build information for the NSSM executable,
+    eg 64-bit debug.
+  NSSM_VERSION - Version of the NSSM executable.
+  NSSM_BUILD_DATE - Build date of NSSM.
+  NSSM_PID - Process ID of the running NSSM executable.
+  NSSM_DEADLINE - Deadline number of milliseconds after which NSSM will
+    kill the hook if it is still running.
+  NSSM_SERVICE_NAME - Name of the service controlled by NSSM.
+  NSSM_SERVICE_DISPLAYNAME - Display name of the service.
+  NSSM_COMMAND_LINE - Command line used to launch the application.
+  NSSM_APPLICATION_PID - Process ID of the primary application process.
+    May be blank if the process is not running.
+  NSSM_EVENT - Event class triggering the hook.
+  NSSM_ACTION - Event action triggering the hook.
+  NSSM_TRIGGER - Service control triggering the hook.  May be blank if
+    the hook was not triggered by a service control, eg Exit/Post.
+  NSSM_LAST_CONTROL - Last service control handled by NSSM.
+  NSSM_START_REQUESTED_COUNT - Number of times the application was
+    requested to start.
+  NSSM_START_COUNT - Number of times the application successfully started.
+  NSSM_THROTTLE_COUNT - Number of times the application ran for less than
+    the throttle period.  Reset to zero on successful start or when the
+    service is explicitly unpaused.
+  NSSM_EXIT_COUNT - Number of times the application exited.
+  NSSM_EXITCODE - Exit code of the application.  May be blank if the
+    application is still running or has not started yet.
+  NSSM_RUNTIME - Number of milliseconds for which the NSSM executable has
+    been running.
+  NSSM_APPLICATION_RUNTIME - Number of milliseconds for which the
+    application has been running since it was last started.  May be blank
+    if the application has not been started yet.
+
+Future versions of NSSM may provide more environment variables, in which
+case NSSM_HOOK_VERSION will be set to a higher number.
+
+Hooks are configured by creating string (REG_EXPAND_SZ) values in the
+registry named after the hook action and placed under
+HKLM\SYSTEM\CurrentControlSet\Services\<service>\Parameters\AppEvents\<event>.
+
+For example the service could be configured to restart when the system
+resumes from standby by setting AppEvents\Power\Resume to:
+
+    %NSSM_EXE% restart %NSSM_SERVICE_NAME%
+
+Note that NSSM will abort the startup of the application if a Start/Pre hook
+returns exit code of 99.
+
+A service will normally run hooks in the following order:
+
+  Start/Pre
+  Start/Post
+  Stop/Pre
+  Exit/Post
+
+If the application crashes and is restarted by NSSM, the order might be:
+
+  Start/Pre
+  Start/Post
+  Exit/Post
+  Start/Pre
+  Start/Post
+  Stop/Pre
+  Exit/Post
 
 
 Managing services using the GUI

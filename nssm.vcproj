@@ -487,6 +487,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="hook.cpp"
+				>
+			</File>
+			<File
 				RelativePath="imports.cpp"
 				>
 			</File>
@@ -665,6 +669,10 @@
 			</File>
 			<File
 				RelativePath="gui.h"
+				>
+			</File>
+			<File
+				RelativePath="hook.h"
 				>
 			</File>
 			<File

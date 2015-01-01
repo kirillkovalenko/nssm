@@ -735,3 +735,57 @@ int get_exit_action(const TCHAR *service_name, unsigned long *ret, TCHAR *action
 
   return 0;
 }
+
+int set_hook(const TCHAR *service_name, const TCHAR *hook_event, const TCHAR *hook_action, TCHAR *cmd) {
+  /* Try to open the registry */
+  TCHAR registry[KEY_LENGTH];
+  if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, _T("%s\\%s"), NSSM_REG_HOOK, hook_event) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("hook registry"), _T("set_hook()"), 0);
+    return 1;
+  }
+
+  HKEY key;
+  long error;
+
+  /* Don't create keys needlessly. */
+  if (! _tcslen(cmd)) {
+    key = open_registry(service_name, registry, KEY_READ, false);
+    if (! key) return 0;
+    error = RegQueryValueEx(key, hook_action, 0, 0, 0, 0);
+    RegCloseKey(key);
+    if (error == ERROR_FILE_NOT_FOUND) return 0;
+  }
+
+  key = open_registry(service_name, registry, KEY_WRITE);
+  if (! key) return 1;
+
+  int ret = 1;
+  if (_tcslen(cmd)) ret = set_string(key, (TCHAR *) hook_action, cmd, true);
+  else {
+    error = RegDeleteValue(key, hook_action);
+    if (error == ERROR_SUCCESS || error == ERROR_FILE_NOT_FOUND) ret = 0;
+  }
+
+  /* Close registry */
+  RegCloseKey(key);
+
+  return ret;
+}
+
+int get_hook(const TCHAR *service_name, const TCHAR *hook_event, const TCHAR *hook_action, TCHAR *buffer, unsigned long buflen) {
+  /* Try to open the registry */
+  TCHAR registry[KEY_LENGTH];
+  if (_sntprintf_s(registry, _countof(registry), _TRUNCATE, _T("%s\\%s"), NSSM_REG_HOOK, hook_event) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("hook registry"), _T("get_hook()"), 0);
+    return 1;
+  }
+  HKEY key = open_registry(service_name, registry, KEY_READ, false);
+  if (! key) return 1;
+
+  int ret = expand_parameter(key, (TCHAR *) hook_action, buffer, buflen, true, false);
+
+  /* Close registry */
+  RegCloseKey(key);
+
+  return ret;
+}

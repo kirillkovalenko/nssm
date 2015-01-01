@@ -18,6 +18,7 @@
 #define IDD_NATIVE                      113
 #define IDD_PROCESS                     114
 #define IDD_DEPENDENCIES                115
+#define IDD_HOOKS                       116
 #define IDC_PATH                        1000
 #define IDC_TAB1                        1001
 #define IDC_CANCEL                      1002
@@ -65,14 +66,18 @@
 #define IDC_CONSOLE                     1045
 #define IDC_DEPENDENCIES                1046
 #define IDC_KILL_PROCESS_TREE           1047
+#define IDC_HOOK_EVENT                  1048
+#define IDC_HOOK_ACTION                 1049
+#define IDC_HOOK                        1050
+#define IDC_BROWSE_HOOK                 1051
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        115
+#define _APS_NEXT_RESOURCE_VALUE        117
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1048
+#define _APS_NEXT_CONTROL_VALUE         1052
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

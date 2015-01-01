@@ -186,6 +186,50 @@ static int setting_get_exit_action(const TCHAR *service_name, void *param, const
   return 1;
 }
 
+static inline bool split_hook_name(const TCHAR *hook_name, TCHAR *hook_event, TCHAR *hook_action) {
+  TCHAR *s;
+
+  for (s = (TCHAR *) hook_name; *s; s++) {
+    if (*s == _T('/')) {
+      *s = _T('\0');
+      _sntprintf_s(hook_event, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s"), hook_name);
+      _sntprintf_s(hook_action, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s"), ++s);
+      return valid_hook_name(hook_event, hook_action, false);
+    }
+  }
+
+  print_message(stderr, NSSM_MESSAGE_INVALID_HOOK_NAME, hook_name);
+  return false;
+}
+
+static int setting_set_hook(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  TCHAR hook_event[HOOK_NAME_LENGTH];
+  TCHAR hook_action[HOOK_NAME_LENGTH];
+  if (! split_hook_name(additional, hook_event, hook_action)) return -1;
+
+  TCHAR *cmd;
+  if (value && value->string) cmd = value->string;
+  else cmd = _T("");
+
+  if (set_hook(service_name, hook_event, hook_action, cmd)) return -1;
+  if (! _tcslen(cmd)) return 0;
+  return 1;
+}
+
+static int setting_get_hook(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  TCHAR hook_event[HOOK_NAME_LENGTH];
+  TCHAR hook_action[HOOK_NAME_LENGTH];
+  if (! split_hook_name(additional, hook_event, hook_action)) return -1;
+
+  TCHAR cmd[CMD_LENGTH];
+  if (get_hook(service_name, hook_event, hook_action, cmd, sizeof(cmd))) return -1;
+
+  value_from_string(name, value, cmd);
+
+  if (! _tcslen(cmd)) return 0;
+  return 1;
+}
+
 static int setting_set_affinity(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   HKEY key = (HKEY) param;
   if (! key) return -1;
@@ -1020,6 +1064,7 @@ settings_t settings[] = {
   { NSSM_REG_FLAGS, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
   { NSSM_REG_DIR, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
   { NSSM_REG_EXIT, REG_SZ, (void *) exit_action_strings[NSSM_EXIT_RESTART], false, ADDITIONAL_MANDATORY, setting_set_exit_action, setting_get_exit_action },
+  { NSSM_REG_HOOK, REG_SZ, (void *) _T(""), false, ADDITIONAL_MANDATORY, setting_set_hook, setting_get_hook },
   { NSSM_REG_AFFINITY, REG_SZ, 0, false, 0, setting_set_affinity, setting_get_affinity },
   { NSSM_REG_ENV, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
   { NSSM_REG_ENV_EXTRA, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },

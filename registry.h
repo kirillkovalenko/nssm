@@ -33,6 +33,7 @@
 #define NSSM_REG_PRIORITY _T("AppPriority")
 #define NSSM_REG_AFFINITY _T("AppAffinity")
 #define NSSM_REG_NO_CONSOLE _T("AppNoConsole")
+#define NSSM_REG_HOOK _T("AppEvents")
 #define NSSM_STDIO_LENGTH 29
 
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam, bool);
@@ -58,5 +59,7 @@ void override_milliseconds(TCHAR *, HKEY, TCHAR *, unsigned long *, unsigned lon
 int get_io_parameters(nssm_service_t *, HKEY);
 int get_parameters(nssm_service_t *, STARTUPINFO *);
 int get_exit_action(const TCHAR *, unsigned long *, TCHAR *, bool *);
+int set_hook(const TCHAR *, const TCHAR *, const TCHAR *, TCHAR *);
+int get_hook(const TCHAR *, const TCHAR *, const TCHAR *, TCHAR *, unsigned long);
 
 #endif

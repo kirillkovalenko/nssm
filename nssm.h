@@ -45,6 +45,7 @@
 #include "console.h"
 #include "env.h"
 #include "event.h"
+#include "hook.h"
 #include "imports.h"
 #include "messages.h"
 #include "process.h"
@@ -135,5 +136,11 @@ int usage(int);
 /* User-defined service controls can be in the range 128-255. */
 #define NSSM_SERVICE_CONTROL_START 0
 #define NSSM_SERVICE_CONTROL_ROTATE 128
+
+/* How many milliseconds to wait for a hook. */
+#define NSSM_HOOK_DEADLINE 60000
+
+/* How many milliseconds to wait for outstanding hooks. */
+#define NSSM_HOOK_THREAD_DEADLINE 80000
 
 #endif
