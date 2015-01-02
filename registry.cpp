@@ -470,7 +470,7 @@ HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {
     return 0;
   }
 
-  if (sam & KEY_WRITE) {
+  if (sam & KEY_SET_VALUE) {
     if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, &key, 0) != ERROR_SUCCESS) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
       return 0;
