@@ -281,6 +281,14 @@ static unsigned long WINAPI shutdown_service(void *arg) {
   return stop_service((nssm_service_t *) arg, 0, true, true);
 }
 
+/*
+ Wrapper to be called in a new thread so that we can acknowledge start
+ immediately.
+*/
+static unsigned long WINAPI launch_service(void *arg) {
+  return monitor_service((nssm_service_t *) arg);
+}
+
 /* Connect to the service manager */
 SC_HANDLE open_service_manager(unsigned long access) {
   SC_HANDLE ret = OpenSCManager(0, SERVICES_ACTIVE_DATABASE, access);
@@ -1455,7 +1463,11 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
   /* Remember our creation time. */
   if (get_process_creation_time(GetCurrentProcess(), &service->nssm_creation_time)) ZeroMemory(&service->nssm_creation_time, sizeof(service->nssm_creation_time));
 
-  monitor_service(service);
+  service->allow_restart = true;
+  if (! CreateThread(NULL, 0, launch_service, (void *) service, 0, NULL)) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETHREAD_FAILED, error_string(GetLastError()), 0);
+    stop_service(service, 0, true, true);
+  }
 }
 
 /* Make sure service recovery actions are taken where necessary */
@@ -1564,9 +1576,13 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
       service->last_control = control;
       log_service_control(service->name, control, true);
 
-      /* Pre-stop hook. */
+      /* Immediately block further controls. */
+      service->allow_restart = false;
       service->status.dwCurrentState = SERVICE_STOP_PENDING;
+      service->status.dwControlsAccepted = 0;
       SetServiceStatus(service->status_handle, &service->status);
+
+      /* Pre-stop hook. */
       nssm_hook(&hook_threads, service, NSSM_HOOK_EVENT_STOP, NSSM_HOOK_ACTION_PRE, &control, NSSM_SERVICE_STATUS_DEADLINE, false);
 
       /*
@@ -1651,7 +1667,6 @@ unsigned long WINAPI service_control_handler(unsigned long control, unsigned lon
 /* Start the service */
 int start_service(nssm_service_t *service) {
   service->stopping = false;
-  service->allow_restart = true;
 
   if (service->process_handle) return 0;
   service->start_requested_count++;
@@ -1685,86 +1700,95 @@ int start_service(nssm_service_t *service) {
   if (service->env) duplicate_environment(service->env);
   if (service->env_extra) set_environment_block(service->env_extra);
 
-  /* Pre-start hook. */
-  unsigned long control = NSSM_SERVICE_CONTROL_START;
   service->status.dwCurrentState = SERVICE_START_PENDING;
   service->status.dwControlsAccepted = SERVICE_ACCEPT_POWEREVENT | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP;
+  SetServiceStatus(service->status_handle, &service->status);
+
+  /* Pre-start hook. */
+  unsigned long control = NSSM_SERVICE_CONTROL_START;
   if (nssm_hook(&hook_threads, service, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, &control, NSSM_SERVICE_STATUS_DEADLINE, false) == NSSM_HOOK_STATUS_ABORT) {
     TCHAR code[16];
     _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), NSSM_HOOK_STATUS_ABORT);
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PRESTART_HOOK_ABORT, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, service->name, code, 0);
+    duplicate_environment_strings(service->initial_env);
     return stop_service(service, 5, true, true);
   }
 
-  /* Set up I/O redirection. */
-  if (get_output_handles(service, &si)) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
+  /* Did another thread receive a stop control? */
+  if (service->allow_restart) {
+    /* Set up I/O redirection. */
+    if (get_output_handles(service, &si)) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
+      if (! service->no_console) FreeConsole();
+      close_output_handles(&si);
+      duplicate_environment_strings(service->initial_env);
+      return stop_service(service, 4, true, true);
+    }
+
+    bool inherit_handles = false;
+    if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
+    unsigned long flags = service->priority & priority_mask();
+    if (service->affinity) flags |= CREATE_SUSPENDED;
+    if (! CreateProcess(0, cmd, 0, 0, inherit_handles, flags, 0, service->dir, &si, &pi)) {
+      unsigned long exitcode = 3;
+      unsigned long error = GetLastError();
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
+      close_output_handles(&si);
+      duplicate_environment_strings(service->initial_env);
+      return stop_service(service, exitcode, true, true);
+    }
+    service->start_count++;
+    service->process_handle = pi.hProcess;
+    service->pid = pi.dwProcessId;
+
+    if (get_process_creation_time(service->process_handle, &service->creation_time)) ZeroMemory(&service->creation_time, sizeof(service->creation_time));
+
+    close_output_handles(&si);
+
     if (! service->no_console) FreeConsole();
-    close_output_handles(&si);
-    return stop_service(service, 4, true, true);
+
+    if (service->affinity) {
+      /*
+        We are explicitly storing service->affinity as a 64-bit unsigned integer
+        so that we can parse it regardless of whether we're running in 32-bit
+        or 64-bit mode.  The arguments to SetProcessAffinityMask(), however, are
+        defined as type DWORD_PTR and hence limited to 32 bits on a 32-bit system
+        (or when running the 32-bit NSSM).
+
+        The result is a lot of seemingly-unnecessary casting throughout the code
+        and potentially confusion when we actually try to start the service.
+        Having said that, however, it's unlikely that we're actually going to
+        run in 32-bit mode on a system which has more than 32 CPUs so the
+        likelihood of seeing a confusing situation is somewhat diminished.
+      */
+      DWORD_PTR affinity, system_affinity;
+
+      if (GetProcessAffinityMask(service->process_handle, &affinity, &system_affinity)) affinity = service->affinity & system_affinity;
+      else {
+        affinity = (DWORD_PTR) service->affinity;
+        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GETPROCESSAFFINITYMASK_FAILED, service->name, error_string(GetLastError()), 0);
+      }
+
+      if (! SetProcessAffinityMask(service->process_handle, affinity)) {
+        log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETPROCESSAFFINITYMASK_FAILED, service->name, error_string(GetLastError()), 0);
+      }
+
+      ResumeThread(pi.hThread);
+    }
   }
-
-  bool inherit_handles = false;
-  if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
-  unsigned long flags = service->priority & priority_mask();
-  if (service->affinity) flags |= CREATE_SUSPENDED;
-  if (! CreateProcess(0, cmd, 0, 0, inherit_handles, flags, 0, service->dir, &si, &pi)) {
-    unsigned long exitcode = 3;
-    unsigned long error = GetLastError();
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
-    close_output_handles(&si);
-    duplicate_environment_strings(service->initial_env);
-    return stop_service(service, exitcode, true, true);
-  }
-  service->start_count++;
-  service->process_handle = pi.hProcess;
-  service->pid = pi.dwProcessId;
-
-  if (get_process_creation_time(service->process_handle, &service->creation_time)) ZeroMemory(&service->creation_time, sizeof(service->creation_time));
-
-  close_output_handles(&si);
-
-  if (! service->no_console) FreeConsole();
 
   /* Restore our environment. */
   duplicate_environment_strings(service->initial_env);
-
-  if (service->affinity) {
-    /*
-      We are explicitly storing service->affinity as a 64-bit unsigned integer
-      so that we can parse it regardless of whether we're running in 32-bit
-      or 64-bit mode.  The arguments to SetProcessAffinityMask(), however, are
-      defined as type DWORD_PTR and hence limited to 32 bits on a 32-bit system
-      (or when running the 32-bit NSSM).
-
-      The result is a lot of seemingly-unnecessary casting throughout the code
-      and potentially confusion when we actually try to start the service.
-      Having said that, however, it's unlikely that we're actually going to
-      run in 32-bit mode on a system which has more than 32 CPUs so the
-      likelihood of seeing a confusing situation is somewhat diminished.
-    */
-    DWORD_PTR affinity, system_affinity;
-
-    if (GetProcessAffinityMask(service->process_handle, &affinity, &system_affinity)) affinity = service->affinity & system_affinity;
-    else {
-      affinity = (DWORD_PTR) service->affinity;
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GETPROCESSAFFINITYMASK_FAILED, service->name, error_string(GetLastError()), 0);
-    }
-
-    if (! SetProcessAffinityMask(service->process_handle, affinity)) {
-      log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_SETPROCESSAFFINITYMASK_FAILED, service->name, error_string(GetLastError()), 0);
-    }
-
-    ResumeThread(pi.hThread);
-  }
 
   /*
     Wait for a clean startup before changing the service status to RUNNING
     but be mindful of the fact that we are blocking the service control manager
     so abandon the wait before too much time has elapsed.
   */
-  service->status.dwCurrentState = SERVICE_START_PENDING;
   if (await_single_handle(service->status_handle, &service->status, service->process_handle, service->name, _T("start_service"), service->throttle_delay) == 1) service->throttle = 0;
+
+  /* Did another thread receive a stop control? */
+  if (! service->allow_restart) return 0;
 
   /* Signal successful start */
   service->status.dwCurrentState = SERVICE_RUNNING;
@@ -1801,9 +1825,8 @@ int stop_service(nssm_service_t *service, unsigned long exitcode, bool graceful,
   if (graceful) {
     service->status.dwCurrentState = SERVICE_STOP_PENDING;
     service->status.dwWaitHint = NSSM_WAITHINT_MARGIN;
+    SetServiceStatus(service->status_handle, &service->status);
   }
-  service->status.dwControlsAccepted = 0;
-  SetServiceStatus(service->status_handle, &service->status);
 
   /* Nothing to do if service isn't running */
   if (service->pid) {
