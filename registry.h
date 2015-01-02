@@ -35,6 +35,7 @@
 #define NSSM_REG_NO_CONSOLE _T("AppNoConsole")
 #define NSSM_STDIO_LENGTH 29
 
+HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam);
 HKEY open_registry(const TCHAR *, REGSAM sam);
 int create_messages();

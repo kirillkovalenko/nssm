@@ -457,7 +457,7 @@ void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned
   if (! ok) *buffer = default_value;
 }
 
-HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {
+HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool must_exist) {
   /* Get registry */
   TCHAR registry[KEY_LENGTH];
   HKEY key;
@@ -477,7 +477,9 @@ HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {
     }
   }
   else {
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, &key) != ERROR_SUCCESS) {
+    long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, &key);
+    if (error != ERROR_SUCCESS) {
+      if (error == ERROR_FILE_NOT_FOUND && ! must_exist) return 0;
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
       return 0;
     }
@@ -486,8 +488,12 @@ HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {
   return key;
 }
 
+HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {
+  return open_registry(service_name, sub, sam, true);
+}
+
 HKEY open_registry(const TCHAR *service_name, REGSAM sam) {
-  return open_registry(service_name, 0, sam);
+  return open_registry(service_name, 0, sam, true);
 }
 
 int get_io_parameters(nssm_service_t *service, HKEY key) {
