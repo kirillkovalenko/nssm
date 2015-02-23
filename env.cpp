@@ -86,7 +86,7 @@ static int set_environment_block(TCHAR *env, bool set) {
       else {
         if (! SetEnvironmentVariable(s, NULL)) ret++;
       }
-      for (t++ ; *t; t++);
+      for (t++; *t; t++);
     }
     s = t;
   }
