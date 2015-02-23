@@ -9,6 +9,11 @@ Changes since 2.24
     followed by SetEndOfFile(), allowing it to rotate files
     which other processes hold open.
 
+  * NSSM now sets the service environment before querying
+    parameters from the registry, so paths and arguments
+    can reference environment configured in AppEnvironment
+    or AppEnvironmentExtra.
+
 Changes since 2.23
 ------------------
   * NSSM once again calls TerminateProcess() correctly.

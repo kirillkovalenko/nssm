@@ -531,6 +531,14 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
   /* Don't expand parameters when retrieving for the GUI. */
   bool expand = si ? true : false;
 
+  /* Try to get environment variables - may fail */
+  get_environment(service->name, key, NSSM_REG_ENV, &service->env, &service->envlen);
+  /* Environment variables to add to existing rather than replace - may fail. */
+  get_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
+
+  /* Set environment if we are starting the service. */
+  if (si) set_service_environment(service);
+
   /* Try to get executable file - MUST succeed */
   if (get_string(key, NSSM_REG_EXE, service->exe, sizeof(service->exe), expand, false, true)) {
     RegCloseKey(key);
@@ -584,11 +592,6 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
       }
     }
   }
-
-  /* Try to get environment variables - may fail */
-  get_environment(service->name, key, NSSM_REG_ENV, &service->env, &service->envlen);
-  /* Environment variables to add to existing rather than replace - may fail. */
-  get_environment(service->name, key, NSSM_REG_ENV_EXTRA, &service->env_extra, &service->env_extralen);
 
   /* Try to get priority - may fail. */
   unsigned long priority;

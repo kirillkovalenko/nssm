@@ -273,6 +273,17 @@ static inline unsigned long throttle_milliseconds(unsigned long throttle) {
   return ret * 1000;
 }
 
+void set_service_environment(nssm_service_t *service) {
+  if (! service) return;
+  if (service->env) duplicate_environment(service->env);
+  if (service->env_extra) set_environment_block(service->env_extra);
+}
+
+void unset_service_environment(nssm_service_t *service) {
+  if (! service) return;
+  duplicate_environment_strings(service->initial_env);
+}
+
 /*
   Wrapper to be called in a new thread so that we can acknowledge a STOP
   control immediately.
@@ -1684,6 +1695,7 @@ int start_service(nssm_service_t *service) {
   int ret = get_parameters(service, &si);
   if (ret) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_PARAMETERS_FAILED, service->name, 0);
+    unset_service_environment(service);
     return stop_service(service, 2, true, true);
   }
 
@@ -1691,14 +1703,11 @@ int start_service(nssm_service_t *service) {
   TCHAR cmd[CMD_LENGTH];
   if (_sntprintf_s(cmd, _countof(cmd), _TRUNCATE, _T("\"%s\" %s"), service->exe, service->flags) < 0) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("command line"), _T("start_service"), 0);
+    unset_service_environment(service);
     return stop_service(service, 2, true, true);
   }
 
   throttle_restart(service);
-
-  /* Set the environment. */
-  if (service->env) duplicate_environment(service->env);
-  if (service->env_extra) set_environment_block(service->env_extra);
 
   service->status.dwCurrentState = SERVICE_START_PENDING;
   service->status.dwControlsAccepted = SERVICE_ACCEPT_POWEREVENT | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP;
@@ -1710,7 +1719,7 @@ int start_service(nssm_service_t *service) {
     TCHAR code[16];
     _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), NSSM_HOOK_STATUS_ABORT);
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PRESTART_HOOK_ABORT, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, service->name, code, 0);
-    duplicate_environment_strings(service->initial_env);
+    unset_service_environment(service);
     return stop_service(service, 5, true, true);
   }
 
@@ -1721,7 +1730,7 @@ int start_service(nssm_service_t *service) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_OUTPUT_HANDLES_FAILED, service->name, 0);
       if (! service->no_console) FreeConsole();
       close_output_handles(&si);
-      duplicate_environment_strings(service->initial_env);
+      unset_service_environment(service);
       return stop_service(service, 4, true, true);
     }
 
@@ -1734,7 +1743,7 @@ int start_service(nssm_service_t *service) {
       unsigned long error = GetLastError();
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEPROCESS_FAILED, service->name, service->exe, error_string(error), 0);
       close_output_handles(&si);
-      duplicate_environment_strings(service->initial_env);
+      unset_service_environment(service);
       return stop_service(service, exitcode, true, true);
     }
     service->start_count++;
@@ -1778,7 +1787,7 @@ int start_service(nssm_service_t *service) {
   }
 
   /* Restore our environment. */
-  duplicate_environment_strings(service->initial_env);
+  unset_service_environment(service);
 
   /*
     Wait for a clean startup before changing the service status to RUNNING

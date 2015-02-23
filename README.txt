@@ -820,6 +820,8 @@ Thanks to Sam Townsend for noticing a regression with TerminateProcess().
 Thanks to Barrett Lewis for suggesting the option to skip terminating the
 application's child processes.
 Thanks to Miguel Angel Terrón for suggesting copy/truncate rotation.
+Thanks to Yuriy Lesiuk for suggesting setting the environment before querying
+the registry for parameters.
 
 Licence
 -------
