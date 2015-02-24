@@ -275,8 +275,18 @@ static inline unsigned long throttle_milliseconds(unsigned long throttle) {
 
 void set_service_environment(nssm_service_t *service) {
   if (! service) return;
-  if (service->env) duplicate_environment(service->env);
-  if (service->env_extra) set_environment_block(service->env_extra);
+
+  /*
+    We have to duplicate the block because this function will be called
+    multiple times between registry reads.
+  */
+  if (service->env) duplicate_environment_strings(service->env);
+  if (! service->env_extra) return;
+  TCHAR *env_extra = copy_environment_block(service->env_extra);
+  if (! env_extra) return;
+
+  set_environment_block(env_extra);
+  HeapFree(GetProcessHeap(), 0, env_extra);
 }
 
 void unset_service_environment(nssm_service_t *service) {
@@ -1733,6 +1743,9 @@ int start_service(nssm_service_t *service) {
       unset_service_environment(service);
       return stop_service(service, 4, true, true);
     }
+
+    /* The pre-start hook will have cleaned the environment. */
+    set_service_environment(service);
 
     bool inherit_handles = false;
     if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;

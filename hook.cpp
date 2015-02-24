@@ -234,8 +234,7 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
   EnterCriticalSection(&service->hook_section);
 
   /* Set the environment. */
-  if (service->env) duplicate_environment(service->env);
-  if (service->env_extra) set_environment_block(service->env_extra);
+  set_service_environment(service);
 
   /* ABI version. */
   TCHAR number[16];
@@ -327,7 +326,7 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
   TCHAR cmd[CMD_LENGTH];
   if (get_hook(service->name, hook_event, hook_action, cmd, sizeof(cmd))) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_GET_HOOK_FAILED, hook_event, hook_action, service->name, 0);
-    duplicate_environment_strings(service->initial_env);
+    unset_service_environment(service);
     LeaveCriticalSection(&service->hook_section);
     HeapFree(GetProcessHeap(), 0, hook);
     return NSSM_HOOK_STATUS_ERROR;
@@ -335,7 +334,7 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
 
   /* No hook. */
   if (! _tcslen(cmd)) {
-    duplicate_environment_strings(service->initial_env);
+    unset_service_environment(service);
     LeaveCriticalSection(&service->hook_section);
     HeapFree(GetProcessHeap(), 0, hook);
     return NSSM_HOOK_STATUS_NOTFOUND;
@@ -389,7 +388,7 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
   }
 
   /* Restore our environment. */
-  duplicate_environment_strings(service->initial_env);
+  unset_service_environment(service);
 
   LeaveCriticalSection(&service->hook_section);
 
