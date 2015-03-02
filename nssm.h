@@ -60,6 +60,8 @@ int str_number(const TCHAR *, unsigned long *, TCHAR **);
 int str_number(const TCHAR *, unsigned long *);
 int num_cpus();
 int usage(int);
+const TCHAR *nssm_unquoted_imagepath();
+const TCHAR *nssm_imagepath();
 
 #define NSSM _T("NSSM")
 #ifdef _WIN64

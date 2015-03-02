@@ -4,6 +4,9 @@ extern unsigned long tls_index;
 extern bool is_admin;
 extern imports_t imports;
 
+static TCHAR unquoted_imagepath[PATH_LENGTH];
+static TCHAR imagepath[PATH_LENGTH];
+
 /* Are two strings case-insensitively equivalent? */
 int str_equiv(const TCHAR *a, const TCHAR *b) {
   size_t len = _tcslen(a);
@@ -100,6 +103,14 @@ int num_cpus() {
   return (int) i;
 }
 
+const TCHAR *nssm_unquoted_imagepath() {
+  return unquoted_imagepath;
+}
+
+const TCHAR *nssm_imagepath() {
+  return imagepath;
+}
+
 int _tmain(int argc, TCHAR **argv) {
   check_console();
 
@@ -117,6 +128,11 @@ int _tmain(int argc, TCHAR **argv) {
 
   /* Set up function pointers. */
   if (get_imports()) exit(111);
+
+  /* Remember our path for later. */
+  GetModuleFileName(0, unquoted_imagepath, _countof(unquoted_imagepath));
+  GetModuleFileName(0, imagepath, _countof(imagepath));
+  PathQuoteSpaces(imagepath);
 
   /* Elevate */
   if (argc > 1) {
