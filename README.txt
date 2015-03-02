@@ -822,6 +822,8 @@ application's child processes.
 Thanks to Miguel Angel Terrón for suggesting copy/truncate rotation.
 Thanks to Yuriy Lesiuk for suggesting setting the environment before querying
 the registry for parameters.
+Thanks to Gerald Haider for noticing that installing a service with NSSM in a
+path containing spaces was technically a security vulnerability.
 
 Licence
 -------

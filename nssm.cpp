@@ -65,16 +65,10 @@ static int elevate(int argc, TCHAR **argv, unsigned long message) {
   ZeroMemory(&sei, sizeof(sei));
   sei.cbSize = sizeof(sei);
   sei.lpVerb = _T("runas");
-  sei.lpFile = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, PATH_LENGTH);
-  if (! sei.lpFile) {
-    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("GetModuleFileName()"), _T("elevate()"));
-    return 111;
-  }
-  GetModuleFileName(0, (TCHAR *) sei.lpFile, PATH_LENGTH);
+  sei.lpFile = (TCHAR *) nssm_imagepath();
 
   TCHAR *args = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, EXE_LENGTH * sizeof(TCHAR));
   if (! args) {
-    HeapFree(GetProcessHeap(), 0, (void *) sei.lpFile);
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("GetCommandLine()"), _T("elevate()"));
     return 111;
   }
@@ -91,7 +85,6 @@ static int elevate(int argc, TCHAR **argv, unsigned long message) {
   unsigned long exitcode = 0;
   if (! ShellExecuteEx(&sei)) exitcode = 100;
 
-  HeapFree(GetProcessHeap(), 0, (void *) sei.lpFile);
   HeapFree(GetProcessHeap(), 0, (void *) args);
   return exitcode;
 }

@@ -254,10 +254,8 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
   /* Last control handled. */
   SetEnvironmentVariable(NSSM_HOOK_ENV_LAST_CONTROL, service_control_text(service->last_control));
 
-  /* Path to NSSM. */
-  TCHAR path[PATH_LENGTH];
-  GetModuleFileName(0, path, _countof(path));
-  SetEnvironmentVariable(NSSM_HOOK_ENV_IMAGE_PATH, path);
+  /* Path to NSSM, unquoted for the environment. */
+  SetEnvironmentVariable(NSSM_HOOK_ENV_IMAGE_PATH, nssm_unquoted_imagepath());
 
   /* NSSM version. */
   SetEnvironmentVariable(NSSM_HOOK_ENV_NSSM_CONFIGURATION, NSSM_CONFIGURATION);

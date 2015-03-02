@@ -17,8 +17,7 @@ int create_messages() {
   }
 
   /* Get path of this program */
-  TCHAR path[PATH_LENGTH];
-  GetModuleFileName(0, path, _countof(path));
+  const TCHAR *path = nssm_imagepath();
 
   /* Try to register the module but don't worry so much on failure */
   RegSetValueEx(key, _T("EventMessageFile"), 0, REG_SZ, (const unsigned char *) path, (unsigned long) (_tcslen(path) +  1) * sizeof(TCHAR));

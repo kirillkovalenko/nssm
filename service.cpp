@@ -1126,7 +1126,7 @@ int install_service(nssm_service_t *service) {
   }
 
   /* Get path of this program */
-  GetModuleFileName(0, service->image, _countof(service->image));
+  _sntprintf_s(service->image, _countof(service->image), _TRUNCATE, _T("%s"), nssm_imagepath());
 
   /* Create the service - settings will be changed in edit_service() */
   service->handle = CreateService(services, service->name, service->name, SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, service->image, 0, 0, 0, 0, 0);

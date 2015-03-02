@@ -129,8 +129,7 @@ int duplicate_environment(TCHAR *rawenv) {
            -1 on error.
 */
 int test_environment(TCHAR *env) {
-  TCHAR path[PATH_LENGTH];
-  GetModuleFileName(0, path, _countof(path));
+  TCHAR *path = (TCHAR *) nssm_imagepath();
   STARTUPINFO si;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
