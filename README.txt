@@ -406,6 +406,59 @@ application to fail to start.
 Most people will want to use AppEnvironmentExtra exclusively.  srvany only
 supports AppEnvironment.
 
+As of version 2.25, NSSM parses AppEnvironment and AppEnvironmentExtra
+itself, before reading any other registry values.  As a result it is now
+possible to refer to custom environment variables in Application,
+AppDirectory and other parameters.
+
+
+Merged service environment
+--------------------------
+All Windows services can be passed additional environment variables by
+creating a multi-valued string (REG_MULTI_SZ) registry value named
+HLKM\SYSTEM\CurrentControlSet\Services\<service>\Environment.
+
+The contents of this environment block will be merged into the system
+environment before the service starts.
+
+Note, however, that the merged environment will be sorted alphabetically
+before being processed.  This means that in practice you cannot set,
+for example, DIR=%PROGRAMFILES% in the Environment block because the
+environment passed to the service will not have defined %PROGRAMFILES%
+by the time it comes to define %DIR%.  Environment variables defined in
+AppEnvironmentExtra do not suffer from this limitation.
+
+As of version 2.25, NSSM can get and set the Environment block using
+commands similar to:
+
+    nssm get <servicename> Environment
+
+It is worth reiterating that the Environment block is available to all
+Windows services, not just NSSM services.
+
+
+Service startup environment
+---------------------------
+The environment NSSM passes to the application depends on how various
+registry values are configured.  The following flow describes how the
+environment is modified.
+
+By default:
+    The service inherits the system environment.
+
+If <service>\Environment is defined:
+    The contents of Environment are MERGED into the environment.
+
+If <service>\Parameters\AppEnvironment is defined:
+    The service inherits the environment specified in AppEnvironment.
+
+If <service>\Parameters\AppEnvironmentExtra is defined:
+    The contents of AppEnvironmentExtra are APPENDED to the environment.
+
+Note that AppEnvironment overrides the system environment and the
+merged Environment block.  Note also that AppEnvironmentExtra is
+guaranteed to be appended to the startup environment if it is defined.
+
 
 Event hooks
 -----------
@@ -555,6 +608,7 @@ run NSSM itself.  The parameters recognised are as follows:
 
   Description: Service description.
   DisplayName: Service display name.
+  Environment: Service merged environment.
   ImagePath: Path to the service executable.
   ObjectName: User account which runs the service.
   Name: Service key name.
