@@ -32,19 +32,23 @@ int create_parameters(nssm_service_t *service, bool editing) {
   HKEY key = open_registry(service->name, KEY_WRITE);
   if (! key) return 1;
 
+  /* Remember parameters in case we need to delete them. */
+  TCHAR registry[KEY_LENGTH];
+  int ret = service_registry_path(service->name, true, 0, registry, _countof(registry));
+
   /* Try to create the parameters */
   if (set_expand_string(key, NSSM_REG_EXE, service->exe)) {
-    RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
+    if (ret > 0) RegDeleteKey(HKEY_LOCAL_MACHINE, registry);
     RegCloseKey(key);
     return 2;
   }
   if (set_expand_string(key, NSSM_REG_FLAGS, service->flags)) {
-    RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
+    if (ret > 0) RegDeleteKey(HKEY_LOCAL_MACHINE, registry);
     RegCloseKey(key);
     return 3;
   }
   if (set_expand_string(key, NSSM_REG_DIR, service->dir)) {
-    RegDeleteKey(HKEY_LOCAL_MACHINE, NSSM_REGISTRY);
+    if (ret > 0) RegDeleteKey(HKEY_LOCAL_MACHINE, registry);
     RegCloseKey(key);
     return 4;
   }
