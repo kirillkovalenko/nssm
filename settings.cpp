@@ -726,6 +726,25 @@ int native_get_displayname(const TCHAR *service_name, void *param, const TCHAR *
   return ret;
 }
 
+int native_set_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = open_service_registry(service_name, KEY_SET_VALUE, false);
+  if (! key) return -1;
+
+  int ret = setting_set_environment(service_name, (void *) key, NSSM_NATIVE_ENVIRONMENT, default_value, value, additional);
+  RegCloseKey(key);
+  return ret;
+}
+
+int native_get_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = open_service_registry(service_name, KEY_READ, false);
+  if (! key) return -1;
+
+  ZeroMemory(value, sizeof(value_t));
+  int ret = setting_get_environment(service_name, (void *) key, NSSM_NATIVE_ENVIRONMENT, default_value, value, additional);
+  RegCloseKey(key);
+  return ret;
+}
+
 int native_set_imagepath(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   SC_HANDLE service_handle = (SC_HANDLE) param;
   if (! service_handle) return -1;
@@ -1101,6 +1120,7 @@ settings_t settings[] = {
   { NSSM_NATIVE_DEPENDONSERVICE, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependonservice, native_get_dependonservice },
   { NSSM_NATIVE_DESCRIPTION, REG_SZ, _T(""), true, 0, native_set_description, native_get_description },
   { NSSM_NATIVE_DISPLAYNAME, REG_SZ, NULL, true, 0, native_set_displayname, native_get_displayname },
+  { NSSM_NATIVE_ENVIRONMENT, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_environment, native_get_environment },
   { NSSM_NATIVE_IMAGEPATH, REG_EXPAND_SZ, NULL, true, 0, native_set_imagepath, native_get_imagepath },
   { NSSM_NATIVE_OBJECTNAME, REG_SZ, NSSM_LOCALSYSTEM_ACCOUNT, true, 0, native_set_objectname, native_get_objectname },
   { NSSM_NATIVE_NAME, REG_SZ, NULL, true, 0, native_set_name, native_get_name },

@@ -456,18 +456,20 @@ void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned
   if (! ok) *buffer = default_value;
 }
 
-HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool must_exist) {
-  /* Get registry */
-  TCHAR registry[KEY_LENGTH];
-  HKEY key;
+static int service_registry_path(const TCHAR *service_name, bool parameters, const TCHAR *sub, TCHAR *buffer, unsigned long buflen) {
   int ret;
 
-  if (sub) ret = _sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY _T("\\%s"), service_name, sub);
-  else ret = _sntprintf_s(registry, _countof(registry), _TRUNCATE, NSSM_REGISTRY, service_name);
-  if (ret < 0) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, _T("NSSM_REGISTRY"), _T("open_registry()"), 0);
-    return 0;
+  if (parameters) {
+    if (sub) ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY _T("\\") NSSM_REG_PARAMETERS _T("\\%s"), service_name, sub);
+    else ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY _T("\\") NSSM_REG_PARAMETERS, service_name);
   }
+  else ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY, service_name);
+
+  return ret;
+}
+
+static HKEY open_registry_key(const TCHAR *registry, REGSAM sam, bool must_exist) {
+  HKEY key;
 
   if (sam & KEY_SET_VALUE) {
     if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, &key, 0) != ERROR_SUCCESS) {
@@ -485,6 +487,28 @@ HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool
   }
 
   return key;
+}
+
+HKEY open_service_registry(const TCHAR *service_name, REGSAM sam, bool must_exist) {
+  /* Get registry */
+  TCHAR registry[KEY_LENGTH];
+  if (service_registry_path(service_name, false, 0, registry, _countof(registry)) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REGISTRY, _T("open_service_registry()"), 0);
+    return 0;
+  }
+
+  return open_registry_key(registry, sam, must_exist);
+}
+
+HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool must_exist) {
+  /* Get registry */
+  TCHAR registry[KEY_LENGTH];
+  if (service_registry_path(service_name, true, sub, registry, _countof(registry)) < 0) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, NSSM_REGISTRY, _T("open_registry()"), 0);
+    return 0;
+  }
+
+  return open_registry_key(registry, sam, must_exist);
 }
 
 HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {

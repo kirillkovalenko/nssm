@@ -1,7 +1,8 @@
 #ifndef REGISTRY_H
 #define REGISTRY_H
 
-#define NSSM_REGISTRY _T("SYSTEM\\CurrentControlSet\\Services\\%s\\Parameters")
+#define NSSM_REGISTRY _T("SYSTEM\\CurrentControlSet\\Services\\%s")
+#define NSSM_REG_PARAMETERS _T("Parameters")
 #define NSSM_REGISTRY_GROUPS _T("SYSTEM\\CurrentControlSet\\Control\\ServiceGroupOrder")
 #define NSSM_REG_GROUPS _T("List")
 #define NSSM_REG_EXE _T("Application")
@@ -36,6 +37,7 @@
 #define NSSM_REG_HOOK _T("AppEvents")
 #define NSSM_STDIO_LENGTH 29
 
+HKEY open_service_registry(const TCHAR *, REGSAM sam, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam);
 HKEY open_registry(const TCHAR *, REGSAM sam);
