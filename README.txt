@@ -331,7 +331,7 @@ a non-zero value of AppRotateBytesHigh.
 If AppRotateDelay is non-zero, NSSM will pause for the given number of
 milliseconds after rotation.
 
-If AppStdoutCopyAndTruncate or AppStdErrCopyAndTruncate are non-zero, the
+If AppStdoutCopyAndTruncate or AppStderrCopyAndTruncate are non-zero, the
 stdout (or stderr respectively) file will be rotated by first taking a copy
 of the file then truncating the original file to zero size.  This allows
 NSSM to rotate files which are held open by other processes, preventing the
