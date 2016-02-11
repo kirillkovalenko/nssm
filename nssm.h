@@ -33,13 +33,19 @@
 #define DIR_LENGTH PATH_LENGTH - 12
 
 #define _WIN32_WINNT 0x0500
+
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include <windows.h>
+#include <prsht.h>
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include <commctrl.h>
+#include <tchar.h>
+#ifndef NSSM_COMPILE_RC
 #include <fcntl.h>
 #include <io.h>
 #include <shlwapi.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <tchar.h>
-#include <windows.h>
 #include "service.h"
 #include "account.h"
 #include "console.h"
@@ -53,6 +59,7 @@
 #include "settings.h"
 #include "io.h"
 #include "gui.h"
+#endif
 
 int str_equiv(const TCHAR *, const TCHAR *);
 void strip_basename(TCHAR *);
