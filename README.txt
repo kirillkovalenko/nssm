@@ -878,6 +878,7 @@ Thanks to Yuriy Lesiuk for suggesting setting the environment before querying
 the registry for parameters.
 Thanks to Gerald Haider for noticing that installing a service with NSSM in a
 path containing spaces was technically a security vulnerability.
+Thanks to Scott Ware for reporting a crash saving the environment on XP 32-bit.
 
 Licence
 -------

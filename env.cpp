@@ -170,3 +170,12 @@ void duplicate_environment_strings(TCHAR *env) {
   duplicate_environment(newenv);
   HeapFree(GetProcessHeap(), 0, newenv);
 }
+
+/* Safely get a copy of the current environment. */
+TCHAR *copy_environment() {
+  TCHAR *rawenv = GetEnvironmentStrings();
+  if (! rawenv) return NULL;
+  TCHAR *env = copy_environment_block(rawenv);
+  FreeEnvironmentStrings(rawenv);
+  return env;
+}

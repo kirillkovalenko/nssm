@@ -9,5 +9,6 @@ int clear_environment();
 int duplicate_environment(TCHAR *);
 int test_environment(TCHAR *);
 void duplicate_environment_strings(TCHAR *);
+TCHAR *copy_environment();
 
 #endif

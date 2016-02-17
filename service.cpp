@@ -774,7 +774,7 @@ void cleanup_nssm_service(nssm_service_t *service) {
   if (service->throttle_section_initialised) DeleteCriticalSection(&service->throttle_section);
   if (service->throttle_timer) CloseHandle(service->throttle_timer);
   if (service->hook_section_initialised) DeleteCriticalSection(&service->hook_section);
-  if (service->initial_env) FreeEnvironmentStrings(service->initial_env);
+  if (service->initial_env) HeapFree(GetProcessHeap(), 0, service->initial_env);
   HeapFree(GetProcessHeap(), 0, service);
 }
 
@@ -1479,7 +1479,7 @@ void WINAPI service_main(unsigned long argc, TCHAR **argv) {
   service->hook_section_initialised = true;
 
   /* Remember our initial environment. */
-  service->initial_env = GetEnvironmentStrings();
+  service->initial_env = copy_environment();
 
   /* Remember our creation time. */
   if (get_process_creation_time(GetCurrentProcess(), &service->nssm_creation_time)) ZeroMemory(&service->nssm_creation_time, sizeof(service->nssm_creation_time));
