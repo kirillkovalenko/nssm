@@ -2,6 +2,39 @@
 
 extern const TCHAR *exit_action_strings[];
 
+static int service_registry_path(const TCHAR *service_name, bool parameters, const TCHAR *sub, TCHAR *buffer, unsigned long buflen) {
+  int ret;
+
+  if (parameters) {
+    if (sub) ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY _T("\\") NSSM_REG_PARAMETERS _T("\\%s"), service_name, sub);
+    else ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY _T("\\") NSSM_REG_PARAMETERS, service_name);
+  }
+  else ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY, service_name);
+
+  return ret;
+}
+
+static HKEY open_registry_key(const TCHAR *registry, REGSAM sam, bool must_exist) {
+  HKEY key;
+
+  if (sam & KEY_SET_VALUE) {
+    if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, &key, 0) != ERROR_SUCCESS) {
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
+      return 0;
+    }
+  }
+  else {
+    long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, &key);
+    if (error != ERROR_SUCCESS) {
+      if (error == ERROR_FILE_NOT_FOUND && ! must_exist) return 0;
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
+      return 0;
+    }
+  }
+
+  return key;
+}
+
 int create_messages() {
   HKEY key;
 
@@ -458,39 +491,6 @@ void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned
   else ok = true;
 
   if (! ok) *buffer = default_value;
-}
-
-static int service_registry_path(const TCHAR *service_name, bool parameters, const TCHAR *sub, TCHAR *buffer, unsigned long buflen) {
-  int ret;
-
-  if (parameters) {
-    if (sub) ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY _T("\\") NSSM_REG_PARAMETERS _T("\\%s"), service_name, sub);
-    else ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY _T("\\") NSSM_REG_PARAMETERS, service_name);
-  }
-  else ret = _sntprintf_s(buffer, buflen, _TRUNCATE, NSSM_REGISTRY, service_name);
-
-  return ret;
-}
-
-static HKEY open_registry_key(const TCHAR *registry, REGSAM sam, bool must_exist) {
-  HKEY key;
-
-  if (sam & KEY_SET_VALUE) {
-    if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, &key, 0) != ERROR_SUCCESS) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-      return 0;
-    }
-  }
-  else {
-    long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, &key);
-    if (error != ERROR_SUCCESS) {
-      if (error == ERROR_FILE_NOT_FOUND && ! must_exist) return 0;
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-      return 0;
-    }
-  }
-
-  return key;
 }
 
 HKEY open_service_registry(const TCHAR *service_name, REGSAM sam, bool must_exist) {
