@@ -52,7 +52,7 @@ static int setting_set_number(const TCHAR *service_name, void *param, const TCHA
   }
   if (str_number(value->string, &number)) return -1;
 
-  if (default_value && number == (unsigned long) default_value) {
+  if (default_value && number == PtrToUlong(default_value)) {
     error = RegDeleteValue(key, name);
     if (error == ERROR_SUCCESS || error == ERROR_FILE_NOT_FOUND) return 0;
     print_message(stderr, NSSM_MESSAGE_REGDELETEVALUE_FAILED, name, service_name, error_string(error));
@@ -1058,7 +1058,7 @@ int get_setting(const TCHAR *service_name, HKEY key, settings_t *setting, value_
       break;
 
     case REG_DWORD:
-      value->numeric = (unsigned long) setting->default_value;
+      value->numeric = PtrToUlong(setting->default_value);
       if (setting->get) ret = setting->get(service_name, (void *) key, setting->name, setting->default_value, value, additional);
       else ret = -1;
       break;

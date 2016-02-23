@@ -880,6 +880,7 @@ Thanks to Gerald Haider for noticing that installing a service with NSSM in a
 path containing spaces was technically a security vulnerability.
 Thanks to Scott Ware for reporting a crash saving the environment on XP 32-bit.
 Thanks to Stefan and Michael Scherer for reporting a bug writing the event messages source.
+Thanks to Paul Baxter and Mathias Breiner for help with Visual Studio 2015.
 
 Licence
 -------
