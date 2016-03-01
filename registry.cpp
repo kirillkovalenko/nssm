@@ -14,24 +14,31 @@ static int service_registry_path(const TCHAR *service_name, bool parameters, con
   return ret;
 }
 
-static HKEY open_registry_key(const TCHAR *registry, REGSAM sam, bool must_exist) {
-  HKEY key;
+static long open_registry_key(const TCHAR *registry, REGSAM sam, HKEY *key, bool must_exist) {
+  long error;
 
   if (sam & KEY_SET_VALUE) {
-    if (RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, &key, 0) != ERROR_SUCCESS) {
+    error = RegCreateKeyEx(HKEY_LOCAL_MACHINE, registry, 0, 0, REG_OPTION_NON_VOLATILE, sam, 0, key, 0);
+    if (error != ERROR_SUCCESS) {
+      *key = 0;
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-      return 0;
+      return error;
     }
   }
   else {
-    long error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, &key);
+    error = RegOpenKeyEx(HKEY_LOCAL_MACHINE, registry, 0, sam, key);
     if (error != ERROR_SUCCESS) {
-      if (error == ERROR_FILE_NOT_FOUND && ! must_exist) return 0;
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
-      return 0;
+      *key = 0;
+      if (error != ERROR_FILE_NOT_FOUND || must_exist) log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OPENKEY_FAILED, registry, error_string(GetLastError()), 0);
     }
   }
 
+  return error;
+}
+
+static HKEY open_registry_key(const TCHAR *registry, REGSAM sam, bool must_exist) {
+  HKEY key;
+  long error = open_registry_key(registry, sam, &key, must_exist);
   return key;
 }
 
@@ -504,7 +511,7 @@ HKEY open_service_registry(const TCHAR *service_name, REGSAM sam, bool must_exis
   return open_registry_key(registry, sam, must_exist);
 }
 
-HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool must_exist) {
+long open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, HKEY *key, bool must_exist) {
   /* Get registry */
   TCHAR registry[KEY_LENGTH];
   if (service_registry_path(service_name, true, sub, registry, _countof(registry)) < 0) {
@@ -512,7 +519,13 @@ HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool
     return 0;
   }
 
-  return open_registry_key(registry, sam, must_exist);
+  return open_registry_key(registry, sam, key, must_exist);
+}
+
+HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool must_exist) {
+  HKEY key;
+  long error = open_registry(service_name, sub, sam, &key, true);
+  return key;
 }
 
 HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam) {

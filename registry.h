@@ -38,6 +38,7 @@
 #define NSSM_STDIO_LENGTH 29
 
 HKEY open_service_registry(const TCHAR *, REGSAM sam, bool);
+long open_registry(const TCHAR *, const TCHAR *, REGSAM sam, HKEY *, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam);
 HKEY open_registry(const TCHAR *, REGSAM sam);
