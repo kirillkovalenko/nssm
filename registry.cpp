@@ -524,7 +524,7 @@ long open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, HKEY
 
 HKEY open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, bool must_exist) {
   HKEY key;
-  long error = open_registry(service_name, sub, sam, &key, true);
+  long error = open_registry(service_name, sub, sam, &key, must_exist);
   return key;
 }
 
