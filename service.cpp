@@ -2115,3 +2115,62 @@ awaited:
 
   return ret;
 }
+
+int list_nssm_services() {
+  /* Open service manager. */
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
+  if (! services) {
+    print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+    return 1;
+  }
+
+  unsigned long bufsize, required, count, i;
+  unsigned long resume = 0;
+  EnumServicesStatus(services, SERVICE_WIN32, SERVICE_STATE_ALL, 0, 0, &required, &count, &resume);
+  unsigned long error = GetLastError();
+  if (error != ERROR_MORE_DATA) {
+    print_message(stderr, NSSM_MESSAGE_ENUMSERVICESSTATUS_FAILED, error_string(GetLastError()));
+    return 2;
+  }
+
+  ENUM_SERVICE_STATUS *status = (ENUM_SERVICE_STATUS *) HeapAlloc(GetProcessHeap(), 0, required);
+  if (! status) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("ENUM_SERVICE_STATUS"), _T("list_nssm_services()"));
+    return 3;
+  }
+
+  bufsize = required;
+  while (true) {
+    int ret = EnumServicesStatus(services, SERVICE_WIN32, SERVICE_STATE_ALL, status, bufsize, &required, &count, &resume);
+    if (! ret) {
+      error = GetLastError();
+      if (error != ERROR_MORE_DATA) {
+        HeapFree(GetProcessHeap(), 0, status);
+        print_message(stderr, NSSM_MESSAGE_ENUMSERVICESSTATUS_FAILED, error_string(GetLastError()));
+        return 4;
+      }
+    }
+
+    for (i = 0; i < count; i++) {
+      /* Try to get the service parameters. */
+      nssm_service_t *service = alloc_nssm_service();
+      if (! service) {
+        HeapFree(GetProcessHeap(), 0, status);
+        print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("nssm_service_t"), _T("list_nssm_services()"));
+        return 5;
+      }
+      _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), status[i].lpServiceName);
+
+      get_parameters(service, 0);
+      /* We manage the service if we have an Application. */
+      if (service->exe[0]) _tprintf(_T("%s\n"), service->name);
+
+      cleanup_nssm_service(service);
+    }
+
+    if (ret) break;
+  }
+
+  HeapFree(GetProcessHeap(), 0, status);
+  return 0;
+}

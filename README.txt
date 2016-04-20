@@ -68,6 +68,8 @@ Since version 2.22, NSSM can manage existing services.
 
 Since version 2.25, NSSM can execute commands in response to service events.
 
+Since version 2.25, NSSM can list services it manages.
+
 
 Usage
 -----
@@ -788,6 +790,13 @@ Because of the way NSSM registers itself you should be aware that you may not
 be able to replace the NSSM binary if you have the event viewer open and that
 running multiple instances of NSSM from different locations may be confusing if
 they are not all the same version.
+
+
+Listing managed services
+------------------------
+The following command will print the names of all services managed by NSSM:
+
+    nssm list
 
 
 Example usage
