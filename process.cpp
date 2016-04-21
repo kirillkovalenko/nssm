@@ -241,7 +241,7 @@ int kill_console(nssm_service_t *service, kill_t *k) {
 
   /* Ignore the event ourselves. */
   ret = 0;
-  bool ignored = SetConsoleCtrlHandler(0, TRUE);
+  BOOL ignored = SetConsoleCtrlHandler(0, TRUE);
   if (! ignored) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_SETCONSOLECTRLHANDLER_FAILED, k->name, error_string(GetLastError()), 0);
     ret = 4;
