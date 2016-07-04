@@ -156,7 +156,7 @@ int delete_createfile_parameter(HKEY key, TCHAR *prefix, TCHAR *suffix) {
 
 HANDLE write_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
   HANDLE ret = CreateFile(path, FILE_WRITE_DATA, sharing, attributes, disposition, flags, 0);
-  if (ret) {
+  if (ret!= INVALID_HANDLE_VALUE) {
     if (SetFilePointer(ret, 0, 0, FILE_END) != INVALID_SET_FILE_POINTER) SetEndOfFile(ret);
     return ret;
   }
@@ -192,7 +192,7 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
 
   /* Try to open the file to check if it exists and to get attributes. */
   HANDLE file = CreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-  if (file) {
+  if (file != INVALID_HANDLE_VALUE) {
     /* Get file attributes. */
     if (! GetFileInformationByHandle(file, &info)) {
       /* Reuse current time for rotation timestamp. */
@@ -275,7 +275,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
   /* stdin */
   if (service->stdin_path[0]) {
     si->hStdInput = CreateFile(service->stdin_path, FILE_READ_DATA, service->stdin_sharing, 0, service->stdin_disposition, service->stdin_flags, 0);
-    if (! si->hStdInput) {
+    if (si->hStdInput == INVALID_HANDLE_VALUE) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
       return 2;
     }
@@ -285,7 +285,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
   if (service->stdout_path[0]) {
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stdout_copy_and_truncate);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
-    if (! stdout_handle) return 4;
+    if (stdout_handle == INVALID_HANDLE_VALUE) return 4;
 
     if (service->rotate_files && service->rotate_stdout_online) {
       service->stdout_pipe = si->hStdOutput = 0;
@@ -324,7 +324,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
     else {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
-      if (! stderr_handle) return 7;
+      if (stderr_handle == INVALID_HANDLE_VALUE) return 7;
 
       if (service->rotate_files && service->rotate_stderr_online) {
         service->stderr_pipe = si->hStdError = 0;
@@ -570,7 +570,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
 
           /* Reopen. */
           logger->write_handle = write_to_file(logger->path, logger->sharing, 0, logger->disposition, logger->flags);
-          if (! logger->write_handle) {
+          if (logger->write_handle == INVALID_HANDLE_VALUE) {
             error = GetLastError();
             log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, logger->path, error_string(error), 0);
             /* Oh dear.  Now we can't log anything further. */
