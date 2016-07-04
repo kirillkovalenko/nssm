@@ -808,8 +808,8 @@ int remove(HWND window) {
 
     case 3:
       popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_SERVICE_NOT_INSTALLED);
-      return 3;
       cleanup_nssm_service(service);
+      return 3;
 
     case 4:
       popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_REMOVE_SERVICE_FAILED);
