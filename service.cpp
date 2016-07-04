@@ -760,7 +760,7 @@ void cleanup_nssm_service(nssm_service_t *service) {
   if (! service) return;
   if (service->username) HeapFree(GetProcessHeap(), 0, service->username);
   if (service->password) {
-    SecureZeroMemory(service->password, service->passwordlen);
+    SecureZeroMemory(service->password, service->passwordlen * sizeof(TCHAR));
     HeapFree(GetProcessHeap(), 0, service->password);
   }
   if (service->dependencies) HeapFree(GetProcessHeap(), 0, service->dependencies);

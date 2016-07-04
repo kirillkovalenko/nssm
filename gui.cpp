@@ -450,7 +450,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
     service->username = 0;
     service->usernamelen = 0;
     if (service->password) {
-      SecureZeroMemory(service->password, service->passwordlen);
+      SecureZeroMemory(service->password, service->passwordlen * sizeof(TCHAR));
       HeapFree(GetProcessHeap(), 0, service->password);
     }
     service->password = 0;
@@ -539,7 +539,7 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
         /* Get first password. */
         if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1, service->password, (int) service->passwordlen)) {
           HeapFree(GetProcessHeap(), 0, password);
-          SecureZeroMemory(service->password, service->passwordlen);
+          SecureZeroMemory(service->password, service->passwordlen * sizeof(TCHAR));
           HeapFree(GetProcessHeap(), 0, service->password);
           service->password = 0;
           service->passwordlen = 0;
@@ -552,9 +552,9 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
 
         /* Get confirmation. */
         if (! GetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2, password, (int) service->passwordlen)) {
-          SecureZeroMemory(password, service->passwordlen);
+          SecureZeroMemory(password, service->passwordlen * sizeof(TCHAR));
           HeapFree(GetProcessHeap(), 0, password);
-          SecureZeroMemory(service->password, service->passwordlen);
+          SecureZeroMemory(service->password, service->passwordlen * sizeof(TCHAR));
           HeapFree(GetProcessHeap(), 0, service->password);
           service->password = 0;
           service->passwordlen = 0;
@@ -568,9 +568,9 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
         /* Compare. */
         if (_tcsncmp(password, service->password, service->passwordlen)) {
           popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_GUI_MISSING_PASSWORD);
-          SecureZeroMemory(password, service->passwordlen);
+          SecureZeroMemory(password, service->passwordlen * sizeof(TCHAR));
           HeapFree(GetProcessHeap(), 0, password);
-          SecureZeroMemory(service->password, service->passwordlen);
+          SecureZeroMemory(service->password, service->passwordlen * sizeof(TCHAR));
           HeapFree(GetProcessHeap(), 0, service->password);
           service->password = 0;
           service->passwordlen = 0;
