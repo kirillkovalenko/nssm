@@ -653,8 +653,6 @@ int get_service_description(const TCHAR *service_name, SC_HANDLE service_handle,
     print_message(stderr, NSSM_MESSAGE_QUERYSERVICECONFIG2_FAILED, service_name, _T("SERVICE_CONFIG_DESCRIPTION"), error_string(error));
     return 4;
   }
-
-  return 0;
 }
 
 int get_service_startup(const TCHAR *service_name, SC_HANDLE service_handle, const QUERY_SERVICE_CONFIG *qsc, unsigned long *startup) {
@@ -1982,7 +1980,6 @@ void CALLBACK end_service(void *arg, unsigned char why) {
       wait_for_hooks(service, false);
       free_imports();
       exit(exitcode);
-    break;
   }
 }
 

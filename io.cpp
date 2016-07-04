@@ -86,7 +86,7 @@ int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned lon
   switch (get_number(key, value, sharing, false)) {
     case 0: *sharing = default_sharing; break; /* Missing. */
     case 1: break; /* Found. */
-    case -2: return 4; break; /* Error. */
+    case -2: return 4; /* Error. */
   }
 
   /* CreationDisposition. */
@@ -97,7 +97,7 @@ int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned lon
   switch (get_number(key, value, disposition, false)) {
     case 0: *disposition = default_disposition; break; /* Missing. */
     case 1: break; /* Found. */
-    case -2: return 6; break; /* Error. */
+    case -2: return 6; /* Error. */
   }
 
   /* Flags. */
@@ -108,7 +108,7 @@ int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned lon
   switch (get_number(key, value, flags, false)) {
     case 0: *flags = default_flags; break; /* Missing. */
     case 1: break; /* Found. */
-    case -2: return 8; break; /* Error. */
+    case -2: return 8; /* Error. */
   }
 
   /* Rotate with CopyFile() and SetEndOfFile(). */
@@ -124,7 +124,7 @@ int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned lon
         if (data) *copy_and_truncate = true;
         else *copy_and_truncate = false;
         break;
-      case -2: return 9; break; /* Error. */
+      case -2: return 9; /* Error. */
     }
   }
 

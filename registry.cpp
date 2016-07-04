@@ -353,12 +353,10 @@ int set_string(HKEY key, TCHAR *value, TCHAR *string, bool expand) {
 
 int set_string(HKEY key, TCHAR *value, TCHAR *string) {
   return set_string(key, value, string, false);
-  return 1;
 }
 
 int set_expand_string(HKEY key, TCHAR *value, TCHAR *string) {
   return set_string(key, value, string, true);
-  return 1;
 }
 
 /*
