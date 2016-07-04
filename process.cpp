@@ -115,7 +115,7 @@ int kill_threads(nssm_service_t *service, kill_t *k) {
 
   /* Get a snapshot of all threads in the system. */
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-  if (! snapshot) {
+  if (snapshot == INVALID_HANDLE_VALUE) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_THREAD_FAILED, k->name, error_string(GetLastError()), 0);
     return 0;
   }
@@ -309,7 +309,7 @@ void kill_process_tree(nssm_service_t * service, kill_t *k, unsigned long ppid) 
 
   /* Get a snapshot of all processes in the system. */
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-  if (! snapshot) {
+  if (snapshot == INVALID_HANDLE_VALUE) {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATETOOLHELP32SNAPSHOT_PROCESS_FAILED, k->name, error_string(GetLastError()), 0);
     return;
   }
