@@ -891,6 +891,7 @@ Thanks to Scott Ware for reporting a crash saving the environment on XP 32-bit.
 Thanks to Stefan and Michael Scherer for reporting a bug writing the event messages source.
 Thanks to Paul Baxter for help with Visual Studio 2015.
 Thanks to Mathias Breiner for help with Visual Studio and some registry fixes.
+Thanks to David Bremner for general tidyups.
 
 Licence
 -------
