@@ -4,6 +4,20 @@
 #define COMPLAINED_WRITE (1 << 1)
 #define COMPLAINED_ROTATE (1 << 2)
 
+static int dup_handle(HANDLE source_handle, HANDLE *dest_handle_ptr, TCHAR *source_description, TCHAR *dest_description, unsigned long flags) {
+  if (! dest_handle_ptr) return 1;
+
+  if (! DuplicateHandle(GetCurrentProcess(), source_handle, GetCurrentProcess(), dest_handle_ptr, 0, true, flags)) {
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, source_description, dest_description, error_string(GetLastError()), 0);
+    return 2;
+  }
+  return 0;
+}
+
+static int dup_handle(HANDLE source_handle, HANDLE *dest_handle_ptr, TCHAR *source_description, TCHAR *dest_description) {
+  return dup_handle(source_handle, dest_handle_ptr, source_description, dest_description, DUPLICATE_SAME_ACCESS);
+}
+
 static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned long sharing, unsigned long disposition, unsigned long flags, HANDLE *read_handle_ptr, HANDLE *pipe_handle_ptr, HANDLE *write_handle_ptr, unsigned long rotate_bytes_low, unsigned long rotate_bytes_high, unsigned long rotate_delay, unsigned long *tid_ptr, unsigned long *rotate_online, bool copy_and_truncate) {
   *tid_ptr = 0;
 
@@ -298,10 +312,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
     else service->stdout_thread = 0;
 
     if (! service->stdout_thread) {
-      if (! DuplicateHandle(GetCurrentProcess(), stdout_handle, GetCurrentProcess(), &si->hStdOutput, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, _T("stdout"), error_string(GetLastError()), 0);
-        return 4;
-      }
+      if (dup_handle(stdout_handle, &si->hStdOutput, NSSM_REG_STDOUT, _T("stdout"), DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) return 4;
       service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
     }
   }
@@ -316,10 +327,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
 
       /* Two handles to the same file will create a race. */
-      if (! DuplicateHandle(GetCurrentProcess(), si->hStdOutput, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
-        log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDOUT, _T("stderr"), error_string(GetLastError()), 0);
-        return 6;
-      }
+      if (dup_handle(si->hStdOutput, &si->hStdError, _T("stdout"), _T("stderr"))) return 6;
     }
     else {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
@@ -337,10 +345,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       else service->stderr_thread = 0;
 
       if (! service->stderr_thread) {
-        if (! DuplicateHandle(GetCurrentProcess(), stderr_handle, GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
-          log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, NSSM_REG_STDERR, _T("stderr"), error_string(GetLastError()), 0);
-          return 7;
-        }
+        if (dup_handle(stderr_handle, &si->hStdError, NSSM_REG_STDERR, _T("stderr"), DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) return 7;
         service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
       }
     }
@@ -356,21 +361,13 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
   /* Redirect other handles. */
   if (! si->hStdInput) {
-    if (! DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_INPUT_HANDLE), GetCurrentProcess(), &si->hStdInput, 0, true, DUPLICATE_SAME_ACCESS)) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, _T("STD_INPUT_HANDLE"), _T("stdin"), error_string(GetLastError()), 0);
-      return 8;
-    }
+    if (dup_handle(GetStdHandle(STD_INPUT_HANDLE), &si->hStdInput, _T("STD_INPUT_HANDLE"), _T("stdin"))) return 8;
   }
   if (! si->hStdOutput) {
-    if (! DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_OUTPUT_HANDLE), GetCurrentProcess(), &si->hStdOutput, 0, true, DUPLICATE_SAME_ACCESS)) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, _T("STD_OUTPUT_HANDLE"), _T("stdout"), error_string(GetLastError()), 0);
-      return 9;
-    }
+    if (dup_handle(GetStdHandle(STD_OUTPUT_HANDLE), &si->hStdOutput, _T("STD_OUTPUT_HANDLE"), _T("stdout"))) return 9;
   }
   if (! si->hStdError)  {
-    if (! DuplicateHandle(GetCurrentProcess(), GetStdHandle(STD_ERROR_HANDLE), GetCurrentProcess(), &si->hStdError, 0, true, DUPLICATE_SAME_ACCESS)) {
-      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DUPLICATEHANDLE_FAILED, _T("STD_ERROR_HANDLE"), _T("stderr"), error_string(GetLastError()), 0);
-      return 10;
+    if (dup_handle(GetStdHandle(STD_ERROR_HANDLE), &si->hStdError, _T("STD_ERROR_HANDLE"), _T("stderr"))) return 10;
     }
   }
 
