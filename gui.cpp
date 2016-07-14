@@ -182,6 +182,9 @@ int nssm_gui(int resource, nssm_service_t *service) {
     SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, service->rotate_seconds, 0);
     if (! service->rotate_bytes_high) SetDlgItemInt(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, service->rotate_bytes_low, 0);
 
+    /* Hooks tab. */
+    if (service->hook_share_output_handles) SendDlgItemMessage(tablist[NSSM_TAB_HOOKS], IDC_REDIRECT_HOOK, BM_SETCHECK, BST_CHECKED, 0);
+
     /* Check if advanced settings are in use. */
     if (service->stdout_disposition != service->stderr_disposition || (service->stdout_disposition && service->stdout_disposition != NSSM_STDOUT_DISPOSITION && service->stdout_disposition != CREATE_ALWAYS) || (service->stderr_disposition && service->stderr_disposition != NSSM_STDERR_DISPOSITION && service->stderr_disposition != CREATE_ALWAYS)) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_STDIO);
     if (service->rotate_bytes_high) popup_message(dlg, MB_OK | MB_ICONWARNING, NSSM_GUI_WARN_ROTATE_BYTES);
@@ -672,6 +675,9 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
     check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_SECONDS, &service->rotate_seconds);
     check_number(tablist[NSSM_TAB_ROTATION], IDC_ROTATE_BYTES_LOW, &service->rotate_bytes_low);
   }
+
+  /* Get hook stuff. */
+  if (SendDlgItemMessage(tablist[NSSM_TAB_HOOKS], IDC_REDIRECT_HOOK, BM_GETCHECK, 0, 0) & BST_CHECKED) service->hook_share_output_handles = true;
 
   /* Get environment. */
   unsigned long envlen = (unsigned long) SendMessage(GetDlgItem(tablist[NSSM_TAB_ENVIRONMENT], IDC_ENVIRONMENT), WM_GETTEXTLENGTH, 0, 0);
@@ -1257,6 +1263,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(combo, CB_INSERTSTRING, -1, (LPARAM) message_string(NSSM_GUI_HOOK_EVENT_EXIT));
       SendMessage(combo, CB_INSERTSTRING, -1, (LPARAM) message_string(NSSM_GUI_HOOK_EVENT_POWER));
       SendMessage(combo, CB_INSERTSTRING, -1, (LPARAM) message_string(NSSM_GUI_HOOK_EVENT_ROTATE));
+      SendDlgItemMessage(tablist[NSSM_TAB_HOOKS], IDC_REDIRECT_HOOK, BM_SETCHECK, BST_UNCHECKED, 0);
       if (_tcslen(service->name)) {
         TCHAR hook_name[HOOK_NAME_LENGTH];
         TCHAR cmd[CMD_LENGTH];

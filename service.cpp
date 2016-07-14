@@ -1721,15 +1721,7 @@ int start_service(nssm_service_t *service) {
   service->status.dwControlsAccepted = SERVICE_ACCEPT_POWEREVENT | SERVICE_ACCEPT_SHUTDOWN | SERVICE_ACCEPT_STOP;
   SetServiceStatus(service->status_handle, &service->status);
 
-  /* Pre-start hook. */
   unsigned long control = NSSM_SERVICE_CONTROL_START;
-  if (nssm_hook(&hook_threads, service, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, &control, NSSM_SERVICE_STATUS_DEADLINE, false) == NSSM_HOOK_STATUS_ABORT) {
-    TCHAR code[16];
-    _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), NSSM_HOOK_STATUS_ABORT);
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PRESTART_HOOK_ABORT, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, service->name, code, 0);
-    unset_service_environment(service);
-    return stop_service(service, 5, true, true);
-  }
 
   /* Did another thread receive a stop control? */
   if (service->allow_restart) {
@@ -1740,6 +1732,15 @@ int start_service(nssm_service_t *service) {
       close_output_handles(&si);
       unset_service_environment(service);
       return stop_service(service, 4, true, true);
+    }
+
+    /* Pre-start hook. May need I/O to have been redirected already. */
+    if (nssm_hook(&hook_threads, service, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, &control, NSSM_SERVICE_STATUS_DEADLINE, false) == NSSM_HOOK_STATUS_ABORT) {
+      TCHAR code[16];
+      _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), NSSM_HOOK_STATUS_ABORT);
+      log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PRESTART_HOOK_ABORT, NSSM_HOOK_EVENT_START, NSSM_HOOK_ACTION_PRE, service->name, code, 0);
+      unset_service_environment(service);
+      return stop_service(service, 5, true, true);
     }
 
     /* The pre-start hook will have cleaned the environment. */

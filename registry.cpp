@@ -158,6 +158,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
     if (service->stderr_copy_and_truncate) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_COPY_AND_TRUNCATE, 1);
     else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_COPY_AND_TRUNCATE);
   }
+  if (service->hook_share_output_handles) set_number(key, NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES, 1);
+  else if (editing) RegDeleteValue(key, NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES);
   if (service->rotate_files) set_number(key, NSSM_REG_ROTATE, 1);
   else if (editing) RegDeleteValue(key, NSSM_REG_ROTATE);
   if (service->rotate_stdout_online) set_number(key, NSSM_REG_ROTATE_ONLINE, 1);
@@ -638,6 +640,13 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
     else log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_PRIORITY, service->name, NSSM_REG_PRIORITY, 0);
   }
 
+  /* Try to get hook I/O sharing - may fail. */
+  unsigned long hook_share_output_handles;
+  if (get_number(key, NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES, &hook_share_output_handles, false) == 1) {
+    if (hook_share_output_handles) service->hook_share_output_handles = true;
+    else service->hook_share_output_handles = false;
+  }
+  else hook_share_output_handles = false;
   /* Try to get file rotation settings - may fail. */
   unsigned long rotate_files;
   if (get_number(key, NSSM_REG_ROTATE, &rotate_files, false) == 1) {
@@ -650,6 +659,9 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
     else service->rotate_stdout_online = service->rotate_stderr_online = false;
   }
   else service->rotate_stdout_online = service->rotate_stderr_online = false;
+  /* Hook I/O sharing and online rotation need a pipe. */
+  service->use_stdout_pipe = service->rotate_stdout_online || hook_share_output_handles;
+  service->use_stderr_pipe = service->rotate_stderr_online || hook_share_output_handles;
   if (get_number(key, NSSM_REG_ROTATE_SECONDS, &service->rotate_seconds, false) != 1) service->rotate_seconds = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_LOW, &service->rotate_bytes_low, false) != 1) service->rotate_bytes_low = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_HIGH, &service->rotate_bytes_high, false) != 1) service->rotate_bytes_high = 0;

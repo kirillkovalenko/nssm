@@ -61,6 +61,8 @@ typedef struct {
   unsigned long stdout_sharing;
   unsigned long stdout_disposition;
   unsigned long stdout_flags;
+  bool use_stdout_pipe;
+  HANDLE stdout_si;
   HANDLE stdout_pipe;
   HANDLE stdout_thread;
   unsigned long stdout_tid;
@@ -68,9 +70,12 @@ typedef struct {
   unsigned long stderr_sharing;
   unsigned long stderr_disposition;
   unsigned long stderr_flags;
+  bool use_stderr_pipe;
+  HANDLE stderr_si;
   HANDLE stderr_pipe;
   HANDLE stderr_thread;
   unsigned long stderr_tid;
+  bool hook_share_output_handles;
   bool rotate_files;
   bool stdout_copy_and_truncate;
   bool stderr_copy_and_truncate;

@@ -18,6 +18,11 @@ static int dup_handle(HANDLE source_handle, HANDLE *dest_handle_ptr, TCHAR *sour
   return dup_handle(source_handle, dest_handle_ptr, source_description, dest_description, DUPLICATE_SAME_ACCESS);
 }
 
+/*
+  read_handle:  read from application
+  pipe_handle:  stdout of application
+  write_handle: to file
+*/
 static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned long sharing, unsigned long disposition, unsigned long flags, HANDLE *read_handle_ptr, HANDLE *pipe_handle_ptr, HANDLE *write_handle_ptr, unsigned long rotate_bytes_low, unsigned long rotate_bytes_high, unsigned long rotate_delay, unsigned long *tid_ptr, unsigned long *rotate_online, bool copy_and_truncate) {
   *tid_ptr = 0;
 
@@ -300,20 +305,28 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
     if (service->rotate_files) rotate_file(service->name, service->stdout_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stdout_copy_and_truncate);
     HANDLE stdout_handle = write_to_file(service->stdout_path, service->stdout_sharing, 0, service->stdout_disposition, service->stdout_flags);
     if (stdout_handle == INVALID_HANDLE_VALUE) return 4;
+    service->stdout_si = 0;
 
-    if (service->rotate_files && service->rotate_stdout_online) {
+    if (service->use_stdout_pipe) {
       service->stdout_pipe = si->hStdOutput = 0;
-      service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &si->hStdOutput, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stdout_tid, &service->rotate_stdout_online, service->stdout_copy_and_truncate);
+      service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &service->stdout_si, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stdout_tid, &service->rotate_stdout_online, service->stdout_copy_and_truncate);
       if (! service->stdout_thread) {
         CloseHandle(service->stdout_pipe);
-        CloseHandle(si->hStdOutput);
+        CloseHandle(service->stdout_si);
       }
     }
     else service->stdout_thread = 0;
 
     if (! service->stdout_thread) {
-      if (dup_handle(stdout_handle, &si->hStdOutput, NSSM_REG_STDOUT, _T("stdout"), DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) return 4;
+      if (dup_handle(stdout_handle, &service->stdout_si, NSSM_REG_STDOUT, _T("stdout"), DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) return 4;
       service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
+    }
+
+    if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_si"), _T("stdout"))) {
+      if (service->stdout_thread) {
+        CloseHandle(service->stdout_thread);
+        service->stdout_thread = 0;
+      }
     }
   }
 
@@ -327,26 +340,35 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
 
       /* Two handles to the same file will create a race. */
-      if (dup_handle(si->hStdOutput, &si->hStdError, _T("stdout"), _T("stderr"))) return 6;
+      /* XXX: Here we assume that either both or neither handle must be a pipe. */
+      if (dup_handle(service->stdout_si, &service->stderr_si, _T("stdout"), _T("stderr"))) return 6;
     }
     else {
       if (service->rotate_files) rotate_file(service->name, service->stderr_path, service->rotate_seconds, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, service->stderr_copy_and_truncate);
       HANDLE stderr_handle = write_to_file(service->stderr_path, service->stderr_sharing, 0, service->stderr_disposition, service->stderr_flags);
       if (stderr_handle == INVALID_HANDLE_VALUE) return 7;
+      service->stderr_si = 0;
 
-      if (service->rotate_files && service->rotate_stderr_online) {
+      if (service->use_stderr_pipe) {
         service->stderr_pipe = si->hStdError = 0;
-        service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &si->hStdError, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stderr_tid, &service->rotate_stderr_online, service->stderr_copy_and_truncate);
+        service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &service->stderr_si, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stderr_tid, &service->rotate_stderr_online, service->stderr_copy_and_truncate);
         if (! service->stderr_thread) {
           CloseHandle(service->stderr_pipe);
-          CloseHandle(si->hStdError);
+          CloseHandle(service->stderr_si);
         }
       }
       else service->stderr_thread = 0;
 
       if (! service->stderr_thread) {
-        if (dup_handle(stderr_handle, &si->hStdError, NSSM_REG_STDERR, _T("stderr"), DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) return 7;
+        if (dup_handle(stderr_handle, &service->stderr_si, NSSM_REG_STDERR, _T("stderr"), DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) return 7;
         service->rotate_stderr_online = NSSM_ROTATE_OFFLINE;
+      }
+    }
+
+    if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_si"), _T("stderr"))) {
+      if (service->stderr_thread) {
+        CloseHandle(service->stderr_thread);
+        service->stderr_thread = 0;
       }
     }
   }
@@ -368,7 +390,29 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
   }
   if (! si->hStdError)  {
     if (dup_handle(GetStdHandle(STD_ERROR_HANDLE), &si->hStdError, _T("STD_ERROR_HANDLE"), _T("stderr"))) return 10;
+  }
+
+  return 0;
+}
+
+/* Reuse output handles for a hook. */
+int use_output_handles(nssm_service_t *service, STARTUPINFO *si) {
+  si->dwFlags &= ~STARTF_USESTDHANDLES;
+
+  if (service->stdout_si) {
+    if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_pipe"), _T("hStdOutput"))) return 1;
+    si->dwFlags |= STARTF_USESTDHANDLES;
+  }
+
+  if (service->stderr_si) {
+    if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_pipe"), _T("hStdError"))) {
+      if (si->hStdOutput) {
+        si->dwFlags &= ~STARTF_USESTDHANDLES;
+        CloseHandle(si->hStdOutput);
+      }
+      return 2;
     }
+    si->dwFlags |= STARTF_USESTDHANDLES;
   }
 
   return 0;

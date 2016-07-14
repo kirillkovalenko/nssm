@@ -574,6 +574,12 @@ If the application crashes and is restarted by NSSM, the order might be:
   Exit/Post
 
 
+If NSSM is redirecting stdout or stderr it can be configured to redirect
+the output of any hooks it runs.  Set AppRedirectHooks to 1 to enable
+that functionality.  A hook can of course redirect its own I/O independently
+of NSSM.
+
+
 Managing services using the GUI
 -------------------------------
 NSSM can edit the settings of existing services with the same GUI that is
@@ -892,6 +898,7 @@ Thanks to Stefan and Michael Scherer for reporting a bug writing the event messa
 Thanks to Paul Baxter for help with Visual Studio 2015.
 Thanks to Mathias Breiner for help with Visual Studio and some registry fixes.
 Thanks to David Bremner for general tidyups.
+Thanks to Nabil Redmann for suggesting redirecting hooks' output.
 
 Licence
 -------

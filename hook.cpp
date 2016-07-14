@@ -344,12 +344,15 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
   si.cb = sizeof(si);
   PROCESS_INFORMATION pi;
   ZeroMemory(&pi, sizeof(pi));
+  if (service->hook_share_output_handles) (void) use_output_handles(service, &si);
+  bool inherit_handles = false;
+  if (si.dwFlags & STARTF_USESTDHANDLES) inherit_handles = true;
   unsigned long flags = 0;
 #ifdef UNICODE
   flags |= CREATE_UNICODE_ENVIRONMENT;
 #endif
   ret = NSSM_HOOK_STATUS_NOTRUN;
-  if (CreateProcess(0, cmd, 0, 0, false, flags, 0, service->dir, &si, &pi)) {
+  if (CreateProcess(0, cmd, 0, 0, inherit_handles, flags, 0, service->dir, &si, &pi)) {
     hook->name = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, HOOK_NAME_LENGTH * sizeof(TCHAR));
     if (hook->name) _sntprintf_s(hook->name, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s (%s/%s)"), service->name, hook_event, hook_action);
     hook->process_handle = pi.hProcess;
@@ -383,6 +386,7 @@ int nssm_hook(hook_thread_t *hook_threads, nssm_service_t *service, TCHAR *hook_
   else {
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_HOOK_CREATEPROCESS_FAILED, hook_event, hook_action, service->name, cmd, error_string(GetLastError()), 0);
     HeapFree(GetProcessHeap(), 0, hook);
+    close_output_handles(&si);
   }
 
   /* Restore our environment. */

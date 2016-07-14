@@ -25,6 +25,7 @@
 #define NSSM_REG_STDIO_DISPOSITION _T("CreationDisposition")
 #define NSSM_REG_STDIO_FLAGS _T("FlagsAndAttributes")
 #define NSSM_REG_STDIO_COPY_AND_TRUNCATE _T("CopyAndTruncate")
+#define NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES _T("AppRedirectHook")
 #define NSSM_REG_ROTATE _T("AppRotateFiles")
 #define NSSM_REG_ROTATE_ONLINE _T("AppRotateOnline")
 #define NSSM_REG_ROTATE_SECONDS _T("AppRotateSeconds")
