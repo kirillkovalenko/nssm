@@ -17,6 +17,14 @@ static inline int is_default(const TCHAR *value) {
   return (str_equiv(value, NSSM_DEFAULT_STRING) || str_equiv(value, _T("*")) || ! value[0]);
 }
 
+/* What type of parameter is it parameter? */
+static inline bool is_string_type(const unsigned long type) {
+  return (type == REG_MULTI_SZ || type == REG_EXPAND_SZ || type == REG_SZ);
+}
+static inline bool is_numeric_type(const unsigned long type) {
+  return (type == REG_DWORD);
+}
+
 static int value_from_string(const TCHAR *name, value_t *value, const TCHAR *string) {
   size_t len = _tcslen(string);
   if (! len++) {
@@ -110,6 +118,42 @@ static int setting_get_string(const TCHAR *service_name, void *param, const TCHA
   return value_from_string(name, value, buffer);
 }
 
+static int setting_not_dumpable(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  return 0;
+}
+
+static int setting_dump_string(const TCHAR *service_name, void *param, const TCHAR *name, const value_t *value, const TCHAR *additional) {
+  TCHAR quoted_service_name[SERVICE_NAME_LENGTH * 2];
+  TCHAR quoted_value[VALUE_LENGTH * 2];
+  TCHAR quoted_additional[VALUE_LENGTH * 2];
+  TCHAR quoted_nssm[EXE_LENGTH * 2];
+
+  if (quote(service_name, quoted_service_name, _countof(quoted_service_name))) return 1;
+
+  if (additional) {
+    if (_tcslen(additional)) {
+      if (quote(additional, quoted_additional, _countof(quoted_additional))) return 3;
+    }
+  else _sntprintf_s(quoted_additional, _countof(quoted_additional), _TRUNCATE, _T("\"\""));
+  }
+  else quoted_additional[0] = _T('\0');
+
+  unsigned long type = (unsigned long) param;
+  if (is_string_type(type)) {
+    if (_tcslen(value->string)) {
+      if (quote(value->string, quoted_value, _countof(quoted_value))) return 2;
+    }
+    else _sntprintf_s(quoted_value, _countof(quoted_value), _TRUNCATE, _T("\"\""));
+  }
+  else if (is_numeric_type(type)) _sntprintf_s(quoted_value, _countof(quoted_value), _TRUNCATE, _T("%lu"), value->numeric);
+  else return 2;
+
+  if (quote(nssm_exe(), quoted_nssm, _countof(quoted_nssm))) return 3;
+  if (_tcslen(quoted_additional)) _tprintf(_T("%s set %s %s %s %s\n"), quoted_nssm, quoted_service_name, name, quoted_additional, quoted_value);
+  else _tprintf(_T("%s set %s %s %s\n"), quoted_nssm, quoted_service_name, name, quoted_value);
+  return 0;
+}
+
 static int setting_set_exit_action(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   unsigned long exitcode;
   TCHAR *code;
@@ -190,6 +234,40 @@ static int setting_get_exit_action(const TCHAR *service_name, void *param, const
   return 1;
 }
 
+static int setting_dump_exit_action(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  int errors = 0;
+  HKEY key = open_registry(service_name, NSSM_REG_EXIT, KEY_READ);
+  if (! key) return -1;
+
+  TCHAR code[16];
+  unsigned long index = 0;
+  while (true) {
+    int ret = enumerate_registry_values(key, &index, code, _countof(code));
+    if (ret == ERROR_NO_MORE_ITEMS) break;
+    if (ret != ERROR_SUCCESS) continue;
+    bool valid = true;
+    int i;
+    for (i = 0; i < _countof(code); i++) {
+      if (! code[i]) break;
+      if (code[i] >= _T('0') || code[i] <= _T('9')) continue;
+      valid = false;
+      break;
+    }
+    if (! valid) continue;
+
+    TCHAR *additional = (code[i]) ? code : NSSM_DEFAULT_STRING;
+
+    ret = setting_get_exit_action(service_name, 0, name, default_value, value, additional);
+    if (ret == 1) {
+      if (setting_dump_string(service_name, (void *) REG_SZ, name, value, additional)) errors++;
+    }
+    else if (ret < 0) errors++;
+  }
+
+  if (errors) return -1;
+  return 0;
+}
+
 static inline bool split_hook_name(const TCHAR *hook_name, TCHAR *hook_event, TCHAR *hook_action) {
   TCHAR *s;
 
@@ -233,6 +311,33 @@ static int setting_get_hook(const TCHAR *service_name, void *param, const TCHAR 
 
   if (! _tcslen(cmd)) return 0;
   return 1;
+}
+
+static int setting_dump_hooks(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  int i, j;
+
+  int errors = 0;
+  for (i = 0; hook_event_strings[i]; i++) {
+    const TCHAR *hook_event = hook_event_strings[i];
+    for (j = 0; hook_action_strings[j]; j++) {
+      const TCHAR *hook_action = hook_action_strings[j];
+      if (! valid_hook_name(hook_event, hook_action, true)) continue;
+
+      TCHAR hook_name[HOOK_NAME_LENGTH];
+      _sntprintf_s(hook_name, _countof(hook_name), _TRUNCATE, _T("%s/%s"), hook_event, hook_action);
+
+      int ret = setting_get_hook(service_name, param, name, default_value, value, hook_name);
+      if (ret != 1) {
+        if (ret < 0) errors++;
+        continue;
+      }
+
+      if (setting_dump_string(service_name, (void *) REG_SZ, name, value, hook_name)) errors++;
+    }
+  }
+
+  if (errors) return -1;
+  return 0;
 }
 
 static int setting_set_affinity(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
@@ -451,6 +556,39 @@ static int setting_get_environment(const TCHAR *service_name, void *param, const
   return ret;
 }
 
+static int setting_dump_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  int errors = 0;
+  HKEY key = (HKEY) param;
+  if (! param) return -1;
+
+  TCHAR *env = 0;
+  unsigned long envlen;
+  if (get_environment((TCHAR *) service_name, key, (TCHAR *) name, &env, &envlen)) return -1;
+  if (! envlen) return 0;
+
+  TCHAR *s;
+  for (s = env; *s; s++) {
+    size_t len = _tcslen(s) + 2;
+    value->string = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, len * sizeof(TCHAR));
+    if (! value->string) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("dump"), _T("setting_dump_environment"));
+      break;
+    }
+
+    _sntprintf_s(value->string, len, _TRUNCATE, _T("%c%s"), (s > env) ? _T('+') : _T(':'), s);
+    if (setting_dump_string(service_name, (void *) REG_SZ, name, value, 0)) errors++;
+    HeapFree(GetProcessHeap(), 0, value->string);
+    value->string = 0;
+
+    for ( ; *s; s++);
+  }
+
+  HeapFree(GetProcessHeap(), 0, env);
+
+  if (errors) return 1;
+  return 0;
+}
+
 static int setting_set_priority(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   HKEY key = (HKEY) param;
   if (! param) return -1;
@@ -501,6 +639,13 @@ static int setting_get_priority(const TCHAR *service_name, void *param, const TC
   }
 
   return value_from_string(name, value, priority_strings[priority_constant_to_index(constant)]);
+}
+
+static int setting_dump_priority(const TCHAR *service_name, void *key_ptr, const TCHAR *name, void *setting_ptr, value_t *value, const TCHAR *additional) {
+  settings_t *setting = (settings_t *) setting_ptr;
+  int ret = setting_get_priority(service_name, key_ptr, name, (void *) setting->default_value, value, 0);
+  if (ret != 1) return ret;
+  return setting_dump_string(service_name, (void *) REG_SZ, name, value, 0);
 }
 
 /* Functions to manage native service settings. */
@@ -670,6 +815,41 @@ static int native_get_dependongroup(const TCHAR *service_name, void *param, cons
   return ret;
 }
 
+static int setting_dump_dependon(const TCHAR *service_name, SC_HANDLE service_handle, const TCHAR *name, int type, value_t *value) {
+  int errors = 0;
+
+  TCHAR *dependencies = 0;
+  unsigned long dependencieslen;
+  if (get_service_dependencies(service_name, service_handle, &dependencies, &dependencieslen, type)) return -1;
+  if (! dependencieslen) return 0;
+
+  TCHAR *s;
+  for (s = dependencies; *s; s++) {
+    size_t len = _tcslen(s) + 2;
+    value->string = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, len * sizeof(TCHAR));
+    if (! value->string) {
+      print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("dump"), _T("setting_dump_dependon"));
+      break;
+    }
+
+    _sntprintf_s(value->string, len, _TRUNCATE, _T("%c%s"), (s > dependencies) ? _T('+') : _T(':'), s);
+    if (setting_dump_string(service_name, (void *) REG_SZ, name, value, 0)) errors++;
+    HeapFree(GetProcessHeap(), 0, value->string);
+    value->string = 0;
+
+    for ( ; *s; s++);
+  }
+
+  HeapFree(GetProcessHeap(), 0, dependencies);
+
+  if (errors) return 1;
+  return 0;
+}
+
+static int native_dump_dependongroup(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  return setting_dump_dependon(service_name, (SC_HANDLE) param, name, DEPENDENCY_GROUPS, value);
+}
+
 static int native_set_dependonservice(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   SC_HANDLE service_handle = (SC_HANDLE) param;
   if (! service_handle) return -1;
@@ -750,6 +930,10 @@ static int native_get_dependonservice(const TCHAR *service_name, void *param, co
   return ret;
 }
 
+static int native_dump_dependonservice(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  return setting_dump_dependon(service_name, (SC_HANDLE) param, name, DEPENDENCY_SERVICES, value);
+}
+
 int native_set_description(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
   SC_HANDLE service_handle = (SC_HANDLE) param;
   if (! service_handle) return -1;
@@ -828,6 +1012,15 @@ int native_get_environment(const TCHAR *service_name, void *param, const TCHAR *
 
   ZeroMemory(value, sizeof(value_t));
   int ret = setting_get_environment(service_name, (void *) key, name, default_value, value, additional);
+  RegCloseKey(key);
+  return ret;
+}
+
+static int native_dump_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  HKEY key = open_service_registry(service_name, KEY_READ, true);
+  if (! key) return -1;
+
+  int ret = setting_dump_environment(service_name, (void *) key, name, default_value, value, additional);
   RegCloseKey(key);
   return ret;
 }
@@ -951,6 +1144,20 @@ int native_get_objectname(const TCHAR *service_name, void *param, const TCHAR *n
   HeapFree(GetProcessHeap(), 0, qsc);
 
   return ret;
+}
+
+int native_dump_objectname(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
+  int ret = native_get_objectname(service_name, param, name, default_value, value, additional);
+  if (ret != 1) return ret;
+
+  /* Do we need to dump a dummy password? */
+  if (! well_known_username(value->string)) {
+    /* Parameters are the other way round. */
+    value_t inverted;
+    inverted.string = _T("****");
+    return setting_dump_string(service_name, (void *) REG_SZ, name, &inverted, value->string);
+  }
+  return setting_dump_string(service_name, (void *) REG_SZ, name, value, 0);
 }
 
 int native_set_startup(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
@@ -1135,25 +1342,17 @@ int get_setting(const TCHAR *service_name, HKEY key, settings_t *setting, value_
   if (! key) return -1;
   int ret;
 
-  switch (setting->type) {
-    case REG_EXPAND_SZ:
-    case REG_MULTI_SZ:
-    case REG_SZ:
-      value->string = (TCHAR *) setting->default_value;
-      if (setting->get) ret = setting->get(service_name, (void *) key, setting->name, setting->default_value, value, additional);
-      else ret = -1;
-      break;
-
-    case REG_DWORD:
-      value->numeric = PtrToUlong(setting->default_value);
-      if (setting->get) ret = setting->get(service_name, (void *) key, setting->name, setting->default_value, value, additional);
-      else ret = -1;
-      break;
-
-    default:
-      ret = -1;
-      break;
+  if (is_string_type(setting->type)) {
+    value->string = (TCHAR *) setting->default_value;
+    if (setting->get) ret = setting->get(service_name, (void *) key, setting->name, setting->default_value, value, additional);
+    else ret = -1;
   }
+  else if (is_numeric_type(setting->type)) {
+    value->numeric = PtrToUlong(setting->default_value);
+    if (setting->get) ret = setting->get(service_name, (void *) key, setting->name, setting->default_value, value, additional);
+    else ret = -1;
+  }
+  else ret = -1;
 
   if (ret < 0) print_message(stderr, NSSM_MESSAGE_GET_SETTING_FAILED, setting->name, service_name);
 
@@ -1165,54 +1364,75 @@ int get_setting(const TCHAR *service_name, SC_HANDLE service_handle, settings_t 
   return setting->get(service_name, service_handle, setting->name, 0, value, additional);
 }
 
+int dump_setting(const TCHAR *service_name, HKEY key, SC_HANDLE service_handle, settings_t *setting) {
+  void *param;
+  if (setting->native) {
+    if (! service_handle) return -1;
+    param = (void *) service_handle;
+  }
+  else {
+    /* Will be null for native services. */
+    param = (void *) key;
+  }
+
+  value_t value = { 0 };
+  int ret;
+
+  if (setting->dump) return setting->dump(service_name, param, setting->name, (void *) setting, &value, 0);
+  if (setting->native) ret = get_setting(service_name, service_handle, setting, &value, 0);
+  else ret = get_setting(service_name, key, setting, &value, 0);
+  if (ret != 1) return ret;
+  return setting_dump_string(service_name, (void *) setting->type, setting->name, &value, 0);
+}
+
 settings_t settings[] = {
-  { NSSM_REG_EXE, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
-  { NSSM_REG_FLAGS, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
-  { NSSM_REG_DIR, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string },
-  { NSSM_REG_EXIT, REG_SZ, (void *) exit_action_strings[NSSM_EXIT_RESTART], false, ADDITIONAL_MANDATORY, setting_set_exit_action, setting_get_exit_action },
-  { NSSM_REG_HOOK, REG_SZ, (void *) _T(""), false, ADDITIONAL_MANDATORY, setting_set_hook, setting_get_hook },
-  { NSSM_REG_AFFINITY, REG_SZ, 0, false, 0, setting_set_affinity, setting_get_affinity },
-  { NSSM_REG_ENV, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
-  { NSSM_REG_ENV_EXTRA, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment },
-  { NSSM_REG_NO_CONSOLE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_PRIORITY, REG_SZ, (void *) priority_strings[NSSM_NORMAL_PRIORITY], false, 0, setting_set_priority, setting_get_priority },
-  { NSSM_REG_RESTART_DELAY, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDIN, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string },
-  { NSSM_REG_STDIN NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDIN_SHARING, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDIN NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDIN_DISPOSITION, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDIN NSSM_REG_STDIO_FLAGS, REG_DWORD, (void *) NSSM_STDIN_FLAGS, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDOUT, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string },
-  { NSSM_REG_STDOUT NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDOUT_SHARING, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDOUT NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDOUT_DISPOSITION, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDOUT NSSM_REG_STDIO_FLAGS, REG_DWORD, (void *) NSSM_STDOUT_FLAGS, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDOUT NSSM_REG_STDIO_COPY_AND_TRUNCATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDERR, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string },
-  { NSSM_REG_STDERR NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDERR_SHARING, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDERR NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDERR_DISPOSITION, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDERR NSSM_REG_STDIO_FLAGS, REG_DWORD, (void *) NSSM_STDERR_FLAGS, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STDERR NSSM_REG_STDIO_COPY_AND_TRUNCATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_STOP_METHOD_SKIP, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_CONSOLE_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_KILL_WINDOW_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_WINDOW_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_KILL_THREADS_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_THREADS_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_KILL_PROCESS_TREE, REG_DWORD, (void *) 1, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_THROTTLE, REG_DWORD, (void *) NSSM_RESET_THROTTLE_RESTART, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_ROTATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_ROTATE_ONLINE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_ROTATE_SECONDS, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_ROTATE_BYTES_LOW, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_ROTATE_BYTES_HIGH, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number },
-  { NSSM_REG_ROTATE_DELAY, REG_DWORD, (void *) NSSM_ROTATE_DELAY, false, 0, setting_set_number, setting_get_number },
-  { NSSM_NATIVE_DEPENDONGROUP, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependongroup, native_get_dependongroup },
-  { NSSM_NATIVE_DEPENDONSERVICE, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependonservice, native_get_dependonservice },
-  { NSSM_NATIVE_DESCRIPTION, REG_SZ, _T(""), true, 0, native_set_description, native_get_description },
-  { NSSM_NATIVE_DISPLAYNAME, REG_SZ, NULL, true, 0, native_set_displayname, native_get_displayname },
-  { NSSM_NATIVE_ENVIRONMENT, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_environment, native_get_environment },
-  { NSSM_NATIVE_IMAGEPATH, REG_EXPAND_SZ, NULL, true, 0, native_set_imagepath, native_get_imagepath },
-  { NSSM_NATIVE_OBJECTNAME, REG_SZ, NSSM_LOCALSYSTEM_ACCOUNT, true, 0, native_set_objectname, native_get_objectname },
-  { NSSM_NATIVE_NAME, REG_SZ, NULL, true, 0, native_set_name, native_get_name },
-  { NSSM_NATIVE_STARTUP, REG_SZ, NULL, true, 0, native_set_startup, native_get_startup },
-  { NSSM_NATIVE_TYPE, REG_SZ, NULL, true, 0, native_set_type, native_get_type },
+  { NSSM_REG_EXE, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string, 0 },
+  { NSSM_REG_FLAGS, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string, 0 },
+  { NSSM_REG_DIR, REG_EXPAND_SZ, (void *) _T(""), false, 0, setting_set_string, setting_get_string, 0 },
+  { NSSM_REG_EXIT, REG_SZ, (void *) exit_action_strings[NSSM_EXIT_RESTART], false, ADDITIONAL_MANDATORY, setting_set_exit_action, setting_get_exit_action, setting_dump_exit_action },
+  { NSSM_REG_HOOK, REG_SZ, (void *) _T(""), false, ADDITIONAL_MANDATORY, setting_set_hook, setting_get_hook, setting_dump_hooks },
+  { NSSM_REG_AFFINITY, REG_SZ, 0, false, 0, setting_set_affinity, setting_get_affinity, 0 },
+  { NSSM_REG_ENV, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment, setting_dump_environment },
+  { NSSM_REG_ENV_EXTRA, REG_MULTI_SZ, NULL, false, ADDITIONAL_CRLF, setting_set_environment, setting_get_environment, setting_dump_environment },
+  { NSSM_REG_NO_CONSOLE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_PRIORITY, REG_SZ, (void *) priority_strings[NSSM_NORMAL_PRIORITY], false, 0, setting_set_priority, setting_get_priority, setting_dump_priority },
+  { NSSM_REG_RESTART_DELAY, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDIN, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string, 0 },
+  { NSSM_REG_STDIN NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDIN_SHARING, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDIN NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDIN_DISPOSITION, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDIN NSSM_REG_STDIO_FLAGS, REG_DWORD, (void *) NSSM_STDIN_FLAGS, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDOUT, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string, 0 },
+  { NSSM_REG_STDOUT NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDOUT_SHARING, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDOUT NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDOUT_DISPOSITION, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDOUT NSSM_REG_STDIO_FLAGS, REG_DWORD, (void *) NSSM_STDOUT_FLAGS, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDOUT NSSM_REG_STDIO_COPY_AND_TRUNCATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDERR, REG_EXPAND_SZ, NULL, false, 0, setting_set_string, setting_get_string, 0 },
+  { NSSM_REG_STDERR NSSM_REG_STDIO_SHARING, REG_DWORD, (void *) NSSM_STDERR_SHARING, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDERR NSSM_REG_STDIO_DISPOSITION, REG_DWORD, (void *) NSSM_STDERR_DISPOSITION, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDERR NSSM_REG_STDIO_FLAGS, REG_DWORD, (void *) NSSM_STDERR_FLAGS, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STDERR NSSM_REG_STDIO_COPY_AND_TRUNCATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_STOP_METHOD_SKIP, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_KILL_CONSOLE_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_CONSOLE_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_KILL_WINDOW_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_WINDOW_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_KILL_THREADS_GRACE_PERIOD, REG_DWORD, (void *) NSSM_KILL_THREADS_GRACE_PERIOD, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_KILL_PROCESS_TREE, REG_DWORD, (void *) 1, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_THROTTLE, REG_DWORD, (void *) NSSM_RESET_THROTTLE_RESTART, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_ROTATE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_ROTATE_ONLINE, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_ROTATE_SECONDS, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_ROTATE_BYTES_LOW, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_ROTATE_BYTES_HIGH, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_ROTATE_DELAY, REG_DWORD, (void *) NSSM_ROTATE_DELAY, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_NATIVE_DEPENDONGROUP, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependongroup, native_get_dependongroup, native_dump_dependongroup },
+  { NSSM_NATIVE_DEPENDONSERVICE, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependonservice, native_get_dependonservice, native_dump_dependonservice },
+  { NSSM_NATIVE_DESCRIPTION, REG_SZ, _T(""), true, 0, native_set_description, native_get_description, 0 },
+  { NSSM_NATIVE_DISPLAYNAME, REG_SZ, NULL, true, 0, native_set_displayname, native_get_displayname, 0 },
+  { NSSM_NATIVE_ENVIRONMENT, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_environment, native_get_environment, native_dump_environment },
+  { NSSM_NATIVE_IMAGEPATH, REG_EXPAND_SZ, NULL, true, 0, native_set_imagepath, native_get_imagepath, setting_not_dumpable },
+  { NSSM_NATIVE_OBJECTNAME, REG_SZ, NSSM_LOCALSYSTEM_ACCOUNT, true, 0, native_set_objectname, native_get_objectname, native_dump_objectname },
+  { NSSM_NATIVE_NAME, REG_SZ, NULL, true, 0, native_set_name, native_get_name, setting_not_dumpable },
+  { NSSM_NATIVE_STARTUP, REG_SZ, NULL, true, 0, native_set_startup, native_get_startup, 0 },
+  { NSSM_NATIVE_TYPE, REG_SZ, NULL, true, 0, native_set_type, native_get_type, 0 },
   { NULL, NULL, NULL, NULL, NULL }
 };

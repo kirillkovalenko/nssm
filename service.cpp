@@ -883,7 +883,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   if (argc < 2) return usage(1);
 
   /* Are we editing on the command line? */
-  enum { MODE_EDITING, MODE_GETTING, MODE_SETTING, MODE_RESETTING } mode = MODE_EDITING;
+  enum { MODE_EDITING, MODE_GETTING, MODE_SETTING, MODE_RESETTING, MODE_DUMPING } mode = MODE_EDITING;
   const TCHAR *verb = argv[0];
   const TCHAR *service_name = argv[1];
   bool getting = false;
@@ -906,6 +906,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
     mandatory = 3;
     mode = MODE_RESETTING;
   }
+  else if (str_equiv(verb, _T("dump"))) mode = MODE_DUMPING;
   if (argc < mandatory) return usage(1);
 
   const TCHAR *parameter = 0;
@@ -980,7 +981,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   service->type = qsc->dwServiceType;
   if (! (service->type & SERVICE_WIN32_OWN_PROCESS)) {
-    if (mode != MODE_GETTING) {
+    if (mode != MODE_GETTING && mode != MODE_DUMPING) {
       HeapFree(GetProcessHeap(), 0, qsc);
       CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
@@ -990,7 +991,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
 
   if (get_service_startup(service->name, service->handle, qsc, &service->startup)) {
-    if (mode != MODE_GETTING) {
+    if (mode != MODE_GETTING && mode != MODE_DUMPING) {
       HeapFree(GetProcessHeap(), 0, qsc);
       CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
@@ -999,7 +1000,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
 
   if (get_service_username(service->name, qsc, &service->username, &service->usernamelen)) {
-    if (mode != MODE_GETTING) {
+    if (mode != MODE_GETTING && mode != MODE_DUMPING) {
       HeapFree(GetProcessHeap(), 0, qsc);
       CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
@@ -1019,7 +1020,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   /* Get extended system details. */
   if (get_service_description(service->name, service->handle, _countof(service->description), service->description)) {
-    if (mode != MODE_GETTING) {
+    if (mode != MODE_GETTING && mode != MODE_DUMPING) {
       CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       return 6;
@@ -1027,7 +1028,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
 
   if (get_service_dependencies(service->name, service->handle, &service->dependencies, &service->dependencieslen)) {
-    if (mode != MODE_GETTING) {
+    if (mode != MODE_GETTING && mode != MODE_DUMPING) {
       CloseServiceHandle(service->handle);
       CloseServiceHandle(services);
       return 7;
@@ -1041,12 +1042,37 @@ int pre_edit_service(int argc, TCHAR **argv) {
 
   if (! service->exe[0]) {
     service->native = true;
-    if (mode != MODE_GETTING) print_message(stderr, NSSM_MESSAGE_INVALID_SERVICE, service->name, NSSM, service->image);
+    if (mode != MODE_GETTING && mode != MODE_DUMPING) print_message(stderr, NSSM_MESSAGE_INVALID_SERVICE, service->name, NSSM, service->image);
   }
 
   /* Editing with the GUI. */
   if (mode == MODE_EDITING) {
     nssm_gui(IDD_EDIT, service);
+    return 0;
+  }
+
+  HKEY key;
+  value_t value;
+  int ret;
+
+  if (mode == MODE_DUMPING) {
+    if (service->native) key = 0;
+    else {
+      key = open_registry(service->name, KEY_READ);
+      if (! key) return 4;
+    }
+
+    ret = 0;
+    for (i = 0; settings[i].name; i++) {
+      setting = &settings[i];
+      if (! setting->native && service->native) continue;
+      if (dump_setting(service->name, key, service->handle, setting)) ret++;
+    }
+
+    if (! service->native) RegCloseKey(key);
+    CloseServiceHandle(service->handle);
+
+    if (ret) return 1;
     return 0;
   }
 
@@ -1056,10 +1082,6 @@ int pre_edit_service(int argc, TCHAR **argv) {
     print_message(stderr, NSSM_MESSAGE_NATIVE_PARAMETER, setting->name, NSSM);
     return 1;
   }
-
-  HKEY key;
-  value_t value;
-  int ret;
 
   if (mode == MODE_GETTING) {
     if (! service->native) {
@@ -1083,7 +1105,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
         break;
 
       case REG_DWORD:
-        _tprintf(_T("%u\n"), value.numeric);
+        _tprintf(_T("%lu\n"), value.numeric);
         break;
     }
 

@@ -265,7 +265,7 @@ int _tmain(int argc, TCHAR **argv) {
       create_messages();
       exit(pre_install_service(argc - 2, argv + 2));
     }
-    if (str_equiv(argv[1], _T("edit")) || str_equiv(argv[1], _T("get")) || str_equiv(argv[1], _T("set")) || str_equiv(argv[1], _T("reset")) || str_equiv(argv[1], _T("unset"))) {
+    if (str_equiv(argv[1], _T("edit")) || str_equiv(argv[1], _T("get")) || str_equiv(argv[1], _T("set")) || str_equiv(argv[1], _T("reset")) || str_equiv(argv[1], _T("unset")) || str_equiv(argv[1], _T("dump"))) {
       int ret = pre_edit_service(argc - 1, argv + 1);
       if (ret == 3 && ! is_admin && argc == 3) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT));
       /* There might be a password here. */

@@ -70,6 +70,8 @@ Since version 2.25, NSSM can execute commands in response to service events.
 
 Since version 2.25, NSSM can list services it manages.
 
+Since version 2.25, NSSM can dump the configuration of services it manages.
+
 
 Usage
 -----
@@ -865,6 +867,20 @@ Listing managed services
 The following command will print the names of all services managed by NSSM:
 
     nssm list
+
+
+Exporting service configuration
+-------------------------------
+NSSM can dump commands which would recreate the configuration of a service.
+The output can be pasted into a batch script to back up the service or
+transfer to another computer.
+
+    nssm dump <servicename>
+
+Because the service configuration may contain characters which need to be
+quoted or escaped from the command prompt, NSSM tries hard to produce
+output which will work correctly when run as a script, by adding quotes
+and caret escapes as appropriate.
 
 
 Example usage
