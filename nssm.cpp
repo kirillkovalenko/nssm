@@ -6,6 +6,7 @@ extern imports_t imports;
 
 static TCHAR unquoted_imagepath[PATH_LENGTH];
 static TCHAR imagepath[PATH_LENGTH];
+static TCHAR imageargv0[PATH_LENGTH];
 
 /* Are two strings case-insensitively equivalent? */
 int str_equiv(const TCHAR *a, const TCHAR *b) {
@@ -104,6 +105,10 @@ const TCHAR *nssm_imagepath() {
   return imagepath;
 }
 
+const TCHAR *nssm_exe() {
+  return imageargv0;
+}
+
 int _tmain(int argc, TCHAR **argv) {
   check_console();
 
@@ -123,6 +128,8 @@ int _tmain(int argc, TCHAR **argv) {
   if (get_imports()) exit(111);
 
   /* Remember our path for later. */
+  _sntprintf_s(imageargv0, _countof(imageargv0), _TRUNCATE, _T("%s"), argv[0]);
+  PathQuoteSpaces(imageargv0);
   GetModuleFileName(0, unquoted_imagepath, _countof(unquoted_imagepath));
   GetModuleFileName(0, imagepath, _countof(imagepath));
   PathQuoteSpaces(imagepath);
