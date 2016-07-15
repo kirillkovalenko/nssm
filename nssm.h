@@ -62,6 +62,7 @@
 #endif
 
 int str_equiv(const TCHAR *, const TCHAR *);
+int quote(const TCHAR *, TCHAR *, size_t);
 void strip_basename(TCHAR *);
 int str_number(const TCHAR *, unsigned long *, TCHAR **);
 int str_number(const TCHAR *, unsigned long *);

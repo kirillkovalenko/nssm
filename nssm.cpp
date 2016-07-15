@@ -31,6 +31,115 @@ int str_number(const TCHAR *string, unsigned long *number) {
   return str_number(string, number, &bogus);
 }
 
+/* Does a char need to be escaped? */
+static bool needs_escape(const TCHAR c) {
+  if (c == _T('"')) return true;
+  if (c == _T('&')) return true;
+  if (c == _T('%')) return true;
+  if (c == _T('^')) return true;
+  if (c == _T('<')) return true;
+  if (c == _T('>')) return true;
+  if (c == _T('|')) return true;
+  return false;
+}
+
+/* Does a char need to be quoted? */
+static bool needs_quote(const TCHAR c) {
+  if (c == _T(' ')) return true;
+  if (c == _T('\t')) return true;
+  if (c == _T('\n')) return true;
+  if (c == _T('\v')) return true;
+  if (c == _T('"')) return true;
+  if (c == _T('*')) return true;
+  return needs_escape(c);
+}
+
+/* https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/ */
+/* http://www.robvanderwoude.com/escapechars.php */
+int quote(const TCHAR *unquoted, TCHAR *buffer, size_t buflen) {
+  size_t i, j, n;
+  size_t len = _tcslen(unquoted);
+  if (len > buflen - 1) return 1;
+
+  bool escape = false;
+  bool quotes = false;
+
+  for (i = 0; i < len; i++) {
+    if (needs_escape(unquoted[i])) {
+      escape = quotes = true;
+      break;
+    }
+    if (needs_quote(unquoted[i])) quotes = true;
+  }
+  if (! quotes) {
+    memmove(buffer, unquoted, (len + 1) * sizeof(TCHAR));
+    return 0;
+  }
+
+  /* "" */
+  size_t quoted_len = 2;
+  if (escape) quoted_len += 2;
+  for (i = 0; ; i++) {
+    n = 0;
+
+    while (i != len && unquoted[i] == _T('\\')) {
+      i++;
+      n++;
+    }
+
+    if (i == len) {
+      quoted_len += n * 2;
+      break;
+    }
+    else if (unquoted[i] == _T('"')) quoted_len += n * 2 + 2;
+    else quoted_len += n + 1;
+    if (needs_escape(unquoted[i])) quoted_len += n;
+  }
+  if (quoted_len > buflen - 1) return 1;
+
+  TCHAR *s = buffer;
+  if (escape) *s++ = _T('^');
+  *s++ = _T('"');
+
+  for (i = 0; ; i++) {
+    n = 0;
+
+    while (i != len && unquoted[i] == _T('\\')) {
+      i++;
+      n++;
+    }
+
+    if (i == len) {
+      for (j = 0; j < n * 2; j++) {
+        if (escape) *s++ = _T('^');
+        *s++ = _T('\\');
+      }
+      break;
+    }
+    else if (unquoted[i] == _T('"')) {
+      for (j = 0; j < n * 2 + 1; j++) {
+        if (escape) *s++ = _T('^');
+        *s++ = _T('\\');
+      }
+      if (escape && needs_escape(unquoted[i])) *s++ = _T('^');
+      *s++ = unquoted[i];
+    }
+    else {
+      for (j = 0; j < n; j++) {
+        if (escape) *s++ = _T('^');
+        *s++ = _T('\\');
+      }
+      if (escape && needs_escape(unquoted[i])) *s++ = _T('^');
+      *s++ = unquoted[i];
+    }
+  }
+  if (escape) *s++ = _T('^');
+  *s++ = _T('"');
+  *s++ = _T('\0');
+
+  return 0;
+}
+
 /* Remove basename of a path. */
 void strip_basename(TCHAR *buffer) {
   size_t len = _tcslen(buffer);
