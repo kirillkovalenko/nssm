@@ -1072,7 +1072,7 @@ int pre_edit_service(int argc, TCHAR **argv) {
   }
 
   if (! service->native) {
-    key = open_registry(service->name, KEY_WRITE);
+    key = open_registry(service->name, KEY_READ | KEY_WRITE);
     if (! key) {
       if (value.string) HeapFree(GetProcessHeap(), 0, value.string);
       return 4;
