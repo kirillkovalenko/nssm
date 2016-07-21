@@ -638,9 +638,10 @@ would have the same effect.
 
 Non-standard parameters
 -----------------------
-The AppEnvironment and AppEnvironmentExtra parameters recognise an
-additional argument when querying the environment.  The following syntax
-will print all extra environment variables configured for a service
+The AppEnvironment, AppEnvironmentExtra and Environment parameters
+recognise an additional argument when querying the environment.  The
+following syntax will print all extra environment variables configured
+for a service
 
     nssm get <servicename> AppEnvironmentExtra
 
@@ -654,6 +655,39 @@ When setting an environment block, each variable should be specified as a
 KEY=VALUE pair in separate command line arguments.  For example:
 
     nssm set <servicename> AppEnvironment CLASSPATH=C:\Classes TEMP=C:\Temp
+
+Alternatively the KEY can be prefixed with a + or - symbol to respectively
+add or remove a pair from the block.
+
+The following two lines set CLASSPATH and TEMP:
+
+    nssm set <servicename> AppEnvironment CLASSPATH=C:\Classes
+    nssm set <servicename> AppEnvironment +TEMP=C:\Temp
+
+If the key is already present, specifying +KEY will override the value
+while preserving the order of keys:
+
+    nssm set <servicename> AppEnvironment +CLASSPATH=C:\NewClasses
+
+The following syntax removes a single variable from the block while
+leaving any other variables in place.
+
+    nssm set <servicename> AppEnvironment -TEMP
+
+Specifying -KEY=VALUE will remove the variable only if the existing
+value matches.
+
+The following syntax would not remove TEMP=C:\Temp
+
+    nssm set <servicename> AppEnvironment -TEMP=C:\Work\Temporary
+
+The + and - symbols are valid characters in environment variables.
+The syntax :KEY=VALUE is equivalent to KEY=VALUE and can be used to
+set variables which start with +/- or to explicitly reset the block in
+a script:
+
+    nssm set <servicename> AppEnvironment :CLASSPATH=C:\Classes
+    nssm set <servicename> AppEnvironment +TEMP=C:\Temp
 
 
 The AppExit parameter requires an additional argument specifying the exit

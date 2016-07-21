@@ -339,17 +339,54 @@ static int setting_set_environment(const TCHAR *service_name, void *param, const
   HKEY key = (HKEY) param;
   if (! param) return -1;
 
-  if (! value || ! value->string || ! value->string[0]) {
+  TCHAR *string = 0;
+  TCHAR *unformatted = 0;
+  unsigned long envlen;
+  unsigned long newlen = 0;
+  int op = 0;
+  if (value && value->string && value->string[0]) {
+    string = value->string;
+    switch (string[0]) {
+      case _T('+'): op = 1; break;
+      case _T('-'): op = -1; break;
+      case _T(':'): string++; break;
+    }
+  }
+
+  if (op) {
+    string++;
+    TCHAR *env = 0;
+    if (get_environment((TCHAR *) service_name, key, (TCHAR *) name, &env, &envlen)) return -1;
+    if (env) {
+      int ret;
+      if (op > 0) ret = append_to_environment_block(env, envlen, string, &unformatted, &newlen);
+      else ret = remove_from_environment_block(env, envlen, string, &unformatted, &newlen);
+      if (envlen) HeapFree(GetProcessHeap(), 0, env);
+      if (ret) return -1;
+
+      string = unformatted;
+    }
+    else {
+      /*
+        No existing environment.
+        We can't remove from an empty environment so just treat an add
+        operation as setting a new string.
+      */
+      if (op < 0) return 0;
+      op = 0;
+    }
+  }
+
+  if (! string || ! string[0]) {
     long error = RegDeleteValue(key, name);
     if (error == ERROR_SUCCESS || error == ERROR_FILE_NOT_FOUND) return 0;
     print_message(stderr, NSSM_MESSAGE_REGDELETEVALUE_FAILED, name, service_name, error_string(error));
     return -1;
   }
 
-  unsigned long envlen = (unsigned long) _tcslen(value->string) + 1;
-  TCHAR *unformatted = 0;
-  unsigned long newlen;
-  if (unformat_double_null(value->string, envlen, &unformatted, &newlen)) return -1;
+  if (! op) {
+    if (unformat_double_null(string, (unsigned long) _tcslen(string), &unformatted, &newlen)) return -1;
+  }
 
   if (test_environment(unformatted)) {
     HeapFree(GetProcessHeap(), 0, unformatted);
