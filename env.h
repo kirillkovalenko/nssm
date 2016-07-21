@@ -11,5 +11,7 @@ int duplicate_environment(TCHAR *);
 int test_environment(TCHAR *);
 void duplicate_environment_strings(TCHAR *);
 TCHAR *copy_environment();
+int append_to_environment_block(TCHAR *, unsigned long, TCHAR *, TCHAR **, unsigned long *);
+int remove_from_environment_block(TCHAR *, unsigned long, TCHAR *, TCHAR **, unsigned long *);
 
 #endif
