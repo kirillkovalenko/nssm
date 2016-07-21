@@ -562,8 +562,10 @@ int get_service_dependencies(const TCHAR *service_name, SC_HANDLE service_handle
   QUERY_SERVICE_CONFIG *qsc = query_service_config(service_name, service_handle);
   if (! qsc) return 3;
 
-  if (! qsc->lpDependencies) return 0;
-  if (! qsc->lpDependencies[0]) return 0;
+  if (! qsc->lpDependencies || ! qsc->lpDependencies[0]) {
+    HeapFree(GetProcessHeap(), 0, qsc);
+    return 0;
+  }
 
   /* lpDependencies is doubly NULL terminated. */
   while (qsc->lpDependencies[*bufsize]) {
@@ -577,6 +579,7 @@ int get_service_dependencies(const TCHAR *service_name, SC_HANDLE service_handle
   if (! *buffer) {
     *bufsize = 0;
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("lpDependencies"), _T("get_service_dependencies()"));
+    HeapFree(GetProcessHeap(), 0, qsc);
     return 4;
   }
 
@@ -600,6 +603,12 @@ int get_service_dependencies(const TCHAR *service_name, SC_HANDLE service_handle
   }
 
   HeapFree(GetProcessHeap(), 0, qsc);
+
+  if (! *buffer[0]) {
+    HeapFree(GetProcessHeap(), 0, *buffer);
+    *buffer = 0;
+    *bufsize = 0;
+  }
 
   return 0;
 }
