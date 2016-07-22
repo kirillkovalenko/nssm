@@ -197,7 +197,8 @@ static inline bool split_hook_name(const TCHAR *hook_name, TCHAR *hook_event, TC
     if (*s == _T('/')) {
       *s = _T('\0');
       _sntprintf_s(hook_event, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s"), hook_name);
-      _sntprintf_s(hook_action, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s"), ++s);
+      *s++ = _T('/');
+      _sntprintf_s(hook_action, HOOK_NAME_LENGTH, _TRUNCATE, _T("%s"), s);
       return valid_hook_name(hook_event, hook_action, false);
     }
   }
