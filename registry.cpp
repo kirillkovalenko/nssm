@@ -242,7 +242,7 @@ int get_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
     *env = 0;
     /* The service probably doesn't have any environment configured */
     if (ret == ERROR_FILE_NOT_FOUND) return 0;
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(ret), 0);
     return 1;
   }
 

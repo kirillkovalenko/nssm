@@ -727,20 +727,20 @@ int native_get_displayname(const TCHAR *service_name, void *param, const TCHAR *
 }
 
 int native_set_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
-  HKEY key = open_service_registry(service_name, KEY_SET_VALUE, false);
+  HKEY key = open_service_registry(service_name, KEY_SET_VALUE, true);
   if (! key) return -1;
 
-  int ret = setting_set_environment(service_name, (void *) key, NSSM_NATIVE_ENVIRONMENT, default_value, value, additional);
+  int ret = setting_set_environment(service_name, (void *) key, name, default_value, value, additional);
   RegCloseKey(key);
   return ret;
 }
 
 int native_get_environment(const TCHAR *service_name, void *param, const TCHAR *name, void *default_value, value_t *value, const TCHAR *additional) {
-  HKEY key = open_service_registry(service_name, KEY_READ, false);
+  HKEY key = open_service_registry(service_name, KEY_READ, true);
   if (! key) return -1;
 
   ZeroMemory(value, sizeof(value_t));
-  int ret = setting_get_environment(service_name, (void *) key, NSSM_NATIVE_ENVIRONMENT, default_value, value, additional);
+  int ret = setting_get_environment(service_name, (void *) key, name, default_value, value, additional);
   RegCloseKey(key);
   return ret;
 }
