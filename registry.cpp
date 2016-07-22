@@ -232,12 +232,14 @@ int create_exit_action(TCHAR *service_name, const TCHAR *action_string, bool edi
 
 int get_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, unsigned long *envlen) {
   unsigned long type = REG_MULTI_SZ;
+  unsigned long envsize;
+
+  *envlen = 0;
 
   /* Dummy test to find buffer size */
-  unsigned long ret = RegQueryValueEx(key, value, 0, &type, NULL, envlen);
+  unsigned long ret = RegQueryValueEx(key, value, 0, &type, NULL, &envsize);
   if (ret != ERROR_SUCCESS) {
     *env = 0;
-    *envlen = 0;
     /* The service probably doesn't have any environment configured */
     if (ret == ERROR_FILE_NOT_FOUND) return 0;
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
@@ -245,34 +247,34 @@ int get_environment(TCHAR *service_name, HKEY key, TCHAR *value, TCHAR **env, un
   }
 
   if (type != REG_MULTI_SZ) {
-    *env = 0;
-    *envlen = 0;
     log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_INVALID_ENVIRONMENT_STRING_TYPE, value, service_name, 0);
+    *env = 0;
     return 2;
   }
 
   /* Probably not possible */
-  if (! *envlen) return 0;
+  if (! envsize) return 0;
 
   /* Previously initialised? */
   if (*env) HeapFree(GetProcessHeap(), 0, *env);
 
-  *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, *envlen);
+  *env = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, envsize);
   if (! *env) {
-    *envlen = 0;
     log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_OUT_OF_MEMORY, value, _T("get_environment()"), 0);
     return 3;
   }
 
-  /* Actually get the strings */
-  ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) *env, envlen);
+  /* Actually get the strings. */
+  ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) *env, &envsize);
   if (ret != ERROR_SUCCESS) {
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(ret), 0);
     HeapFree(GetProcessHeap(), 0, *env);
     *env = 0;
-    *envlen = 0;
     return 4;
   }
+
+  /* Value retrieved by RegQueryValueEx() is SIZE not COUNT. */
+  *envlen = (unsigned long) environment_length(env);
 
   return 0;
 }
@@ -292,14 +294,13 @@ int get_string(HKEY key, TCHAR *value, TCHAR *data, unsigned long datalen, bool 
 
   unsigned long ret = RegQueryValueEx(key, value, 0, &type, (unsigned char *) buffer, &buflen);
   if (ret != ERROR_SUCCESS) {
-    unsigned long error = GetLastError();
     HeapFree(GetProcessHeap(), 0, buffer);
 
     if (ret == ERROR_FILE_NOT_FOUND) {
       if (! must_exist) return 0;
     }
 
-    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(error), 0);
+    log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(ret), 0);
     return 2;
   }
 
@@ -390,7 +391,7 @@ int get_number(HKEY key, TCHAR *value, unsigned long *number, bool must_exist) {
     if (! must_exist) return 0;
   }
 
-  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+  log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(ret), 0);
   if (ret == ERROR_FILE_NOT_FOUND) return -1;
 
   return -2;
@@ -492,7 +493,7 @@ void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned
         _sntprintf_s(milliseconds, _countof(milliseconds), _TRUNCATE, _T("%lu"), default_value);
         log_event(EVENTLOG_WARNING_TYPE, event, service_name, value, milliseconds, 0);
       }
-      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(GetLastError()), 0);
+      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, value, error_string(ret), 0);
     }
   }
   else ok = true;
@@ -703,7 +704,7 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
       if (type != REG_DWORD) {
         log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_BOGUS_STOP_METHOD_SKIP, service->name, NSSM_REG_STOP_METHOD_SKIP, NSSM, 0);
       }
-      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_STOP_METHOD_SKIP, error_string(GetLastError()), 0);
+      else log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_QUERYVALUE_FAILED, NSSM_REG_STOP_METHOD_SKIP, error_string(ret), 0);
     }
   }
   else stop_ok = true;
