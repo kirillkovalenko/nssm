@@ -1,5 +1,20 @@
 #include "nssm.h"
 
+/*
+  Environment block is of the form:
+
+    KEY1=VALUE1 NULL
+    KEY2=VALUE2 NULL
+    NULL
+
+  A single variable KEY=VALUE has length 15:
+
+    KEY=VALUE (13) NULL (1)
+    NULL (1)
+
+  Environment variable names are case-insensitive!
+*/
+
 /* Find the length in characters of an environment block. */
 size_t environment_length(TCHAR *env) {
   size_t len = 0;

@@ -667,6 +667,7 @@ void override_milliseconds(TCHAR *service_name, HKEY key, TCHAR *value, unsigned
   if (! ok) *buffer = default_value;
 }
 
+/* Open the key of the service itself Services\<service_name>. */
 HKEY open_service_registry(const TCHAR *service_name, REGSAM sam, bool must_exist) {
   /* Get registry */
   TCHAR registry[KEY_LENGTH];
@@ -678,6 +679,7 @@ HKEY open_service_registry(const TCHAR *service_name, REGSAM sam, bool must_exis
   return open_registry_key(registry, sam, must_exist);
 }
 
+/* Open a subkey of the service Services\<service_name>\<sub>. */
 long open_registry(const TCHAR *service_name, const TCHAR *sub, REGSAM sam, HKEY *key, bool must_exist) {
   /* Get registry */
   TCHAR registry[KEY_LENGTH];
