@@ -67,6 +67,14 @@ int create_messages() {
   return 0;
 }
 
+long enumerate_registry_values(HKEY key, unsigned long *index, TCHAR *name, unsigned long namelen) {
+  unsigned long type;
+  unsigned long datalen = namelen;
+  long error = RegEnumValue(key, *index, name, &datalen, 0, &type, 0, 0);
+  if (error == ERROR_SUCCESS) ++*index;
+  return error;
+}
+
 int create_parameters(nssm_service_t *service, bool editing) {
   /* Try to open the registry */
   HKEY key = open_registry(service->name, KEY_WRITE);

@@ -43,6 +43,7 @@ long open_registry(const TCHAR *, const TCHAR *, REGSAM sam, HKEY *, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam, bool);
 HKEY open_registry(const TCHAR *, const TCHAR *, REGSAM sam);
 HKEY open_registry(const TCHAR *, REGSAM sam);
+long enumerate_registry_values(HKEY, unsigned long *, TCHAR *, unsigned long);
 int create_messages();
 int create_parameters(nssm_service_t *, bool);
 int create_exit_action(TCHAR *, const TCHAR *, bool);
