@@ -8,6 +8,11 @@ static TCHAR unquoted_imagepath[PATH_LENGTH];
 static TCHAR imagepath[PATH_LENGTH];
 static TCHAR imageargv0[PATH_LENGTH];
 
+void nssm_exit(int status) {
+  unsetup_utf8();
+  exit(status);
+}
+
 /* Are two strings case-insensitively equivalent? */
 int str_equiv(const TCHAR *a, const TCHAR *b) {
   size_t len = _tcslen(a);
@@ -219,22 +224,13 @@ const TCHAR *nssm_exe() {
 }
 
 int _tmain(int argc, TCHAR **argv) {
-  check_console();
-
-#ifdef UNICODE
-  /*
-    Ensure we write in UTF-16 mode, so that non-ASCII characters don't get
-    mangled.  If we were compiled in ANSI mode it won't work.
-   */
-  _setmode(_fileno(stdout), _O_U16TEXT);
-  _setmode(_fileno(stderr), _O_U16TEXT);
-#endif
+  if (check_console()) setup_utf8();
 
   /* Remember if we are admin */
   check_admin();
 
   /* Set up function pointers. */
-  if (get_imports()) exit(111);
+  if (get_imports()) nssm_exit(111);
 
   /* Remember our path for later. */
   _sntprintf_s(imageargv0, _countof(imageargv0), _TRUNCATE, _T("%s"), argv[0]);
@@ -249,34 +245,34 @@ int _tmain(int argc, TCHAR **argv) {
       Valid commands are:
       start, stop, pause, continue, install, edit, get, set, reset, unset, remove
     */
-    if (str_equiv(argv[1], _T("start"))) exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
-    if (str_equiv(argv[1], _T("stop"))) exit(control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("start"))) nssm_exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("stop"))) nssm_exit(control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("restart"))) {
       int ret = control_service(SERVICE_CONTROL_STOP, argc - 2, argv + 2);
-      if (ret) exit(ret);
-      exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
+      if (ret) nssm_exit(ret);
+      nssm_exit(control_service(NSSM_SERVICE_CONTROL_START, argc - 2, argv + 2));
     }
-    if (str_equiv(argv[1], _T("pause"))) exit(control_service(SERVICE_CONTROL_PAUSE, argc - 2, argv + 2));
-    if (str_equiv(argv[1], _T("continue"))) exit(control_service(SERVICE_CONTROL_CONTINUE, argc - 2, argv + 2));
-    if (str_equiv(argv[1], _T("status"))) exit(control_service(SERVICE_CONTROL_INTERROGATE, argc - 2, argv + 2));
-    if (str_equiv(argv[1], _T("rotate"))) exit(control_service(NSSM_SERVICE_CONTROL_ROTATE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("pause"))) nssm_exit(control_service(SERVICE_CONTROL_PAUSE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("continue"))) nssm_exit(control_service(SERVICE_CONTROL_CONTINUE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("status"))) nssm_exit(control_service(SERVICE_CONTROL_INTERROGATE, argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("rotate"))) nssm_exit(control_service(NSSM_SERVICE_CONTROL_ROTATE, argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("install"))) {
-      if (! is_admin) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL));
+      if (! is_admin) nssm_exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_INSTALL));
       create_messages();
-      exit(pre_install_service(argc - 2, argv + 2));
+      nssm_exit(pre_install_service(argc - 2, argv + 2));
     }
     if (str_equiv(argv[1], _T("edit")) || str_equiv(argv[1], _T("get")) || str_equiv(argv[1], _T("set")) || str_equiv(argv[1], _T("reset")) || str_equiv(argv[1], _T("unset")) || str_equiv(argv[1], _T("dump"))) {
       int ret = pre_edit_service(argc - 1, argv + 1);
-      if (ret == 3 && ! is_admin && argc == 3) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT));
+      if (ret == 3 && ! is_admin && argc == 3) nssm_exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_EDIT));
       /* There might be a password here. */
       for (int i = 0; i < argc; i++) SecureZeroMemory(argv[i], _tcslen(argv[i]) * sizeof(TCHAR));
-      exit(ret);
+      nssm_exit(ret);
     }
-    if (str_equiv(argv[1], _T("list"))) exit(list_nssm_services(argc - 2, argv + 2));
-    if (str_equiv(argv[1], _T("processes"))) exit(service_process_tree(argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("list"))) nssm_exit(list_nssm_services(argc - 2, argv + 2));
+    if (str_equiv(argv[1], _T("processes"))) nssm_exit(service_process_tree(argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("remove"))) {
-      if (! is_admin) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE));
-      exit(pre_remove_service(argc - 2, argv + 2));
+      if (! is_admin) nssm_exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE));
+      nssm_exit(pre_remove_service(argc - 2, argv + 2));
     }
   }
 
@@ -302,14 +298,14 @@ int _tmain(int argc, TCHAR **argv) {
     if (! StartServiceCtrlDispatcher(table)) {
       unsigned long error = GetLastError();
       /* User probably ran nssm with no argument */
-      if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) exit(usage(1));
+      if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) nssm_exit(usage(1));
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(error), 0);
       free_imports();
-      exit(100);
+      nssm_exit(100);
     }
   }
-  else exit(usage(1));
+  else nssm_exit(usage(1));
 
   /* And nothing more to do */
-  exit(0);
+  nssm_exit(0);
 }

@@ -2078,7 +2078,7 @@ void CALLBACK end_service(void *arg, unsigned char why) {
       stop_service(service, exitcode, false, default_action);
       wait_for_hooks(service, false);
       free_imports();
-      exit(exitcode);
+      nssm_exit(exitcode);
   }
 }
 

@@ -46,6 +46,7 @@
 #include <shlwapi.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include "utf8.h"
 #include "service.h"
 #include "account.h"
 #include "console.h"
@@ -61,6 +62,7 @@
 #include "gui.h"
 #endif
 
+void nssm_exit(int);
 int str_equiv(const TCHAR *, const TCHAR *);
 int quote(const TCHAR *, TCHAR *, size_t);
 void strip_basename(TCHAR *);
