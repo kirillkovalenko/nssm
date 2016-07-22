@@ -3,6 +3,8 @@
 
 /* Affinity. */
 #define NSSM_AFFINITY_ALL _T("All")
+/* Default value. */
+#define NSSM_DEFAULT_STRING _T("Default")
 
 extern const TCHAR *exit_action_strings[];
 extern const TCHAR *startup_strings[];
@@ -12,7 +14,7 @@ extern const TCHAR *hook_action_strings[];
 
 /* Does the parameter refer to the default value of the setting? */
 static inline int is_default(const TCHAR *value) {
-  return (str_equiv(value, _T("default")) || str_equiv(value, _T("*")) || ! value[0]);
+  return (str_equiv(value, NSSM_DEFAULT_STRING) || str_equiv(value, _T("*")) || ! value[0]);
 }
 
 static int value_from_string(const TCHAR *name, value_t *value, const TCHAR *string) {
