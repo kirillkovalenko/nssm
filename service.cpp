@@ -429,6 +429,56 @@ QUERY_SERVICE_CONFIG *query_service_config(const TCHAR *service_name, SC_HANDLE 
   return qsc;
 }
 
+/* WILL NOT allocate a new string if the identifier is already present. */
+int prepend_service_group_identifier(TCHAR *group, TCHAR **canon) {
+  if (! group || ! group[0] || group[0] == SC_GROUP_IDENTIFIER) {
+    *canon = group;
+    return 0;
+  }
+
+  size_t len = _tcslen(group) + 1;
+  *canon = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (len + 1) * sizeof(TCHAR));
+  if (! *canon) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("prepend_service_group_identifier()"));
+    return 1;
+  }
+
+  TCHAR *s = *canon;
+  *s++ = SC_GROUP_IDENTIFIER;
+  memmove(s, group, len * sizeof(TCHAR));
+  (*canon)[len] = _T('\0');
+
+  return 0;
+}
+
+int append_to_dependencies(TCHAR *dependencies, unsigned long dependencieslen, TCHAR *string, TCHAR **newdependencies, unsigned long *newlen, int type) {
+  *newlen = 0;
+
+  TCHAR *canon = 0;
+  if (type == DEPENDENCY_GROUPS) {
+    if (prepend_service_group_identifier(string, &canon)) return 1;
+  }
+  else canon = string;
+  int ret = append_to_double_null(dependencies, dependencieslen, newdependencies, newlen, canon, 0, false);
+  if (canon && canon != string) HeapFree(GetProcessHeap(), 0, canon);
+
+  return ret;
+}
+
+int remove_from_dependencies(TCHAR *dependencies, unsigned long dependencieslen, TCHAR *string, TCHAR **newdependencies, unsigned long *newlen, int type) {
+  *newlen = 0;
+
+  TCHAR *canon = 0;
+  if (type == DEPENDENCY_GROUPS) {
+    if (prepend_service_group_identifier(string, &canon)) return 1;
+  }
+  else canon = string;
+  int ret = remove_from_double_null(dependencies, dependencieslen, newdependencies, newlen, canon, 0, false);
+  if (canon && canon != string) HeapFree(GetProcessHeap(), 0, canon);
+
+  return ret;
+}
+
 int set_service_dependencies(const TCHAR *service_name, SC_HANDLE service_handle, TCHAR *buffer) {
   TCHAR *dependencies = _T("");
   unsigned long num_dependencies = 0;
