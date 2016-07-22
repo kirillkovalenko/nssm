@@ -1,6 +1,7 @@
 #ifndef ENV_H
 #define ENV_H
 
+size_t environment_length(TCHAR *);
 TCHAR *copy_environment_block(TCHAR *);
 TCHAR *useful_environment(TCHAR *);
 TCHAR *expand_environment_string(TCHAR *);

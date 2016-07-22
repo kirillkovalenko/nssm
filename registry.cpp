@@ -441,32 +441,40 @@ int format_double_null(TCHAR *dn, unsigned long dnlen, TCHAR **formatted, unsign
   return 0;
 }
 
-/* Strip CR and replace LF with NULL. */
-int unformat_double_null(TCHAR *dn, unsigned long dnlen, TCHAR **unformatted, unsigned long *newlen) {
+/* Strip CR and replace LF with NULL.  */
+int unformat_double_null(TCHAR *formatted, unsigned long formattedlen, TCHAR **dn, unsigned long *newlen) {
   unsigned long i, j;
   *newlen = 0;
 
-  if (! dnlen) {
-    *unformatted = 0;
+  /* Don't count trailing NULLs. */
+  for (i = 0; i < formattedlen; i++) {
+    if (! formatted[i]) {
+      formattedlen = i;
+      break;
+    }
+  }
+
+  if (! formattedlen) {
+    *dn = 0;
     return 0;
   }
 
-  for (i = 0; i < dnlen; i++) if (dn[i] != _T('\r')) ++*newlen;
+  for (i = 0; i < formattedlen; i++) if (formatted[i] != _T('\r')) ++*newlen;
 
   /* Skip blank lines. */
-  for (i = 0; i < dnlen; i++) {
-    if (dn[i] == _T('\r') && dn[i + 1] == _T('\n')) {
+  for (i = 0; i < formattedlen; i++) {
+    if (formatted[i] == _T('\r') && formatted[i + 1] == _T('\n')) {
       /* This is the last CRLF. */
-      if (i >= dnlen - 2) break;
+      if (i >= formattedlen - 2) break;
 
       /*
         Strip at the start of the block or if the next characters are
         CRLF too.
       */
-      if (! i || (dn[i + 2] == _T('\r') && dn[i + 3] == _T('\n'))) {
-        for (j = i + 2; j < dnlen; j++) dn[j - 2] = dn[j];
-        dn[dnlen--] = _T('\0');
-        dn[dnlen--] = _T('\0');
+      if (! i || (formatted[i + 2] == _T('\r') && formatted[i + 3] == _T('\n'))) {
+        for (j = i + 2; j < formattedlen; j++) formatted[j - 2] = formatted[j];
+        formatted[formattedlen--] = _T('\0');
+        formatted[formattedlen--] = _T('\0');
         i--;
         --*newlen;
       }
@@ -476,13 +484,13 @@ int unformat_double_null(TCHAR *dn, unsigned long dnlen, TCHAR **unformatted, un
   /* Must end with two NULLs. */
   *newlen += 2;
 
-  *unformatted = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *newlen * sizeof(TCHAR));
-  if (! *unformatted) return 1;
+  *dn = (TCHAR *) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, *newlen * sizeof(TCHAR));
+  if (! *dn) return 1;
 
-  for (i = 0, j = 0; i < dnlen; i++) {
-    if (dn[i] == _T('\r')) continue;
-    if (dn[i] == _T('\n')) (*unformatted)[j] = _T('\0');
-    else (*unformatted)[j] = dn[i];
+  for (i = 0, j = 0; i < formattedlen; i++) {
+    if (formatted[i] == _T('\r')) continue;
+    if (formatted[i] == _T('\n')) (*dn)[j] = _T('\0');
+    else (*dn)[j] = formatted[i];
     j++;
   }
 
