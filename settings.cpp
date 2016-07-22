@@ -7,6 +7,8 @@
 extern const TCHAR *exit_action_strings[];
 extern const TCHAR *startup_strings[];
 extern const TCHAR *priority_strings[];
+extern const TCHAR *hook_event_strings[];
+extern const TCHAR *hook_action_strings[];
 
 /* Does the parameter refer to the default value of the setting? */
 static inline int is_default(const TCHAR *value) {

@@ -1,9 +1,10 @@
 #include "nssm.h"
 
+extern const TCHAR *hook_event_strings[];
+extern const TCHAR *hook_action_strings[];
+
 static enum { NSSM_TAB_APPLICATION, NSSM_TAB_DETAILS, NSSM_TAB_LOGON, NSSM_TAB_DEPENDENCIES, NSSM_TAB_PROCESS, NSSM_TAB_SHUTDOWN, NSSM_TAB_EXIT, NSSM_TAB_IO, NSSM_TAB_ROTATION, NSSM_TAB_ENVIRONMENT, NSSM_TAB_HOOKS, NSSM_NUM_TABS } nssm_tabs;
 static HWND tablist[NSSM_NUM_TABS];
-static const TCHAR *hook_event_strings[] = { NSSM_HOOK_EVENT_START, NSSM_HOOK_EVENT_STOP, NSSM_HOOK_EVENT_EXIT, NSSM_HOOK_EVENT_POWER, NSSM_HOOK_EVENT_ROTATE, NULL };
-static const TCHAR *hook_action_strings[] = { NSSM_HOOK_ACTION_PRE, NSSM_HOOK_ACTION_POST, NSSM_HOOK_ACTION_CHANGE, NSSM_HOOK_ACTION_RESUME, NULL };
 static int selected_tab;
 
 static HWND dialog(const TCHAR *templ, HWND parent, DLGPROC function, LPARAM l) {

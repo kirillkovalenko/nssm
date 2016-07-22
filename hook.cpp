@@ -9,6 +9,9 @@ typedef struct {
   kill_t k;
 } hook_t;
 
+const TCHAR *hook_event_strings[] = { NSSM_HOOK_EVENT_START, NSSM_HOOK_EVENT_STOP, NSSM_HOOK_EVENT_EXIT, NSSM_HOOK_EVENT_POWER, NSSM_HOOK_EVENT_ROTATE, NULL };
+const TCHAR *hook_action_strings[] = { NSSM_HOOK_ACTION_PRE, NSSM_HOOK_ACTION_POST, NSSM_HOOK_ACTION_CHANGE, NSSM_HOOK_ACTION_RESUME, NULL };
+
 static unsigned long WINAPI await_hook(void *arg) {
   hook_t *hook = (hook_t *) arg;
   if (! hook) return NSSM_HOOK_STATUS_ERROR;
