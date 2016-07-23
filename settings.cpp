@@ -452,7 +452,9 @@ static int setting_get_priority(const TCHAR *service_name, void *param, const TC
 
   unsigned long constant;
   switch (get_number(key, (TCHAR *) name, &constant, false)) {
-    case 0: return value_from_string(name, value, (const TCHAR *) default_value);
+    case 0:
+      if (value_from_string(name, value, (const TCHAR *) default_value) == -1) return -1;
+      return 0;
     case -1: return -1;
   }
 
