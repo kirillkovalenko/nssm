@@ -729,6 +729,34 @@ separate command line arguments.  For example:
 
     nssm set <servicename> DependOnService RpcSs LanmanWorkstation
 
+Alternatively the dependency name can be prefixed with a + or - symbol to
+respectively add or remove a dependency.
+
+The following two lines set dependencies on RpcSs and LanmanWorkstation:
+
+    nssm set <servicename> DependOnService RpcSs
+    nssm set <servicename> DependOnService +LanmanWorkstation
+
+The follwing syntax removes the dependency on RpcSs:
+
+    nssm set <servicename> DependOnService -RpcSs
+
+Service groups should, strictly speaking, be prefixed with the + symbol.
+To specify a single dependency on a group, the + symbol can be prefixed
+with the : symbol.
+
+The following lines are equivalent, and each set a dependency ONLY on
+NetBIOSGroup:
+
+    nssm set <servicename> DependOnGroup NetBIOSGroup
+    nssm set <servicename> DependOnGroup :NetBIOSGroup
+    nssm set <servicename> DependOnGroup :+NetBIOSGroup
+
+Whereas these lines add to any existing dependencies:
+
+    nssm set <servicename> DependOnGroup +NetBIOSGroup
+    nssm set <servicename> DependOnGroup ++NetBIOSGroup
+
 
 The Name parameter can only be queried, not set.  It returns the service's
 registry key name.  This may be useful to know if you take advantage of
