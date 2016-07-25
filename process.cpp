@@ -275,7 +275,7 @@ int kill_console(kill_t *k) {
   return kill_console(NULL, k);
 }
 
-void kill_process_tree(nssm_service_t * service, kill_t *k, unsigned long ppid) {
+void walk_process_tree(nssm_service_t *service, walk_function_t fn, kill_t *k, unsigned long ppid) {
   if (! k) return;
   /* Shouldn't happen unless the service failed to start. */
   if (! k->pid) return; /* XXX: needed? */
@@ -294,7 +294,7 @@ void kill_process_tree(nssm_service_t * service, kill_t *k, unsigned long ppid) 
     _sntprintf_s(ppid_string, _countof(ppid_string), _TRUNCATE, _T("%lu"), ppid);
     log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, k->name, 0);
     k->process_handle = process_handle; /* XXX: open directly? */
-    if (! kill_process(k)) {
+    if (! fn(service, k)) {
       /* Maybe it already died. */
       unsigned long ret;
       if (! GetExitCodeProcess(process_handle, &ret) || ret == STILL_ACTIVE) {
@@ -327,7 +327,7 @@ void kill_process_tree(nssm_service_t * service, kill_t *k, unsigned long ppid) 
   /* This is a child of the doomed process so kill it. */
   if (! check_parent(k, &pe, pid)) {
     k->pid = pe.th32ProcessID;
-    kill_process_tree(k, ppid);
+    walk_process_tree(service, fn, k, ppid);
   }
   k->pid = pid;
 
@@ -343,7 +343,7 @@ void kill_process_tree(nssm_service_t * service, kill_t *k, unsigned long ppid) 
 
     if (! check_parent(k, &pe, pid)) {
       k->pid = pe.th32ProcessID;
-      kill_process_tree(k, ppid);
+      walk_process_tree(service, fn, k, ppid);
     }
     k->pid = pid;
   }
@@ -352,5 +352,5 @@ void kill_process_tree(nssm_service_t * service, kill_t *k, unsigned long ppid) 
 }
 
 void kill_process_tree(kill_t *k, unsigned long ppid) {
-  return kill_process_tree(NULL, k, ppid);
+  return walk_process_tree(NULL, kill_process, k, ppid);
 }
