@@ -2,6 +2,47 @@
 
 extern imports_t imports;
 
+HANDLE get_debug_token() {
+  long error;
+  HANDLE token;
+  if (! OpenThreadToken(GetCurrentThread(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, false, &token)) {
+    error = GetLastError();
+    if (error == ERROR_NO_TOKEN) {
+      (void) ImpersonateSelf(SecurityImpersonation);
+      (void) OpenThreadToken(GetCurrentThread(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, false, &token);
+    }
+  }
+  if (! token) return INVALID_HANDLE_VALUE;
+
+  TOKEN_PRIVILEGES privileges, old;
+  unsigned long size = sizeof(TOKEN_PRIVILEGES);
+  LUID luid;
+  if (! LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid)) {
+    CloseHandle(token);
+    return INVALID_HANDLE_VALUE;
+  }
+
+  privileges.PrivilegeCount = 1;
+  privileges.Privileges[0].Luid = luid;
+  privileges.Privileges[0].Attributes = 0;
+
+  if (! AdjustTokenPrivileges(token, false, &privileges, size, &old, &size)) {
+    CloseHandle(token);
+    return INVALID_HANDLE_VALUE;
+  }
+
+  old.PrivilegeCount = 1;
+  old.Privileges[0].Luid = luid;
+  old.Privileges[0].Attributes |= SE_PRIVILEGE_ENABLED;
+
+  if (! AdjustTokenPrivileges(token, false, &old, size, NULL, NULL)) {
+    CloseHandle(token);
+    return INVALID_HANDLE_VALUE;
+  }
+
+  return token;
+}
+
 void service_kill_t(nssm_service_t *service, kill_t *k) {
   if (! service) return;
   if (! k) return;

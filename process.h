@@ -21,6 +21,7 @@ typedef struct {
 
 typedef int (*walk_function_t)(nssm_service_t *, kill_t *);
 
+HANDLE get_debug_token();
 void service_kill_t(nssm_service_t *, kill_t *);
 int get_process_creation_time(HANDLE, FILETIME *);
 int get_process_exit_time(HANDLE, FILETIME *);
