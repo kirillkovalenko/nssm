@@ -321,11 +321,12 @@ void walk_process_tree(nssm_service_t *service, walk_function_t fn, kill_t *k, u
   /* Shouldn't happen unless the service failed to start. */
   if (! k->pid) return; /* XXX: needed? */
   unsigned long pid = k->pid;
+  unsigned long depth = k->depth;
 
   TCHAR pid_string[16], code[16];
   _sntprintf_s(pid_string, _countof(pid_string), _TRUNCATE, _T("%lu"), pid);
   _sntprintf_s(code, _countof(code), _TRUNCATE, _T("%lu"), k->exitcode);
-  log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILLING, k->name, pid_string, code, 0);
+  if (fn == kill_process) log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILLING, k->name, pid_string, code, 0);
 
   /* We will need a process handle in order to call TerminateProcess() later. */
   HANDLE process_handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_TERMINATE, false, pid);
@@ -333,7 +334,7 @@ void walk_process_tree(nssm_service_t *service, walk_function_t fn, kill_t *k, u
     /* Kill this process first, then its descendents. */
     TCHAR ppid_string[16];
     _sntprintf_s(ppid_string, _countof(ppid_string), _TRUNCATE, _T("%lu"), ppid);
-    log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, k->name, 0);
+    if (fn == kill_process) log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_KILL_PROCESS_TREE, pid_string, ppid_string, k->name, 0);
     k->process_handle = process_handle; /* XXX: open directly? */
     if (! fn(service, k)) {
       /* Maybe it already died. */
@@ -366,6 +367,7 @@ void walk_process_tree(nssm_service_t *service, walk_function_t fn, kill_t *k, u
   }
 
   /* This is a child of the doomed process so kill it. */
+  k->depth++;
   if (! check_parent(k, &pe, pid)) {
     k->pid = pe.th32ProcessID;
     walk_process_tree(service, fn, k, ppid);
@@ -379,6 +381,7 @@ void walk_process_tree(nssm_service_t *service, walk_function_t fn, kill_t *k, u
       if (ret == ERROR_NO_MORE_FILES) break;
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_PROCESS_ENUMERATE_FAILED, k->name, error_string(GetLastError()), 0);
       CloseHandle(snapshot);
+      k->depth = depth;
       return;
     }
 
@@ -388,10 +391,34 @@ void walk_process_tree(nssm_service_t *service, walk_function_t fn, kill_t *k, u
     }
     k->pid = pid;
   }
+  k->depth = depth;
 
   CloseHandle(snapshot);
 }
 
 void kill_process_tree(kill_t *k, unsigned long ppid) {
   return walk_process_tree(NULL, kill_process, k, ppid);
+}
+
+int print_process(nssm_service_t *service, kill_t *k) {
+  TCHAR exe[EXE_LENGTH];
+  TCHAR *buffer = 0;
+  if (k->depth) {
+    buffer = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (k->depth + 1) * sizeof(TCHAR));
+    if (buffer) {
+      unsigned long i;
+      for (i = 0; i < k->depth; i++) buffer[i] = _T(' ');
+      buffer[i] = _T('\0');
+    }
+  }
+  if (! GetModuleFileNameEx(k->process_handle, NULL, exe, _countof(exe))) _sntprintf_s(exe, _countof(exe), _TRUNCATE, _T("???"));
+
+  _tprintf(_T("% 8lu %s%s\n"), k->pid, buffer ? buffer : _T(""), exe);
+
+  if (buffer) HeapFree(GetProcessHeap(), 0, buffer);
+  return 1;
+}
+
+int print_process(kill_t *k) {
+  return print_process(NULL, k);
 }

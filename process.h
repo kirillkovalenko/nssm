@@ -1,11 +1,13 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#include <psapi.h>
 #include <tlhelp32.h>
 
 typedef struct {
   TCHAR *name;
   HANDLE process_handle;
+  unsigned long depth;
   unsigned long pid;
   unsigned long exitcode;
   unsigned long stop_method;
@@ -33,6 +35,8 @@ int kill_console(nssm_service_t *, kill_t *);
 int kill_console(kill_t *);
 int kill_process(nssm_service_t *, kill_t *);
 int kill_process(kill_t *);
+int print_process(nssm_service_t *, kill_t *);
+int print_process(kill_t *);
 void walk_process_tree(nssm_service_t *, walk_function_t, kill_t *, unsigned long);
 void kill_process_tree(kill_t *, unsigned long);
 

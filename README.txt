@@ -72,6 +72,8 @@ Since version 2.25, NSSM can list services it manages.
 
 Since version 2.25, NSSM can dump the configuration of services it manages.
 
+Since version 2.25, NSSM can show the processes managed by a service.
+
 
 Usage
 -----
@@ -869,6 +871,14 @@ The following command will print the names of all services managed by NSSM:
     nssm list
 
 
+Showing processes started by a service
+--------------------------------------
+The following command will print the process ID and executable path of
+processes started by a given service:
+
+    nssm processes <servicename>
+
+
 Exporting service configuration
 -------------------------------
 NSSM can dump commands which would recreate the configuration of a service.
@@ -985,6 +995,7 @@ Thanks to Paul Baxter for help with Visual Studio 2015.
 Thanks to Mathias Breiner for help with Visual Studio and some registry fixes.
 Thanks to David Bremner for general tidyups.
 Thanks to Nabil Redmann for suggesting redirecting hooks' output.
+Thanks to Bader Aldurai for suggesting the process tree.
 
 Licence
 -------

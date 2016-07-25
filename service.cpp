@@ -2267,3 +2267,77 @@ int list_nssm_services() {
   HeapFree(GetProcessHeap(), 0, status);
   return 0;
 }
+
+int service_process_tree(int argc, TCHAR **argv) {
+  int errors = 0;
+  if (argc < 1) return usage(1);
+
+  SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT);
+  if (! services) {
+    print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+    return 1;
+  }
+
+  /*
+    We need SeDebugPrivilege to read the process tree.
+    We ignore failure here so that an error will be printed later when we
+    try to open a process handle.
+  */
+  HANDLE token = get_debug_token();
+
+  TCHAR canonical_name[SERVICE_NAME_LENGTH];
+  SERVICE_STATUS_PROCESS service_status;
+  nssm_service_t *service;
+  kill_t k;
+
+  int i;
+  for (i = 0; i < argc; i++) {
+    TCHAR *service_name = argv[i];
+    SC_HANDLE service_handle = open_service(services, service_name, SERVICE_QUERY_STATUS, canonical_name, _countof(canonical_name));
+    if (! service_handle) {
+      errors++;
+      continue;
+    }
+
+    unsigned long size;
+    int ret = QueryServiceStatusEx(service_handle, SC_STATUS_PROCESS_INFO, (LPBYTE) &service_status, sizeof(service_status), &size);
+    long error = GetLastError();
+    CloseServiceHandle(service_handle);
+    if (! ret) {
+      _ftprintf(stderr, _T("%s: %s\n"), canonical_name, error_string(error));
+      errors++;
+      continue;
+    }
+
+    ZeroMemory(&k, sizeof(k));
+    k.pid = service_status.dwProcessId;
+    if (! k.pid) continue;
+
+    k.process_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, k.pid);
+    if (! k.process_handle) {
+      _ftprintf(stderr, _T("%s: %lu: %s\n"), canonical_name, k.pid, error_string(GetLastError()));
+      continue;
+    }
+
+    if (get_process_creation_time(k.process_handle, &k.creation_time)) continue;
+    /* Dummy exit time so we can check processes' parents. */
+    GetSystemTimeAsFileTime(&k.exit_time);
+
+    service = alloc_nssm_service();
+    if (! service) {
+      errors++;
+      continue;
+    }
+
+    _sntprintf_s(service->name, _countof(service->name), _TRUNCATE, _T("%s"), canonical_name);
+    k.name = service->name;
+    walk_process_tree(service, print_process, &k, k.pid);
+
+    cleanup_nssm_service(service);
+  }
+
+  CloseServiceHandle(services);
+  if (token != INVALID_HANDLE_VALUE) CloseHandle(token);
+
+  return errors;
+}
