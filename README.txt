@@ -878,6 +878,9 @@ processes started by a given service:
 
     nssm processes <servicename>
 
+Note that if 32-bit NSSM is run on a 64-bit system running an older version of
+Windows than Vista it will not be able to query the paths of 64-bit processes.
+
 
 Exporting service configuration
 -------------------------------
