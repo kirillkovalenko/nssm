@@ -870,6 +870,10 @@ The following command will print the names of all services managed by NSSM:
 
     nssm list
 
+To see all services on the system, not just NSSM's, use list all:
+
+    nssm list all
+
 
 Showing processes started by a service
 --------------------------------------

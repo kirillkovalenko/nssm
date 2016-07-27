@@ -2212,7 +2212,9 @@ awaited:
   return ret;
 }
 
-int list_nssm_services() {
+int list_nssm_services(int argc, TCHAR **argv) {
+  bool including_native = (argc > 0 && str_equiv(argv[0], _T("all")));
+
   /* Open service manager. */
   SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
   if (! services) {
@@ -2259,7 +2261,7 @@ int list_nssm_services() {
 
       get_parameters(service, 0);
       /* We manage the service if we have an Application. */
-      if (service->exe[0]) _tprintf(_T("%s\n"), service->name);
+      if (including_native || service->exe[0]) _tprintf(_T("%s\n"), service->name);
 
       cleanup_nssm_service(service);
     }

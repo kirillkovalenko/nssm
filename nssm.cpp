@@ -272,7 +272,7 @@ int _tmain(int argc, TCHAR **argv) {
       for (int i = 0; i < argc; i++) SecureZeroMemory(argv[i], _tcslen(argv[i]) * sizeof(TCHAR));
       exit(ret);
     }
-    if (str_equiv(argv[1], _T("list"))) exit(list_nssm_services());
+    if (str_equiv(argv[1], _T("list"))) exit(list_nssm_services(argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("processes"))) exit(service_process_tree(argc - 2, argv + 2));
     if (str_equiv(argv[1], _T("remove"))) {
       if (! is_admin) exit(elevate(argc, argv, NSSM_MESSAGE_NOT_ADMINISTRATOR_CANNOT_REMOVE));
