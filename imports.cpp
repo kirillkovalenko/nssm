@@ -15,7 +15,7 @@ HMODULE get_dll(const TCHAR *dll, unsigned long *error) {
   HMODULE ret = LoadLibrary(dll);
   if (! ret) {
     *error = GetLastError();
-    log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_LOADLIBRARY_FAILED, dll, error_string(*error), 0);
+    if (*error != ERROR_PROC_NOT_FOUND) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_LOADLIBRARY_FAILED, dll, error_string(*error), 0);
   }
 
   return ret;
@@ -27,19 +27,21 @@ FARPROC get_import(HMODULE library, const char *function, unsigned long *error) 
   FARPROC ret = GetProcAddress(library, function);
   if (! ret) {
     *error = GetLastError();
-    TCHAR *function_name;
+    if (*error != ERROR_PROC_NOT_FOUND) {
+      TCHAR *function_name;
 #ifdef UNICODE
-    size_t buflen;
-    mbstowcs_s(&buflen, NULL, 0, function, _TRUNCATE);
-    function_name = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, buflen * sizeof(TCHAR));
-    if (function_name) mbstowcs_s(&buflen, function_name, buflen * sizeof(TCHAR), function, _TRUNCATE);
+      size_t buflen;
+      mbstowcs_s(&buflen, NULL, 0, function, _TRUNCATE);
+      function_name = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, buflen * sizeof(TCHAR));
+      if (function_name) mbstowcs_s(&buflen, function_name, buflen * sizeof(TCHAR), function, _TRUNCATE);
 #else
-    function_name = (TCHAR *) function;
+      function_name = (TCHAR *) function;
 #endif
-    if (*error != ERROR_PROC_NOT_FOUND) log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function_name, error_string(*error), 0);
+      log_event(EVENTLOG_WARNING_TYPE, NSSM_EVENT_GETPROCADDRESS_FAILED, function_name, error_string(*error), 0);
 #ifdef UNICODE
-    if (function_name) HeapFree(GetProcessHeap(), 0, function_name);
+      if (function_name) HeapFree(GetProcessHeap(), 0, function_name);
 #endif
+    }
   }
 
   return ret;
