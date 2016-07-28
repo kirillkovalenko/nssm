@@ -906,7 +906,11 @@ int pre_edit_service(int argc, TCHAR **argv) {
     mandatory = 3;
     mode = MODE_RESETTING;
   }
-  else if (str_equiv(verb, _T("dump"))) mode = MODE_DUMPING;
+  else if (str_equiv(verb, _T("dump"))) {
+    mandatory = 1;
+    remainder = 2;
+    mode = MODE_DUMPING;
+  }
   if (argc < mandatory) return usage(1);
 
   const TCHAR *parameter = 0;
@@ -1056,17 +1060,27 @@ int pre_edit_service(int argc, TCHAR **argv) {
   int ret;
 
   if (mode == MODE_DUMPING) {
+    TCHAR *service_name = service->name;
+    if (argc > remainder) service_name = argv[remainder];
     if (service->native) key = 0;
     else {
       key = open_registry(service->name, KEY_READ);
       if (! key) return 4;
     }
 
+    TCHAR quoted_service_name[SERVICE_NAME_LENGTH * 2];
+    TCHAR quoted_exe[EXE_LENGTH * 2];
+    TCHAR quoted_nssm[EXE_LENGTH * 2];
+    if (quote(service_name, quoted_service_name, _countof(quoted_service_name))) return 5;
+    if (quote(service->exe, quoted_exe, _countof(quoted_exe))) return 6;
+    if (quote(nssm_exe(), quoted_nssm, _countof(quoted_nssm))) return 6;
+    _tprintf(_T("%s install %s %s\n"), quoted_nssm, quoted_service_name, quoted_exe);
+
     ret = 0;
     for (i = 0; settings[i].name; i++) {
       setting = &settings[i];
       if (! setting->native && service->native) continue;
-      if (dump_setting(service->name, key, service->handle, setting)) ret++;
+      if (dump_setting(service_name, key, service->handle, setting)) ret++;
     }
 
     if (! service->native) RegCloseKey(key);

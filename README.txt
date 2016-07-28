@@ -882,6 +882,14 @@ quoted or escaped from the command prompt, NSSM tries hard to produce
 output which will work correctly when run as a script, by adding quotes
 and caret escapes as appropriate.
 
+To facilitate copying a service, the dump command accepts a second
+argument which specifies the name of the service to be used in the output.
+
+    nssm dump <servicename> <newname>
+
+Lines in the dump will reference the <newname> service while showing the
+configuration of <servicename>.
+
 
 Example usage
 -------------
