@@ -2,6 +2,10 @@
 
 #include <sddl.h>
 
+#ifndef STATUS_SUCCESS
+#define STATUS_SUCCESS ERROR_SUCCESS
+#endif
+
 extern imports_t imports;
 
 /* Open Policy object. */
@@ -10,7 +14,7 @@ int open_lsa_policy(LSA_HANDLE *policy) {
   ZeroMemory(&attributes, sizeof(attributes));
 
   NTSTATUS status = LsaOpenPolicy(0, &attributes, POLICY_ALL_ACCESS, policy);
-  if (status) {
+  if (status != STATUS_SUCCESS) {
     print_message(stderr, NSSM_MESSAGE_LSAOPENPOLICY_FAILED, error_string(LsaNtStatusToWinError(status)));
     return 1;
   }
@@ -89,7 +93,7 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
 #endif
   HeapFree(GetProcessHeap(), 0, expanded);
   if (policy == &handle) LsaClose(handle);
-  if (status) {
+  if (status != STATUS_SUCCESS) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_sid);
     print_message(stderr, NSSM_MESSAGE_LSALOOKUPNAMES_FAILED, username, error_string(LsaNtStatusToWinError(status)));
@@ -166,7 +170,7 @@ int canonicalise_username(const TCHAR *username, TCHAR **canon) {
   LSA_REFERENCED_DOMAIN_LIST *translated_domains;
   LSA_TRANSLATED_NAME *translated_name;
   NTSTATUS status = LsaLookupSids(policy, 1, &sids, &translated_domains, &translated_name);
-  if (status) {
+  if (status != STATUS_SUCCESS) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_name);
     print_message(stderr, NSSM_MESSAGE_LSALOOKUPSIDS_FAILED, error_string(LsaNtStatusToWinError(status)));
@@ -307,7 +311,7 @@ int grant_logon_as_service(const TCHAR *username) {
   LSA_UNICODE_STRING *rights;
   unsigned long count = ~0;
   status = LsaEnumerateAccountRights(policy, sid, &rights, &count);
-  if (status) {
+  if (status != STATUS_SUCCESS) {
     /*
       If the account has no rights set LsaEnumerateAccountRights() will return
       STATUS_OBJECT_NAME_NOT_FOUND and set count to 0.
@@ -336,7 +340,7 @@ int grant_logon_as_service(const TCHAR *username) {
   status = LsaAddAccountRights(policy, sid, &lsa_right, 1);
   FreeSid(sid);
   LsaClose(policy);
-  if (status) {
+  if (status != STATUS_SUCCESS) {
     print_message(stderr, NSSM_MESSAGE_LSAADDACCOUNTRIGHTS_FAILED, error_string(LsaNtStatusToWinError(status)));
     return 5;
   }
