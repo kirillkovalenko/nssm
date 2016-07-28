@@ -66,32 +66,20 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
   }
 
   LSA_UNICODE_STRING lsa_username;
-#ifdef UNICODE
-  lsa_username.Buffer = (wchar_t *) expanded;
-  lsa_username.Length = (unsigned short) _tcslen(expanded) * sizeof(TCHAR);
-  lsa_username.MaximumLength = lsa_username.Length + sizeof(TCHAR);
-#else
-  size_t buflen;
-  mbstowcs_s(&buflen, NULL, 0, expanded, _TRUNCATE);
-  lsa_username.MaximumLength = (unsigned short) buflen * sizeof(wchar_t);
-  lsa_username.Length = lsa_username.MaximumLength - sizeof(wchar_t);
-  lsa_username.Buffer = (wchar_t *) HeapAlloc(GetProcessHeap(), 0, lsa_username.MaximumLength);
-  if (lsa_username.Buffer) mbstowcs_s(&buflen, lsa_username.Buffer, lsa_username.MaximumLength, expanded, _TRUNCATE);
-  else {
+  int ret = to_utf16(expanded, &lsa_username.Buffer, (unsigned long *) &lsa_username.Length);
+  HeapFree(GetProcessHeap(), 0, expanded);
+  if (ret) {
     if (policy == &handle) LsaClose(handle);
-    HeapFree(GetProcessHeap(), 0, expanded);
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("LSA_UNICODE_STRING"), _T("username_sid()"));
     return 4;
   }
-#endif
+  lsa_username.Length *= sizeof(wchar_t);
+  lsa_username.MaximumLength = lsa_username.Length + sizeof(wchar_t);
 
   LSA_REFERENCED_DOMAIN_LIST *translated_domains;
   LSA_TRANSLATED_SID *translated_sid;
   NTSTATUS status = LsaLookupNames(*policy, 1, &lsa_username, &translated_domains, &translated_sid);
-#ifndef UNICODE
   HeapFree(GetProcessHeap(), 0, lsa_username.Buffer);
-#endif
-  HeapFree(GetProcessHeap(), 0, expanded);
   if (policy == &handle) LsaClose(handle);
   if (status != STATUS_SUCCESS) {
     LsaFreeMemory(translated_domains);
@@ -143,7 +131,7 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
     else *sub = translated_sid->RelativeId;
   }
 
-  int ret = 0;
+  ret = 0;
   if (translated_sid->Use == SidTypeWellKnownGroup && ! well_known_sid(*sid)) {
     print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
     ret = 10;
@@ -194,21 +182,14 @@ int canonicalise_username(const TCHAR *username, TCHAR **canon) {
   memmove((char *) lsa_canon.Buffer + trust->Name.Length, L"\\", sizeof(wchar_t));
   memmove((char *) lsa_canon.Buffer + trust->Name.Length + sizeof(wchar_t), translated_name->Name.Buffer, translated_name->Name.Length);
 
-#ifdef UNICODE
-  *canon = lsa_canon.Buffer;
-#else
-  size_t buflen;
-  wcstombs_s(&buflen, NULL, 0, lsa_canon.Buffer, _TRUNCATE);
-  *canon = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, buflen);
-  if (! *canon) {
+  unsigned long canonlen;
+  if (from_utf16(lsa_canon.Buffer, canon, &canonlen)) {
     LsaFreeMemory(translated_domains);
     LsaFreeMemory(translated_name);
     print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("username_sid"));
     return 10;
   }
-  wcstombs_s(&buflen, *canon, buflen, lsa_canon.Buffer, _TRUNCATE);
   HeapFree(GetProcessHeap(), 0, lsa_canon.Buffer);
-#endif
 
   LsaFreeMemory(translated_domains);
   LsaFreeMemory(translated_name);
