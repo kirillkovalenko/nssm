@@ -1274,19 +1274,33 @@ int edit_service(nssm_service_t *service, bool editing) {
   TCHAR *username = 0;
   TCHAR *canon = 0;
   TCHAR *password = 0;
+  boolean virtual_account = false;
   if (service->usernamelen) {
     username = service->username;
-    if (canonicalise_username(username, &canon)) return 5;
-    if (service->passwordlen) password = service->password;
+    if (is_virtual_account(service->name, username)) {
+      virtual_account = true;
+      canon = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, (service->usernamelen + 1) * sizeof(TCHAR));
+      if (! canon) {
+        print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("edit_service()"));
+        return 5;
+      }
+      memmove(canon, username, (service->usernamelen + 1) * sizeof(TCHAR));
+    }
+    else {
+      if (canonicalise_username(username, &canon)) return 5;
+      if (service->passwordlen) password = service->password;
+    }
   }
   else if (editing) username = canon = NSSM_LOCALSYSTEM_ACCOUNT;
 
-  if (well_known_username(canon)) password = _T("");
-  else {
-    if (grant_logon_as_service(canon)) {
-      if (canon != username) HeapFree(GetProcessHeap(), 0, canon);
-      print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
-      return 5;
+  if (! virtual_account) {
+    if (well_known_username(canon)) password = _T("");
+    else {
+      if (grant_logon_as_service(canon)) {
+        if (canon != username) HeapFree(GetProcessHeap(), 0, canon);
+        print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);
+        return 5;
+      }
     }
   }
 

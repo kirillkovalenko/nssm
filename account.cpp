@@ -89,10 +89,12 @@ int username_sid(const TCHAR *username, SID **sid, LSA_HANDLE *policy) {
   }
 
   if (translated_sid->Use != SidTypeUser && translated_sid->Use != SidTypeWellKnownGroup) {
-    LsaFreeMemory(translated_domains);
-    LsaFreeMemory(translated_sid);
-    print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
-    return 6;
+    if (translated_sid->Use != SidTypeUnknown || _tcsnicmp(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN _T("\\"), username, _tcslen(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN) + 1)) {
+      LsaFreeMemory(translated_domains);
+      LsaFreeMemory(translated_sid);
+      print_message(stderr, NSSM_GUI_INVALID_USERNAME, username);
+      return 6;
+    }
   }
 
   LSA_TRUST_INFORMATION *trust = &translated_domains->Domains[translated_sid->DomainIndex];
@@ -229,6 +231,24 @@ int is_localsystem(const TCHAR *username) {
 
   FreeSid(sid);
 
+  return ret;
+}
+
+/* Does the username represent a virtual account for the service? */
+int is_virtual_account(const TCHAR *service_name, const TCHAR *username) {
+  if (! imports.IsWellKnownSid) return 0;
+  if (! service_name) return 0;
+  if (! username) return 0;
+
+  size_t len = _tcslen(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN) + _tcslen(service_name) + 2;
+  TCHAR *canon = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, len * sizeof(TCHAR));
+  if (! canon) {
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("canon"), _T("is_virtual_account"));
+    return 0;
+  }
+  _sntprintf_s(canon, len, _TRUNCATE, _T("%s\\%s"), NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN, service_name);
+  int ret = str_equiv(canon, username);
+  HeapFree(GetProcessHeap(), 0, canon);
   return ret;
 }
 

@@ -1074,6 +1074,7 @@ int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *n
     That means the username is actually passed in the additional parameter.
   */
   bool localsystem = false;
+  bool virtual_account = false;
   TCHAR *username = NSSM_LOCALSYSTEM_ACCOUNT;
   TCHAR *password = 0;
   if (additional) {
@@ -1089,6 +1090,7 @@ int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *n
     username = (TCHAR *) well_known;
     password = _T("");
   }
+  else if (is_virtual_account(service_name, username)) virtual_account = true;
   else if (! password) {
     /* We need a password if the account requires it. */
     print_message(stderr, NSSM_MESSAGE_MISSING_PASSWORD, name);
@@ -1112,7 +1114,7 @@ int native_set_objectname(const TCHAR *service_name, void *param, const TCHAR *n
     HeapFree(GetProcessHeap(), 0, qsc);
   }
 
-  if (! well_known) {
+  if (! well_known && ! virtual_account) {
     if (grant_logon_as_service(username)) {
       if (passwordsize) SecureZeroMemory(password, passwordsize);
       print_message(stderr, NSSM_MESSAGE_GRANT_LOGON_AS_SERVICE_FAILED, username);

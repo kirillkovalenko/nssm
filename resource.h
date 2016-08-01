@@ -71,6 +71,7 @@
 #define IDC_HOOK                        1050
 #define IDC_BROWSE_HOOK                 1051
 #define IDC_REDIRECT_HOOK               1052
+#define IDC_VIRTUAL_SERVICE             1053
 
 // Next default values for new objects
 // 
@@ -78,7 +79,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        117
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1053
+#define _APS_NEXT_CONTROL_VALUE         1054
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

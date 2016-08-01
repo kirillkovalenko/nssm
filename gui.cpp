@@ -26,6 +26,13 @@ static HWND dialog(const TCHAR *templ, HWND parent, DLGPROC function) {
   return dialog(templ, parent, function, 0);
 }
 
+static inline void set_logon_enabled(unsigned char interact_enabled, unsigned char credentials_enabled) {
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_INTERACT), interact_enabled);
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), credentials_enabled);
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), credentials_enabled);
+  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), credentials_enabled);
+}
+
 int nssm_gui(int resource, nssm_service_t *service) {
   /* Create window */
   HWND dlg = dialog(MAKEINTRESOURCE(resource), 0, nssm_dlg, (LPARAM) service);
@@ -86,15 +93,18 @@ int nssm_gui(int resource, nssm_service_t *service) {
 
     /* Log on tab. */
     if (service->username) {
-      CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_ACCOUNT);
-      SetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username);
-      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_INTERACT), 0);
-      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), 1);
-      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), 1);
-      EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), 1);
+      if (is_virtual_account(service->name, service->username)) {
+        CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_VIRTUAL_SERVICE, IDC_VIRTUAL_SERVICE);
+        set_logon_enabled(0, 0);
+      }
+      else {
+        CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_VIRTUAL_SERVICE, IDC_ACCOUNT);
+        SetDlgItemText(tablist[NSSM_TAB_LOGON], IDC_USERNAME, service->username);
+        set_logon_enabled(0, 1);
+      }
     }
     else {
-      CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
+      CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_VIRTUAL_SERVICE, IDC_LOCALSYSTEM);
       if (service->type & SERVICE_INTERACTIVE_PROCESS) SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_INTERACT, BM_SETCHECK, BST_CHECKED, 0);
     }
 
@@ -266,13 +276,6 @@ static inline void set_timeout_enabled(unsigned long control, unsigned long depe
   unsigned char enabled = 0;
   if (SendDlgItemMessage(tablist[NSSM_TAB_SHUTDOWN], control, BM_GETCHECK, 0, 0) & BST_CHECKED) enabled = 1;
   EnableWindow(GetDlgItem(tablist[NSSM_TAB_SHUTDOWN], dependent), enabled);
-}
-
-static inline void set_logon_enabled(unsigned char enabled) {
-  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_INTERACT), ! enabled);
-  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_USERNAME), enabled);
-  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD1), enabled);
-  EnableWindow(GetDlgItem(tablist[NSSM_TAB_LOGON], IDC_PASSWORD2), enabled);
 }
 
 static inline void set_affinity_enabled(unsigned char enabled) {
@@ -457,6 +460,18 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
       SecureZeroMemory(service->password, service->passwordlen * sizeof(TCHAR));
       HeapFree(GetProcessHeap(), 0, service->password);
     }
+    service->password = 0;
+    service->passwordlen = 0;
+  }
+  else if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_VIRTUAL_SERVICE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
+    if (service->username) HeapFree(GetProcessHeap(), 0, service->username);
+    service->usernamelen = _tcslen(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN) + _tcslen(service->name) + 2;
+    service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
+    if (! service->username) {
+      popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
+      return 6;
+    }
+    _sntprintf_s(service->username, service->usernamelen, _TRUNCATE, _T("%s\\%s"), NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN, service->name);
     service->password = 0;
     service->passwordlen = 0;
   }
@@ -976,11 +991,15 @@ INT_PTR CALLBACK tab_dlg(HWND tab, UINT message, WPARAM w, LPARAM l) {
 
         /* Log on. */
         case IDC_LOCALSYSTEM:
-          set_logon_enabled(0);
+          set_logon_enabled(1, 0);
+          break;
+
+        case IDC_VIRTUAL_SERVICE:
+          set_logon_enabled(0, 0);
           break;
 
         case IDC_ACCOUNT:
-          set_logon_enabled(1);
+          set_logon_enabled(0, 1);
           break;
 
         /* Affinity. */
@@ -1127,7 +1146,7 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
 
       /* Set defaults. */
       CheckRadioButton(tablist[NSSM_TAB_LOGON], IDC_LOCALSYSTEM, IDC_ACCOUNT, IDC_LOCALSYSTEM);
-      set_logon_enabled(0);
+      set_logon_enabled(1, 0);
 
       /* Dependencies tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_DEPENDENCIES);

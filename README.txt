@@ -790,6 +790,7 @@ parameter can be omitted when using them:
   "LocalSystem" aka "System" aka "NT Authority\System"
   "LocalService" aka "Local Service" aka "NT Authority\Local Service"
   "NetworkService" aka "Network Service" aka "NT Authority\Network Service"
+  Virtual service account "NT Service\<servicename>"
 
 
 The Start parameter is used to query or set the startup type of the service.
@@ -1003,6 +1004,7 @@ Thanks to Mathias Breiner for help with Visual Studio and some registry fixes.
 Thanks to David Bremner for general tidyups.
 Thanks to Nabil Redmann for suggesting redirecting hooks' output.
 Thanks to Bader Aldurai for suggesting the process tree.
+Thanks to Christian Long for suggesting virtual accounts.
 
 Licence
 -------
