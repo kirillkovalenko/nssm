@@ -1152,12 +1152,21 @@ int native_dump_objectname(const TCHAR *service_name, void *param, const TCHAR *
   int ret = native_get_objectname(service_name, param, name, default_value, value, additional);
   if (ret != 1) return ret;
 
-  /* Do we need to dump a dummy password? */
-  if (! well_known_username(value->string)) {
-    /* Parameters are the other way round. */
-    value_t inverted;
-    inverted.string = _T("****");
-    return setting_dump_string(service_name, (void *) REG_SZ, name, &inverted, value->string);
+  /* Properly checking for a virtual account requires the actual service name. */
+  if (! _tcsnicmp(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN, value->string, _tcslen(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN))) {
+    TCHAR *name = virtual_account(service_name);
+    if (! name) return -1;
+    HeapFree(GetProcessHeap(), 0, value->string);
+    value->string = name;
+  }
+  else {
+    /* Do we need to dump a dummy password? */
+    if (! well_known_username(value->string)) {
+      /* Parameters are the other way round. */
+      value_t inverted;
+      inverted.string = _T("****");
+      return setting_dump_string(service_name, (void *) REG_SZ, name, &inverted, value->string);
+    }
   }
   return setting_dump_string(service_name, (void *) REG_SZ, name, value, 0);
 }

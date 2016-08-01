@@ -19,6 +19,7 @@ int username_sid(const TCHAR *, SID **);
 int username_equiv(const TCHAR *, const TCHAR *);
 int canonicalise_username(const TCHAR *, TCHAR **);
 int is_localsystem(const TCHAR *);
+TCHAR *virtual_account(const TCHAR *);
 int is_virtual_account(const TCHAR *, const TCHAR *);
 const TCHAR *well_known_sid(SID *);
 const TCHAR *well_known_username(const TCHAR *);

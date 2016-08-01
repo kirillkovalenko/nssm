@@ -465,13 +465,12 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   }
   else if (SendDlgItemMessage(tablist[NSSM_TAB_LOGON], IDC_VIRTUAL_SERVICE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
     if (service->username) HeapFree(GetProcessHeap(), 0, service->username);
-    service->usernamelen = _tcslen(NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN) + _tcslen(service->name) + 2;
-    service->username = (TCHAR *) HeapAlloc(GetProcessHeap(), 0, service->usernamelen * sizeof(TCHAR));
+    service->username = virtual_account(service->name);
     if (! service->username) {
       popup_message(window, MB_OK | MB_ICONEXCLAMATION, NSSM_EVENT_OUT_OF_MEMORY, _T("account name"), _T("install()"));
       return 6;
     }
-    _sntprintf_s(service->username, service->usernamelen, _TRUNCATE, _T("%s\\%s"), NSSM_VIRTUAL_SERVICE_ACCOUNT_DOMAIN, service->name);
+    service->usernamelen = _tcslen(service->username) + 1;
     service->password = 0;
     service->passwordlen = 0;
   }
