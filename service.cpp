@@ -83,10 +83,11 @@ static inline int service_control_response(unsigned long control, unsigned long 
   return 0;
 }
 
-static inline int await_service_control_response(unsigned long control, SC_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long initial_status) {
+static inline int await_service_control_response(unsigned long control, SC_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long initial_status, unsigned long cutoff) {
   int tries = 0;
   unsigned long checkpoint = 0;
   unsigned long waithint = 0;
+  unsigned long waited = 0;
   while (QueryServiceStatus(service_handle, service_status)) {
     int response = service_control_response(control, service_status->dwCurrentState);
     /* Alas we can't WaitForSingleObject() on an SC_HANDLE. */
@@ -96,11 +97,20 @@ static inline int await_service_control_response(unsigned long control, SC_HANDL
       checkpoint = service_status->dwCheckPoint;
       waithint = service_status->dwWaitHint;
       if (++tries > 10) tries = 10;
-      Sleep(50 * tries);
+      unsigned long wait = 50 * tries;
+      if (cutoff) {
+        if (waited > cutoff) return response;
+        waited += wait;
+      }
+      Sleep(wait);
     }
     else return response;
   }
   return -1;
+}
+
+static inline int await_service_control_response(unsigned long control, SC_HANDLE service_handle, SERVICE_STATUS *service_status, unsigned long initial_status) {
+  return await_service_control_response(control, service_handle, service_status, initial_status, 0);
 }
 
 static inline void wait_for_hooks(nssm_service_t *service, bool notify) {
@@ -1407,7 +1417,16 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     }
 
     if (ret) {
-      int response = await_service_control_response(control, service_handle, &service_status, initial_status);
+      unsigned long cutoff = 0;
+
+      /* If we manage the service, respect the throttle time. */
+      HKEY key = open_registry(service_name, 0, KEY_READ, false);
+      if (key) {
+        if (get_number(key, NSSM_REG_THROTTLE, &cutoff, false) != 1) cutoff = NSSM_RESET_THROTTLE_RESTART;
+        RegCloseKey(key);
+      }
+
+      int response = await_service_control_response(control, service_handle, &service_status, initial_status, cutoff);
       CloseServiceHandle(service_handle);
 
       if (response) {
