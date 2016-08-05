@@ -9,6 +9,7 @@ static TCHAR imagepath[PATH_LENGTH];
 static TCHAR imageargv0[PATH_LENGTH];
 
 void nssm_exit(int status) {
+  free_imports();
   unsetup_utf8();
   exit(status);
 }
@@ -300,7 +301,6 @@ int _tmain(int argc, TCHAR **argv) {
       /* User probably ran nssm with no argument */
       if (error == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) nssm_exit(usage(1));
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_DISPATCHER_FAILED, error_string(error), 0);
-      free_imports();
       nssm_exit(100);
     }
   }

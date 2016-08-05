@@ -2110,7 +2110,6 @@ void CALLBACK end_service(void *arg, unsigned char why) {
       log_event(EVENTLOG_INFORMATION_TYPE, NSSM_EVENT_EXIT_UNCLEAN, service->name, code, exit_action_strings[action], 0);
       stop_service(service, exitcode, false, default_action);
       wait_for_hooks(service, false);
-      free_imports();
       nssm_exit(exitcode);
   }
 }
