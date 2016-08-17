@@ -48,7 +48,7 @@ int to_utf8(const wchar_t *utf16, char **utf8, unsigned long *utf8len) {
   *utf8 = (char *) HeapAlloc(GetProcessHeap(), 0, size);
   if (! *utf8) return 2;
 
-  if (! WideCharToMultiByte(CP_UTF8, 0, utf16, -1, (LPSTR) utf8, size, NULL, NULL)) {
+  if (! WideCharToMultiByte(CP_UTF8, 0, utf16, -1, *utf8, size, NULL, NULL)) {
     HeapFree(GetProcessHeap(), 0, *utf8);
     *utf8 = 0;
     return 3;
