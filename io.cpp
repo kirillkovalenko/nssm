@@ -174,9 +174,10 @@ int delete_createfile_parameter(HKEY key, TCHAR *prefix, TCHAR *suffix) {
 }
 
 HANDLE write_to_file(TCHAR *path, unsigned long sharing, SECURITY_ATTRIBUTES *attributes, unsigned long disposition, unsigned long flags) {
+  static LARGE_INTEGER offset = { 0 };
   HANDLE ret = CreateFile(path, FILE_WRITE_DATA, sharing, attributes, disposition, flags, 0);
-  if (ret!= INVALID_HANDLE_VALUE) {
-    if (SetFilePointer(ret, 0, 0, FILE_END) != INVALID_SET_FILE_POINTER) SetEndOfFile(ret);
+  if (ret != INVALID_HANDLE_VALUE) {
+    if (SetFilePointerEx(ret, offset, 0, FILE_END)) SetEndOfFile(ret);
     return ret;
   }
 

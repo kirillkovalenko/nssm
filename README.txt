@@ -1005,6 +1005,7 @@ Thanks to David Bremner for general tidyups.
 Thanks to Nabil Redmann for suggesting redirecting hooks' output.
 Thanks to Bader Aldurai for suggesting the process tree.
 Thanks to Christian Long for suggesting virtual accounts.
+Thanks to Marcin Lewandowski for spotting a bug appending to large files.
 
 Licence
 -------
