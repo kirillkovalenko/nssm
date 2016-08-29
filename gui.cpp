@@ -354,7 +354,7 @@ static inline void set_hook_tab(int event_index, int action_index, bool changed)
     SetEnvironmentVariable(hook_name, cmd);
   }
   else {
-    GetEnvironmentVariable(hook_name, cmd, _countof(cmd));
+    if (! GetEnvironmentVariable(hook_name, cmd, _countof(cmd))) cmd[0] = _T('\0');
     SetDlgItemText(tablist[NSSM_TAB_HOOKS], IDC_HOOK, cmd);
   }
 }
