@@ -2060,6 +2060,9 @@ void CALLBACK end_service(void *arg, unsigned char why) {
   service->exit_count++;
   (void) nssm_hook(&hook_threads, service, NSSM_HOOK_EVENT_EXIT, NSSM_HOOK_ACTION_POST, NULL, NSSM_HOOK_DEADLINE, true);
 
+  /* Exit logging threads. */
+  cleanup_loggers(service);
+
   /*
     The why argument is true if our wait timed out or false otherwise.
     Our wait is infinite so why will never be true when called by the system.

@@ -428,6 +428,24 @@ void close_output_handles(STARTUPINFO *si) {
   if (si->hStdError) CloseHandle(si->hStdError);
 }
 
+void cleanup_loggers(nssm_service_t *service) {
+  unsigned long interval = NSSM_CLEANUP_LOGGERS_DEADLINE;
+  HANDLE thread_handle = INVALID_HANDLE_VALUE;
+
+  close_handle(&service->stdout_thread, &thread_handle);
+  /* Close write end of the data pipe so logging thread can finalise read. */
+  close_handle(&service->stdout_si);
+  /* Await logging thread then close read end. */
+  if (thread_handle != INVALID_HANDLE_VALUE) WaitForSingleObject(thread_handle, interval);
+  close_handle(&service->stdout_pipe);
+
+  thread_handle = INVALID_HANDLE_VALUE;
+  close_handle(&service->stderr_thread, &thread_handle);
+  close_handle(&service->stderr_si);
+  if (thread_handle != INVALID_HANDLE_VALUE) WaitForSingleObject(thread_handle, interval);
+  close_handle(&service->stderr_pipe);
+}
+
 /*
   Try multiple times to read from a file.
   Returns:  0 on success.

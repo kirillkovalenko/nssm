@@ -156,4 +156,7 @@ const TCHAR *nssm_exe();
 /* How many milliseconds to wait for outstanding hooks. */
 #define NSSM_HOOK_THREAD_DEADLINE 80000
 
+/* How many milliseconds to wait for closing logging thread. */
+#define NSSM_CLEANUP_LOGGERS_DEADLINE 1500
+
 #endif
