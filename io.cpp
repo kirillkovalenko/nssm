@@ -83,6 +83,19 @@ static inline void write_bom(logger_t *logger, unsigned long *out) {
   }
 }
 
+void close_handle(HANDLE *handle, HANDLE *remember) {
+  if (remember) *remember = INVALID_HANDLE_VALUE;
+  if (! handle) return;
+  if (! *handle) return;
+  CloseHandle(*handle);
+  if (remember) *remember = *handle;
+  *handle = 0;
+}
+
+void close_handle(HANDLE *handle) {
+  close_handle(handle, NULL);
+}
+
 /* Get path, share mode, creation disposition and flags for a stream. */
 int get_createfile_parameters(HKEY key, TCHAR *prefix, TCHAR *path, unsigned long *sharing, unsigned long default_sharing, unsigned long *disposition, unsigned long default_disposition, unsigned long *flags, unsigned long default_flags, bool *copy_and_truncate) {
   TCHAR value[NSSM_STDIO_LENGTH];
