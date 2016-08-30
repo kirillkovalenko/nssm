@@ -336,12 +336,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       service->rotate_stdout_online = NSSM_ROTATE_OFFLINE;
     }
 
-    if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_si"), _T("stdout"))) {
-      if (service->stdout_thread) {
-        CloseHandle(service->stdout_thread);
-        service->stdout_thread = 0;
-      }
-    }
+    if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_si"), _T("stdout"))) close_handle(&service->stdout_thread);
   }
 
   /* stderr */
@@ -379,12 +374,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       }
     }
 
-    if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_si"), _T("stderr"))) {
-      if (service->stderr_thread) {
-        CloseHandle(service->stderr_thread);
-        service->stderr_thread = 0;
-      }
-    }
+    if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_si"), _T("stderr"))) close_handle(&service->stderr_thread);
   }
 
   /*
@@ -555,8 +545,8 @@ unsigned long WINAPI log_and_rotate(void *arg) {
     address = &buffer;
     ret = try_read(logger, address, sizeof(buffer), &in, &complained);
     if (ret < 0) {
-      CloseHandle(logger->read_handle);
-      CloseHandle(logger->write_handle);
+      close_handle(&logger->read_handle);
+      close_handle(&logger->write_handle);
       HeapFree(GetProcessHeap(), 0, logger);
       return 2;
     }
@@ -573,8 +563,8 @@ unsigned long WINAPI log_and_rotate(void *arg) {
           /* Write up to the newline. */
           ret = try_write(logger, address, i, &out, &complained);
           if (ret < 0) {
-            CloseHandle(logger->read_handle);
-            CloseHandle(logger->write_handle);
+            close_handle(&logger->read_handle);
+            close_handle(&logger->write_handle);
             HeapFree(GetProcessHeap(), 0, logger);
             return 3;
           }
@@ -591,7 +581,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
             risk losing everything.
           */
           if (logger->copy_and_truncate) FlushFileBuffers(logger->write_handle);
-          CloseHandle(logger->write_handle);
+          close_handle(&logger->write_handle);
           bool ok = true;
           TCHAR *function;
           if (logger->copy_and_truncate) {
@@ -629,8 +619,8 @@ unsigned long WINAPI log_and_rotate(void *arg) {
             error = GetLastError();
             log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, logger->path, error_string(error), 0);
             /* Oh dear.  Now we can't log anything further. */
-            CloseHandle(logger->read_handle);
-            CloseHandle(logger->write_handle);
+            close_handle(&logger->read_handle);
+            close_handle(&logger->write_handle);
             HeapFree(GetProcessHeap(), 0, logger);
             return 4;
           }
@@ -655,15 +645,15 @@ unsigned long WINAPI log_and_rotate(void *arg) {
     ret = try_write(logger, address, in, &out, &complained);
     size += (__int64) out;
     if (ret < 0) {
-      CloseHandle(logger->read_handle);
-      CloseHandle(logger->write_handle);
+      close_handle(&logger->read_handle);
+      close_handle(&logger->write_handle);
       HeapFree(GetProcessHeap(), 0, logger);
       return 3;
     }
   }
 
-  CloseHandle(logger->read_handle);
-  CloseHandle(logger->write_handle);
+  close_handle(&logger->read_handle);
+  close_handle(&logger->write_handle);
   HeapFree(GetProcessHeap(), 0, logger);
   return 0;
 }
