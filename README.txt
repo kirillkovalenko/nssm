@@ -848,6 +848,20 @@ NSSM offers rudimentary service control features.
 
     nssm status <servicename>
 
+    nssm statuscode <servicename>
+
+The output of "nssm status" and "nssm statuscode" is a string
+representing the service state, eg SERVICE_RUNNING.
+
+The exit code of "nssm status" will be 0 if the status was
+succesfully retrieved.  If the exit code is not zero there was
+an error.
+
+The exit code of "nssm statuscode" will be the numeric value
+of the service state, eg 4 for SERVICE_RUNNING.  Zero is not a
+valid service state code.  If the exit code is zero there was
+an error.
+
 
 Removing services using the GUI
 -------------------------------
@@ -1022,6 +1036,8 @@ Thanks to Bader Aldurai for suggesting the process tree.
 Thanks to Christian Long for suggesting virtual accounts.
 Thanks to Marcin Lewandowski for spotting a bug appending to large files.
 Thanks to Nicolas Ducrocq for suggesting timestamping redirected output.
+Thanks to Meang Akira Tanaka for suggestion and initial implementation of
+the statuscode command.
 
 Licence
 -------

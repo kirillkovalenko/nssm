@@ -1360,7 +1360,7 @@ int edit_service(nssm_service_t *service, bool editing) {
 }
 
 /* Control a service. */
-int control_service(unsigned long control, int argc, TCHAR **argv) {
+int control_service(unsigned long control, int argc, TCHAR **argv, bool return_status) {
   if (argc < 1) return usage(1);
   TCHAR *service_name = argv[0];
   TCHAR canonical_name[SERVICE_NAME_LENGTH];
@@ -1368,6 +1368,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
   SC_HANDLE services = open_service_manager(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
   if (! services) {
     print_message(stderr, NSSM_MESSAGE_OPEN_SERVICE_MANAGER_FAILED);
+    if (return_status) return 0;
     return 2;
   }
 
@@ -1394,6 +1395,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
   SC_HANDLE service_handle = open_service(services, service_name, access, canonical_name, _countof(canonical_name));
   if (! service_handle) {
     CloseServiceHandle(services);
+    if (return_status) return 0;
     return 3;
   }
 
@@ -1431,6 +1433,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
 
       if (response) {
         print_message(stderr, NSSM_MESSAGE_BAD_CONTROL_RESPONSE, canonical_name, service_status_text(service_status.dwCurrentState), service_control_text(control));
+        if (return_status) return 0;
         return 1;
       }
       else _tprintf(_T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
@@ -1439,6 +1442,7 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
     else {
       CloseServiceHandle(service_handle);
       _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
+      if (return_status) return 0;
       return 1;
     }
   }
@@ -1453,10 +1457,12 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
 
     if (ret) {
       _tprintf(_T("%s\n"), service_status_text(service_status.dwCurrentState));
+      if (return_status) return service_status.dwCurrentState;
       return 0;
     }
     else {
       _ftprintf(stderr, _T("%s: %s\n"), canonical_name, error_string(error));
+      if (return_status) return 0;
       return 1;
     }
   }
@@ -1477,20 +1483,30 @@ int control_service(unsigned long control, int argc, TCHAR **argv) {
 
       if (response) {
         print_message(stderr, NSSM_MESSAGE_BAD_CONTROL_RESPONSE, canonical_name, service_status_text(service_status.dwCurrentState), service_control_text(control));
+        if (return_status) return 0;
         return 1;
       }
       else _tprintf(_T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
+      if (return_status) return service_status.dwCurrentState;
       return 0;
     }
     else {
       CloseServiceHandle(service_handle);
       _ftprintf(stderr, _T("%s: %s: %s"), canonical_name, service_control_text(control), error_string(error));
       if (error == ERROR_SERVICE_NOT_ACTIVE) {
-        if (control == SERVICE_CONTROL_SHUTDOWN || control == SERVICE_CONTROL_STOP) return 0;
+        if (control == SERVICE_CONTROL_SHUTDOWN || control == SERVICE_CONTROL_STOP) {
+          if (return_status) return SERVICE_STOPPED;
+          return 0;
+        }
       }
+      if (return_status) return 0;
       return 1;
     }
   }
+}
+
+int control_service(unsigned long control, int argc, TCHAR **argv) {
+  return control_service(control, argc, argv, false);
 }
 
 /* Remove the service */
