@@ -3,6 +3,8 @@
 #define COMPLAINED_READ (1 << 0)
 #define COMPLAINED_WRITE (1 << 1)
 #define COMPLAINED_ROTATE (1 << 2)
+#define TIMESTAMP_FORMAT "%04u-%02u-%02u %02u:%02u:%02u.%03u: "
+#define TIMESTAMP_LEN 25
 
 static int dup_handle(HANDLE source_handle, HANDLE *dest_handle_ptr, TCHAR *source_description, TCHAR *dest_description, unsigned long flags) {
   if (! dest_handle_ptr) return 1;
@@ -23,7 +25,7 @@ static int dup_handle(HANDLE source_handle, HANDLE *dest_handle_ptr, TCHAR *sour
   pipe_handle:  stdout of application
   write_handle: to file
 */
-static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned long sharing, unsigned long disposition, unsigned long flags, HANDLE *read_handle_ptr, HANDLE *pipe_handle_ptr, HANDLE *write_handle_ptr, unsigned long rotate_bytes_low, unsigned long rotate_bytes_high, unsigned long rotate_delay, unsigned long *tid_ptr, unsigned long *rotate_online, bool copy_and_truncate) {
+static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned long sharing, unsigned long disposition, unsigned long flags, HANDLE *read_handle_ptr, HANDLE *pipe_handle_ptr, HANDLE *write_handle_ptr, unsigned long rotate_bytes_low, unsigned long rotate_bytes_high, unsigned long rotate_delay, unsigned long *tid_ptr, unsigned long *rotate_online, bool timestamp_log, bool copy_and_truncate) {
   *tid_ptr = 0;
 
   /* Pipe between application's stdout/stderr and our logging handle. */
@@ -58,6 +60,8 @@ static HANDLE create_logging_thread(TCHAR *service_name, TCHAR *path, unsigned l
   logger->write_handle = *write_handle_ptr;
   logger->size = (__int64) size.QuadPart;
   logger->tid_ptr = tid_ptr;
+  logger->timestamp_log = timestamp_log;
+  logger->line_length = 0;
   logger->rotate_online = rotate_online;
   logger->rotate_delay = rotate_delay;
   logger->copy_and_truncate = copy_and_truncate;
@@ -323,7 +327,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
     if (service->use_stdout_pipe) {
       service->stdout_pipe = si->hStdOutput = 0;
-      service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &service->stdout_si, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stdout_tid, &service->rotate_stdout_online, service->stdout_copy_and_truncate);
+      service->stdout_thread = create_logging_thread(service->name, service->stdout_path, service->stdout_sharing, service->stdout_disposition, service->stdout_flags, &service->stdout_pipe, &service->stdout_si, &stdout_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stdout_tid, &service->rotate_stdout_online, service->timestamp_log, service->stdout_copy_and_truncate);
       if (! service->stdout_thread) {
         CloseHandle(service->stdout_pipe);
         CloseHandle(service->stdout_si);
@@ -360,7 +364,7 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
 
       if (service->use_stderr_pipe) {
         service->stderr_pipe = si->hStdError = 0;
-        service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &service->stderr_si, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stderr_tid, &service->rotate_stderr_online, service->stderr_copy_and_truncate);
+        service->stderr_thread = create_logging_thread(service->name, service->stderr_path, service->stderr_sharing, service->stderr_disposition, service->stderr_flags, &service->stderr_pipe, &service->stderr_si, &stderr_handle, service->rotate_bytes_low, service->rotate_bytes_high, service->rotate_delay, &service->stderr_tid, &service->rotate_stderr_online, service->timestamp_log, service->stderr_copy_and_truncate);
         if (! service->stderr_thread) {
           CloseHandle(service->stderr_pipe);
           CloseHandle(service->stderr_si);
@@ -533,6 +537,69 @@ complain_write:
   return ret;
 }
 
+/* Note that the timestamp is created in UTF-8. */
+static inline int write_timestamp(logger_t *logger, unsigned long charsize, unsigned long *out, int *complained) {
+  char timestamp[TIMESTAMP_LEN + 1];
+
+  SYSTEMTIME now;
+  GetSystemTime(&now);
+  _snprintf_s(timestamp, _countof(timestamp), _TRUNCATE, TIMESTAMP_FORMAT, now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds);
+
+  if (charsize == sizeof(char)) return try_write(logger, (void *) timestamp, TIMESTAMP_LEN, out, complained);
+
+  wchar_t *utf16;
+  unsigned long utf16len;
+  if (to_utf16(timestamp, &utf16, &utf16len)) return -1;
+  int ret = try_write(logger, (void *) *utf16, utf16len * sizeof(wchar_t), out, complained);
+  HeapFree(GetProcessHeap(), 0, utf16);
+  return ret;
+}
+
+static int write_with_timestamp(logger_t *logger, void *address, unsigned long bufsize, unsigned long *out, int *complained, unsigned long charsize) {
+  if (logger->timestamp_log) {
+    unsigned long log_out;
+    int log_complained;
+    unsigned long timestamp_out = 0;
+    int timestamp_complained;
+    if (! logger->line_length) {
+      write_timestamp(logger, charsize, &timestamp_out, &timestamp_complained);
+      logger->line_length += (__int64) timestamp_out;
+      *out += timestamp_out;
+      *complained |= timestamp_complained;
+    }
+
+    unsigned long i;
+    void *line = address;
+    unsigned long offset = 0;
+    int ret;
+    for (i = 0; i < bufsize; i++) {
+      if (((char *) address)[i] == '\n') {
+        ret = try_write(logger, line, i - offset + 1, &log_out, &log_complained);
+        line = (void *) ((char *) line + i - offset + 1);
+        logger->line_length = 0LL;
+        *out += log_out;
+        *complained |= log_complained;
+        offset = i + 1;
+        if (offset < bufsize) {
+          write_timestamp(logger, charsize, &timestamp_out, &timestamp_complained);
+          logger->line_length += (__int64) timestamp_out;
+          *out += timestamp_out;
+          *complained |= timestamp_complained;
+        }
+      }
+    }
+
+    if (offset < bufsize) {
+      ret = try_write(logger, line, bufsize - offset, &log_out, &log_complained);
+      *out += log_out;
+      *complained |= log_complained;
+    }
+
+    return ret;
+  }
+  else return try_write(logger, address, bufsize, out, complained);
+}
+
 /* Wrapper to be called in a new thread for logging. */
 unsigned long WINAPI log_and_rotate(void *arg) {
   logger_t *logger = (logger_t *) arg;
@@ -650,9 +717,9 @@ unsigned long WINAPI log_and_rotate(void *arg) {
       }
     }
 
+    if (! size || logger->timestamp_log) if (! charsize) charsize = guess_charsize(address, in);
     if (! size) {
       /* Write a BOM to the new file. */
-      if (! charsize) charsize = guess_charsize(address, in);
       if (charsize == sizeof(wchar_t)) write_bom(logger, &out);
       size += (__int64) out;
     }
@@ -660,7 +727,7 @@ unsigned long WINAPI log_and_rotate(void *arg) {
     /* Write the data, if any. */
     if (! in) continue;
 
-    ret = try_write(logger, address, in, &out, &complained);
+    ret = write_with_timestamp(logger, address, in, &out, &complained, charsize);
     size += (__int64) out;
     if (ret < 0) {
       close_handle(&logger->read_handle);

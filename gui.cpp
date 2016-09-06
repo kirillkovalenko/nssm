@@ -180,6 +180,7 @@ int nssm_gui(int resource, nssm_service_t *service) {
     SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDIN, service->stdin_path);
     SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDOUT, service->stdout_path);
     SetDlgItemText(tablist[NSSM_TAB_IO], IDC_STDERR, service->stderr_path);
+    if (service->timestamp_log) SendDlgItemMessage(tablist[NSSM_TAB_IO], IDC_TIMESTAMP, BM_SETCHECK, BST_CHECKED, 0);
 
     /* Rotation tab. */
     if (service->stdout_disposition == CREATE_ALWAYS) SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_SETCHECK, BST_CHECKED, 0);
@@ -676,6 +677,8 @@ int configure(HWND window, nssm_service_t *service, nssm_service_t *orig_service
   check_io(window, _T("stdin"), service->stdin_path, _countof(service->stdin_path), IDC_STDIN);
   check_io(window, _T("stdout"), service->stdout_path, _countof(service->stdout_path), IDC_STDOUT);
   check_io(window, _T("stderr"), service->stderr_path, _countof(service->stderr_path), IDC_STDERR);
+  if (SendDlgItemMessage(tablist[NSSM_TAB_IO], IDC_TIMESTAMP, BM_GETCHECK, 0, 0) & BST_CHECKED) service->timestamp_log = true;
+  else service->timestamp_log = false;
 
   /* Override stdout and/or stderr. */
   if (SendDlgItemMessage(tablist[NSSM_TAB_ROTATION], IDC_TRUNCATE, BM_GETCHECK, 0, 0) & BST_CHECKED) {
@@ -1247,6 +1250,9 @@ INT_PTR CALLBACK nssm_dlg(HWND window, UINT message, WPARAM w, LPARAM l) {
       SendMessage(tabs, TCM_INSERTITEM, NSSM_TAB_IO, (LPARAM) &tab);
       tablist[NSSM_TAB_IO] = dialog(MAKEINTRESOURCE(IDD_IO), window, tab_dlg);
       ShowWindow(tablist[NSSM_TAB_IO], SW_HIDE);
+
+      /* Set defaults. */
+      SendDlgItemMessage(tablist[NSSM_TAB_IO], IDC_TIMESTAMP, BM_SETCHECK, BST_UNCHECKED, 0);
 
       /* Rotation tab. */
       tab.pszText = message_string(NSSM_GUI_TAB_ROTATION);

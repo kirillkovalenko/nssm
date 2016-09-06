@@ -166,6 +166,8 @@ int create_parameters(nssm_service_t *service, bool editing) {
     if (service->stderr_copy_and_truncate) set_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_COPY_AND_TRUNCATE, 1);
     else if (editing) delete_createfile_parameter(key, NSSM_REG_STDERR, NSSM_REG_STDIO_COPY_AND_TRUNCATE);
   }
+  if (service->timestamp_log) set_number(key, NSSM_REG_TIMESTAMP_LOG, 1);
+  else if (editing) RegDeleteValue(key, NSSM_REG_TIMESTAMP_LOG);
   if (service->hook_share_output_handles) set_number(key, NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES, 1);
   else if (editing) RegDeleteValue(key, NSSM_REG_HOOK_SHARE_OUTPUT_HANDLES);
   if (service->rotate_files) set_number(key, NSSM_REG_ROTATE, 1);
@@ -828,9 +830,17 @@ int get_parameters(nssm_service_t *service, STARTUPINFO *si) {
     else service->rotate_stdout_online = service->rotate_stderr_online = false;
   }
   else service->rotate_stdout_online = service->rotate_stderr_online = false;
+  /* Log timestamping requires a logging thread.*/
+  unsigned long timestamp_log;
+  if (get_number(key, NSSM_REG_TIMESTAMP_LOG, &timestamp_log, false) == 1) {
+    if (timestamp_log) service->timestamp_log = true;
+    else service->timestamp_log = false;
+  }
+  else service->timestamp_log = false;
+
   /* Hook I/O sharing and online rotation need a pipe. */
-  service->use_stdout_pipe = service->rotate_stdout_online || hook_share_output_handles;
-  service->use_stderr_pipe = service->rotate_stderr_online || hook_share_output_handles;
+  service->use_stdout_pipe = service->rotate_stdout_online || service->timestamp_log || hook_share_output_handles;
+  service->use_stderr_pipe = service->rotate_stderr_online || service->timestamp_log || hook_share_output_handles;
   if (get_number(key, NSSM_REG_ROTATE_SECONDS, &service->rotate_seconds, false) != 1) service->rotate_seconds = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_LOW, &service->rotate_bytes_low, false) != 1) service->rotate_bytes_low = 0;
   if (get_number(key, NSSM_REG_ROTATE_BYTES_HIGH, &service->rotate_bytes_high, false) != 1) service->rotate_bytes_high = 0;

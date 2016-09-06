@@ -77,6 +77,7 @@ typedef struct {
   unsigned long stderr_tid;
   bool hook_share_output_handles;
   bool rotate_files;
+  bool timestamp_log;
   bool stdout_copy_and_truncate;
   bool stderr_copy_and_truncate;
   unsigned long rotate_stdout_online;

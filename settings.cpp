@@ -1435,6 +1435,7 @@ settings_t settings[] = {
   { NSSM_REG_ROTATE_BYTES_LOW, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
   { NSSM_REG_ROTATE_BYTES_HIGH, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
   { NSSM_REG_ROTATE_DELAY, REG_DWORD, (void *) NSSM_ROTATE_DELAY, false, 0, setting_set_number, setting_get_number, 0 },
+  { NSSM_REG_TIMESTAMP_LOG, REG_DWORD, 0, false, 0, setting_set_number, setting_get_number, 0 },
   { NSSM_NATIVE_DEPENDONGROUP, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependongroup, native_get_dependongroup, native_dump_dependongroup },
   { NSSM_NATIVE_DEPENDONSERVICE, REG_MULTI_SZ, NULL, true, ADDITIONAL_CRLF, native_set_dependonservice, native_get_dependonservice, native_dump_dependonservice },
   { NSSM_NATIVE_DESCRIPTION, REG_SZ, _T(""), true, 0, native_set_description, native_get_description, 0 },

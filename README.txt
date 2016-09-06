@@ -371,6 +371,21 @@ error-prone than simply redirecting the I/O streams before launching the
 application.  Therefore online rotation is not enabled by default.
 
 
+Timestamping output
+-------------------
+When redirecting output, NSSM can prefix each line of output with a
+millisecond-precision timestamp, for example:
+
+    2016-09-06 10:17:09.451 Pipeline main started
+
+To enable timestamp prefixing, set AppTimestampLog to a non-zero value.
+
+The prefix applies to both stdout and stderr.  Prefixing requires
+intercepting the application's I/O in the same way that online rotation
+does.  If log rotation and timestamp prefixing are both enabled, the
+rotation will be online.
+
+
 Environment variables
 ---------------------
 NSSM can replace or append to the managed application's environment.  Two
@@ -1006,6 +1021,7 @@ Thanks to Nabil Redmann for suggesting redirecting hooks' output.
 Thanks to Bader Aldurai for suggesting the process tree.
 Thanks to Christian Long for suggesting virtual accounts.
 Thanks to Marcin Lewandowski for spotting a bug appending to large files.
+Thanks to Nicolas Ducrocq for suggesting timestamping redirected output.
 
 Licence
 -------
