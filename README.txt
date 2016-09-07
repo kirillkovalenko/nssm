@@ -572,6 +572,10 @@ resumes from standby by setting AppEvents\Power\Resume to:
 
     %NSSM_EXE% restart %NSSM_SERVICE_NAME%
 
+To set a hook on the command line, use
+
+    nssm set <servicename> AppEvents <event>/<action> <command>
+
 Note that NSSM will abort the startup of the application if a Start/Pre hook
 returns exit code of 99.
 
