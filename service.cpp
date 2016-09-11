@@ -359,29 +359,29 @@ SC_HANDLE open_service(SC_HANDLE services, TCHAR *service_name, unsigned long ac
 
   unsigned long bufsize, required, count, i;
   unsigned long resume = 0;
-  EnumServicesStatus(services, SERVICE_DRIVER | SERVICE_FILE_SYSTEM_DRIVER | SERVICE_KERNEL_DRIVER | SERVICE_WIN32, SERVICE_STATE_ALL, 0, 0, &required, &count, &resume);
+  EnumServicesStatusEx(services, SC_ENUM_PROCESS_INFO, SERVICE_DRIVER | SERVICE_FILE_SYSTEM_DRIVER | SERVICE_KERNEL_DRIVER | SERVICE_WIN32, SERVICE_STATE_ALL, 0, 0, &required, &count, &resume, 0);
   error = GetLastError();
   if (error != ERROR_MORE_DATA) {
     print_message(stderr, NSSM_MESSAGE_ENUMSERVICESSTATUS_FAILED, error_string(GetLastError()));
     return 0;
   }
 
-  ENUM_SERVICE_STATUS *status = (ENUM_SERVICE_STATUS *) HeapAlloc(GetProcessHeap(), 0, required);
+  ENUM_SERVICE_STATUS_PROCESS *status = (ENUM_SERVICE_STATUS_PROCESS *) HeapAlloc(GetProcessHeap(), 0, required);
   if (! status) {
-    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("ENUM_SERVICE_STATUS"), _T("open_service()"));
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("ENUM_SERVICE_STATUS_PROCESS"), _T("open_service()"));
     return 0;
   }
 
   bufsize = required;
   while (true) {
     /*
-      EnumServicesStatus() returns:
+      EnumServicesStatusEx() returns:
       1 when it retrieved data and there's no more data to come.
       0 and sets last error to ERROR_MORE_DATA when it retrieved data and
         there's more data to come.
       0 and sets last error to something else on error.
     */
-    int ret = EnumServicesStatus(services, SERVICE_DRIVER | SERVICE_FILE_SYSTEM_DRIVER | SERVICE_KERNEL_DRIVER | SERVICE_WIN32, SERVICE_STATE_ALL, status, bufsize, &required, &count, &resume);
+    int ret = EnumServicesStatusEx(services, SC_ENUM_PROCESS_INFO, SERVICE_DRIVER | SERVICE_FILE_SYSTEM_DRIVER | SERVICE_KERNEL_DRIVER | SERVICE_WIN32, SERVICE_STATE_ALL, (LPBYTE) status, bufsize, &required, &count, &resume, 0);
     if (! ret) {
       error = GetLastError();
       if (error != ERROR_MORE_DATA) {
@@ -2275,22 +2275,22 @@ int list_nssm_services(int argc, TCHAR **argv) {
 
   unsigned long bufsize, required, count, i;
   unsigned long resume = 0;
-  EnumServicesStatus(services, SERVICE_WIN32, SERVICE_STATE_ALL, 0, 0, &required, &count, &resume);
+  EnumServicesStatusEx(services, SC_ENUM_PROCESS_INFO, SERVICE_WIN32, SERVICE_STATE_ALL, 0, 0, &required, &count, &resume, 0);
   unsigned long error = GetLastError();
   if (error != ERROR_MORE_DATA) {
     print_message(stderr, NSSM_MESSAGE_ENUMSERVICESSTATUS_FAILED, error_string(GetLastError()));
     return 2;
   }
 
-  ENUM_SERVICE_STATUS *status = (ENUM_SERVICE_STATUS *) HeapAlloc(GetProcessHeap(), 0, required);
+  ENUM_SERVICE_STATUS_PROCESS *status = (ENUM_SERVICE_STATUS_PROCESS *) HeapAlloc(GetProcessHeap(), 0, required);
   if (! status) {
-    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("ENUM_SERVICE_STATUS"), _T("list_nssm_services()"));
+    print_message(stderr, NSSM_MESSAGE_OUT_OF_MEMORY, _T("ENUM_SERVICE_STATUS_PROCESS"), _T("list_nssm_services()"));
     return 3;
   }
 
   bufsize = required;
   while (true) {
-    int ret = EnumServicesStatus(services, SERVICE_WIN32, SERVICE_STATE_ALL, status, bufsize, &required, &count, &resume);
+    int ret = EnumServicesStatusEx(services, SC_ENUM_PROCESS_INFO, SERVICE_WIN32, SERVICE_STATE_ALL, (LPBYTE) status, bufsize, &required, &count, &resume, 0);
     if (! ret) {
       error = GetLastError();
       if (error != ERROR_MORE_DATA) {

@@ -1042,6 +1042,7 @@ Thanks to Marcin Lewandowski for spotting a bug appending to large files.
 Thanks to Nicolas Ducrocq for suggesting timestamping redirected output.
 Thanks to Meang Akira Tanaka for suggestion and initial implementation of
 the statuscode command.
+Thanks to Kirill Kovalenko for reporting a crash with NANO server.
 
 Licence
 -------
