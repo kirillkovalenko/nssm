@@ -1043,6 +1043,7 @@ Thanks to Nicolas Ducrocq for suggesting timestamping redirected output.
 Thanks to Meang Akira Tanaka for suggestion and initial implementation of
 the statuscode command.
 Thanks to Kirill Kovalenko for reporting a crash with NANO server.
+Thanks to Connor Reynolds for spotting a potential buffer overflow.
 
 Licence
 -------
