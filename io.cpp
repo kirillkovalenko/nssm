@@ -305,6 +305,7 @@ void rotate_file(TCHAR *service_name, TCHAR *path, unsigned long seconds, unsign
 
 int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
   if (! si) return 1;
+  bool inherit_handles = false;
 
   /* Allocate a new console so we get a fresh stdin, stdout and stderr. */
   alloc_console(service);
@@ -316,6 +317,8 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
       log_event(EVENTLOG_ERROR_TYPE, NSSM_EVENT_CREATEFILE_FAILED, service->stdin_path, error_string(GetLastError()), 0);
       return 2;
     }
+
+    inherit_handles = true;
   }
 
   /* stdout */
@@ -341,6 +344,8 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
     }
 
     if (dup_handle(service->stdout_si, &si->hStdOutput, _T("stdout_si"), _T("stdout"))) close_handle(&service->stdout_thread);
+
+    inherit_handles = true;
   }
 
   /* stderr */
@@ -379,26 +384,15 @@ int get_output_handles(nssm_service_t *service, STARTUPINFO *si) {
     }
 
     if (dup_handle(service->stderr_si, &si->hStdError, _T("stderr_si"), _T("stderr"))) close_handle(&service->stderr_thread);
+
+    inherit_handles = true;
   }
 
   /*
     We need to set the startup_info flags to make the new handles
     inheritable by the new process.
   */
-  si->dwFlags |= STARTF_USESTDHANDLES;
-
-  if (service->no_console) return 0;
-
-  /* Redirect other handles. */
-  if (! si->hStdInput) {
-    if (dup_handle(GetStdHandle(STD_INPUT_HANDLE), &si->hStdInput, _T("STD_INPUT_HANDLE"), _T("stdin"))) return 8;
-  }
-  if (! si->hStdOutput) {
-    if (dup_handle(GetStdHandle(STD_OUTPUT_HANDLE), &si->hStdOutput, _T("STD_OUTPUT_HANDLE"), _T("stdout"))) return 9;
-  }
-  if (! si->hStdError)  {
-    if (dup_handle(GetStdHandle(STD_ERROR_HANDLE), &si->hStdError, _T("STD_ERROR_HANDLE"), _T("stderr"))) return 10;
-  }
+  if (inherit_handles) si->dwFlags |= STARTF_USESTDHANDLES;
 
   return 0;
 }
