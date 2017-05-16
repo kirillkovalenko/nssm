@@ -223,7 +223,7 @@ static int elevate(int argc, TCHAR **argv, unsigned long message) {
 int num_cpus() {
   DWORD_PTR i, affinity, system_affinity;
   if (! GetProcessAffinityMask(GetCurrentProcess(), &affinity, &system_affinity)) return 64;
-  for (i = 0; system_affinity & (1LL << i); i++);
+  for (i = 0; system_affinity & (1LL << i); i++) if (i == 64) break;
   return (int) i;
 }
 
