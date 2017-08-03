@@ -924,7 +924,7 @@ void browse(HWND window, TCHAR *current, unsigned long flags, ...) {
     va_start(arg, flags);
     while (i = va_arg(arg, int)) {
       TCHAR *localised = message_string(i);
-      _sntprintf_s((TCHAR *) ofn.lpstrFilter + len, bufsize, _TRUNCATE, localised);
+      _sntprintf_s((TCHAR *) ofn.lpstrFilter + len, bufsize - len, _TRUNCATE, localised);
       len += _tcslen(localised) + 1;
       LocalFree(localised);
       TCHAR *filter = browse_filter(i);
